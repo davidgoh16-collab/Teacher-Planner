@@ -1,7 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { WeeklyTimetable } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const getAiClient = () => {
+  const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  return new GoogleGenAI({ apiKey });
+};
 
 const DAY_SCHEMA = {
   type: Type.OBJECT,
@@ -143,6 +146,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
       Assign a colorClass based on the subject (e.g., Math=blue, English=yellow, Science=green, etc.). Use Tailwind classes like "bg-blue-100 text-blue-800".
     `;
 
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-3.1-pro-preview",
       contents: {

@@ -33,4 +33,6 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Start script
 COPY start-nginx.sh /start-nginx.sh
+RUN chmod +x /start-nginx.sh
+
 CMD ["/start-nginx.sh"]

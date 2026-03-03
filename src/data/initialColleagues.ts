@@ -1,4 +1,4 @@
-import { Colleague, WeeklyTimetable } from '../types';
+import { Colleague, WeeklyTimetable } from '../../types';
 
 const createEntry = (subject: string, room: string = '', colorClass: string = 'bg-gray-100 text-gray-800') => ({
   subject,
