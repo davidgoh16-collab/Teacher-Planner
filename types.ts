@@ -1,3 +1,11 @@
+declare global {
+  interface Window {
+    ENV?: {
+      VITE_GEMINI_API_KEY?: string;
+    };
+  }
+}
+
 export type WeekType = 1 | 2;
 
 export interface LessonPlan {
