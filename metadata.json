@@ -1,0 +1,7 @@
+{
+  "name": "Teacher Planner",
+  "description": "A comprehensive teacher planner for the 2025/2026 academic year, featuring Week 1/2 timetable toggling, lesson planning with links, and term categorization.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
