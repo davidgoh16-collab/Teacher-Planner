@@ -10,11 +10,11 @@ RUN npm install
 # Copy the rest of the app's source code
 COPY . .
 
-# Accept GEMINI_API_KEY as an argument at build time
-ARG GEMINI_API_KEY
+# Accept VITE_GEMINI_API_KEY as an argument at build time
+ARG VITE_GEMINI_API_KEY
 
 # Set it as an environment variable so Vite can pick it up
-ENV GEMINI_API_KEY=$GEMINI_API_KEY
+ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
 
 # Build the application
 RUN npm run build
