@@ -383,7 +383,7 @@ const App: React.FC = () => {
     try {
       if (!currentWeekData) throw new Error("No active week data");
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       // Build context about the current week's timetable
       const timetable = currentWeekData.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
