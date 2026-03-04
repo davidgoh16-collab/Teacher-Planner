@@ -15,7 +15,9 @@ import {
     MoreVertical,
     Check,
     X,
-    FolderKanban
+    FolderKanban,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 
 interface ProjectViewProps {
@@ -44,15 +46,29 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     // Edit Settings State
     const [editDesc, setEditDesc] = useState(project.description || '');
     const [editBgColor, setEditBgColor] = useState(project.colorClass || BACKGROUND_COLORS[0].class);
+    const [editCategory, setEditCategory] = useState(project.categoryId || '');
 
     // New Link State
     const [isAddingLink, setIsAddingLink] = useState(false);
     const [newLinkUrl, setNewLinkUrl] = useState('');
     const [newLinkName, setNewLinkName] = useState('');
 
+    // Task Expansion State
+    const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+
+    // New Subtask State
+    const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
+    const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+    const [newSubtaskDescription, setNewSubtaskDescription] = useState('');
+    const [newSubtaskPriority, setNewSubtaskPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
+    const [newSubtaskCategory, setNewSubtaskCategory] = useState('');
+    const [newSubtaskScheduled, setNewSubtaskScheduled] = useState('');
+    const [newSubtaskDeadline, setNewSubtaskDeadline] = useState('');
+
     // New Task State
     const [isAddingTask, setIsAddingTask] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDescription, setNewTaskDescription] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
     const [newTaskCategory, setNewTaskCategory] = useState('');
     const [newTaskScheduled, setNewTaskScheduled] = useState('');
@@ -63,9 +79,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // --- Handlers ---
 
+    const toggleTaskExpansion = (taskId: string) => {
+        setExpandedTasks(prev => {
+            const next = new Set(prev);
+            if (next.has(taskId)) {
+                next.delete(taskId);
+            } else {
+                next.add(taskId);
+            }
+            return next;
+        });
+    };
+
     const handleSaveSettings = async () => {
         if (isReadOnly) return;
-        const updated = { ...project, description: editDesc, colorClass: editBgColor };
+        const updated = { ...project, description: editDesc, colorClass: editBgColor, categoryId: editCategory || undefined };
         try {
             await saveProject(updated);
             onUpdateProject(updated);
@@ -116,11 +144,13 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             projectId: project.id,
             title: newTaskTitle.trim(),
+            description: newTaskDescription.trim() || undefined,
             status: 'Uncompleted',
             priority: newTaskPriority,
             categoryId: newTaskCategory || undefined,
             scheduledDateStr: newTaskScheduled || undefined,
-            deadlineDateStr: newTaskDeadline || undefined
+            deadlineDateStr: newTaskDeadline || undefined,
+            subtasks: []
         };
 
         try {
@@ -129,6 +159,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             setIsAddingTask(false);
             // Reset form
             setNewTaskTitle('');
+            setNewTaskDescription('');
             setNewTaskPriority('Medium');
             setNewTaskCategory('');
             setNewTaskScheduled('');
@@ -170,6 +201,85 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 console.error(e);
                 alert("Failed to delete task.");
             }
+        }
+    };
+
+    const handleAddSubtask = async (e: React.FormEvent, parentTask: Task) => {
+        e.preventDefault();
+        if (isReadOnly || !newSubtaskTitle.trim()) return;
+
+        const subtask: Task = {
+            id: `subtask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            projectId: parentTask.projectId,
+            title: newSubtaskTitle.trim(),
+            description: newSubtaskDescription.trim() || undefined,
+            status: 'Uncompleted',
+            priority: newSubtaskPriority,
+            categoryId: newSubtaskCategory || undefined,
+            scheduledDateStr: newSubtaskScheduled || undefined,
+            deadlineDateStr: newSubtaskDeadline || undefined,
+        };
+
+        const currentSubtasks = parentTask.subtasks || [];
+        const updatedParent = {
+            ...parentTask,
+            subtasks: [...currentSubtasks, subtask]
+        };
+
+        try {
+            await saveTask(updatedParent);
+            setTasks(tasks.map(t => t.id === parentTask.id ? updatedParent : t));
+            setAddingSubtaskId(null);
+            setNewSubtaskTitle('');
+            setNewSubtaskDescription('');
+            setNewSubtaskPriority('Medium');
+            setNewSubtaskCategory('');
+            setNewSubtaskScheduled('');
+            setNewSubtaskDeadline('');
+        } catch (e) {
+            console.error(e);
+            alert("Failed to add subtask.");
+        }
+    };
+
+    const handleToggleSubtaskStatus = async (parentTask: Task, subtaskId: string) => {
+        if (isReadOnly) return;
+
+        const currentSubtasks = parentTask.subtasks || [];
+        const updatedSubtasks = currentSubtasks.map(st => {
+            if (st.id === subtaskId) {
+                const nextStatus: Task['status'] = st.status === 'Completed' ? 'Uncompleted' : 'Completed';
+                return { ...st, status: nextStatus };
+            }
+            return st;
+        });
+
+        const updatedParent = { ...parentTask, subtasks: updatedSubtasks };
+        setTasks(tasks.map(t => t.id === parentTask.id ? updatedParent : t));
+
+        try {
+            await saveTask(updatedParent);
+        } catch (e) {
+            console.error(e);
+            setTasks(tasks.map(t => t.id === parentTask.id ? parentTask : t)); // Revert
+        }
+    };
+
+    const handleDeleteSubtask = async (parentTask: Task, subtaskId: string) => {
+        if (isReadOnly) return;
+
+        const currentSubtasks = parentTask.subtasks || [];
+        const updatedSubtasks = currentSubtasks.filter(st => st.id !== subtaskId);
+        const updatedParent = { ...parentTask, subtasks: updatedSubtasks };
+
+        setTasks(tasks.map(t => t.id === parentTask.id ? updatedParent : t));
+
+        try {
+            await saveTask(updatedParent);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete subtask.");
+            setTasks(tasks.map(t => t.id === parentTask.id ? parentTask : t)); // Revert
         }
     };
 
@@ -267,6 +377,19 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[100px]"
                                         placeholder="Add notes or a description here..."
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                                    <select
+                                        value={editCategory}
+                                        onChange={(e) => setEditCategory(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    >
+                                        <option value="">No Category</option>
+                                        {allCategories.filter(c => c.type === 'project').map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Background Color</label>
@@ -420,6 +543,15 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                             className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description / Notes</label>
+                                        <textarea
+                                            value={newTaskDescription}
+                                            onChange={(e) => setNewTaskDescription(e.target.value)}
+                                            placeholder="Add details, notes, or steps..."
+                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                                        />
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
@@ -466,22 +598,34 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 {tasks.map(task => {
                                     const cat = allCategories.find(c => c.id === task.categoryId);
                                     const isCompleted = task.status === 'Completed';
+                                    const isExpanded = expandedTasks.has(task.id);
+
+                                    const subtasks = task.subtasks || [];
+                                    const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+                                    const hasSubtasks = subtasks.length > 0;
 
                                     return (
-                                        <li key={task.id} className={`group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-start gap-4 ${isCompleted ? 'opacity-60' : ''}`}>
-                                            <button
-                                                onClick={() => handleToggleTaskStatus(task)}
-                                                disabled={isReadOnly}
-                                                className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
-                                            >
-                                                {getStatusIcon(task.status)}
-                                            </button>
+                                        <li key={task.id} className={`group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
+                                            <div className="flex items-start gap-4">
+                                                <button
+                                                    onClick={() => handleToggleTaskStatus(task)}
+                                                    disabled={isReadOnly}
+                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                >
+                                                    {getStatusIcon(task.status)}
+                                                </button>
 
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                    <h4 className={`font-semibold text-slate-900 dark:text-white text-sm md:text-base ${isCompleted ? 'line-through text-slate-500 dark:text-slate-400' : ''}`}>
-                                                        {task.title}
-                                                    </h4>
+                                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <h4 className={`font-semibold text-slate-900 dark:text-white text-sm md:text-base ${isCompleted ? 'line-through text-slate-500 dark:text-slate-400' : ''}`}>
+                                                            {task.title}
+                                                        </h4>
+
+                                                        {hasSubtasks && (
+                                                            <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
+                                                            </span>
+                                                        )}
                                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getPriorityColor(task.priority)}`}>
                                                         {task.priority}
                                                     </span>
@@ -502,13 +646,152 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                 </div>
                                             </div>
 
-                                            {!isReadOnly && (
-                                                <div className="shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => handleDeleteTask(task.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                            <div className="shrink-0 flex items-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleTaskExpansion(task.id); }} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                </button>
+                                                {!isReadOnly && (
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
                                                         <Trash2 size={16} />
                                                     </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="pl-10 pr-2 pb-2 mt-2 space-y-4 animate-in fade-in slide-in-from-top-2">
+                                                {task.description && (
+                                                    <div className="text-sm text-slate-600 dark:text-slate-400 bg-white/50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 whitespace-pre-wrap">
+                                                        {task.description}
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-2">
+                                                    {subtasks.length > 0 && (
+                                                        <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Subtasks</h5>
+                                                    )}
+                                                    {subtasks.map(st => {
+                                                        const stCat = allCategories.find(c => c.id === st.categoryId);
+                                                        return (
+                                                            <div key={st.id} className={`flex items-start gap-3 p-2 hover:bg-white dark:hover:bg-slate-900 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-colors group/subtask ${st.status === 'Completed' ? 'opacity-60' : ''}`}>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(task, st.id); }}
+                                                                    disabled={isReadOnly}
+                                                                    className="mt-0.5 shrink-0"
+                                                                >
+                                                                    {getStatusIcon(st.status)}
+                                                                </button>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                                        <span className={`text-sm font-medium ${st.status === 'Completed' ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                                            {st.title}
+                                                                        </span>
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getPriorityColor(st.priority)}`}>
+                                                                            {st.priority}
+                                                                        </span>
+                                                                        {stCat && (
+                                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${stCat.colorClass}`}>
+                                                                                {stCat.name}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {st.description && (
+                                                                        <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 whitespace-pre-wrap">
+                                                                            {st.description}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex flex-wrap gap-3 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                                                        {st.scheduledDateStr && (
+                                                                            <span className="flex items-center gap-1"><CalendarDays size={10} className="text-green-500"/> Scheduled: {new Date(st.scheduledDateStr).toLocaleDateString()}</span>
+                                                                        )}
+                                                                        {st.deadlineDateStr && (
+                                                                            <span className="flex items-center gap-1"><Clock size={10} className="text-red-500"/> Due: {new Date(st.deadlineDateStr).toLocaleDateString()}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                {!isReadOnly && (
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(task, st.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded opacity-0 group-hover/subtask:opacity-100 transition-opacity">
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {!isReadOnly && (
+                                                        <div className="mt-2">
+                                                            {addingSubtaskId === task.id ? (
+                                                                <form onSubmit={(e) => handleAddSubtask(e, task)} className="space-y-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                                                    <div>
+                                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Subtask Title *</label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={newSubtaskTitle}
+                                                                            onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                                                                            required
+                                                                            placeholder="What needs to be done?"
+                                                                            autoFocus
+                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description / Notes</label>
+                                                                        <textarea
+                                                                            value={newSubtaskDescription}
+                                                                            onChange={(e) => setNewSubtaskDescription(e.target.value)}
+                                                                            placeholder="Add details, notes, or steps..."
+                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[60px]"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                        <div>
+                                                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
+                                                                            <select value={newSubtaskPriority} onChange={(e) => setNewSubtaskPriority(e.target.value as any)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                                                                <option value="High">High Priority</option>
+                                                                                <option value="Medium">Medium Priority</option>
+                                                                                <option value="Low">Low Priority</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                                                                            <select value={newSubtaskCategory} onChange={(e) => setNewSubtaskCategory(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                                                                <option value="">None</option>
+                                                                                {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                                            </select>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Scheduled</label>
+                                                                            <input type="date" value={newSubtaskScheduled} onChange={(e) => setNewSubtaskScheduled(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Deadline</label>
+                                                                            <input type="date" value={newSubtaskDeadline} onChange={(e) => setNewSubtaskDeadline(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex justify-end gap-2 pt-2">
+                                                                        <button type="button" onClick={() => { setAddingSubtaskId(null); setNewSubtaskTitle(''); setNewSubtaskDescription(''); setNewSubtaskPriority('Medium'); setNewSubtaskCategory(''); setNewSubtaskScheduled(''); setNewSubtaskDeadline(''); }} className="text-slate-500 hover:text-slate-700 text-sm px-3 py-1.5 font-medium">Cancel</button>
+                                                                        <button type="submit" disabled={!newSubtaskTitle.trim()} className="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50">Save Subtask</button>
+                                                                    </div>
+                                                                </form>
+                                                            ) : (
+                                                                <button onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setAddingSubtaskId(task.id);
+                                                                    setNewSubtaskTitle('');
+                                                                    setNewSubtaskDescription('');
+                                                                    setNewSubtaskPriority('Medium');
+                                                                    setNewSubtaskCategory('');
+                                                                    setNewSubtaskScheduled('');
+                                                                    setNewSubtaskDeadline('');
+                                                                }} className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1 py-1">
+                                                                    <Plus size={14} /> Add Subtask
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
                                         </li>
                                     );
                                 })}

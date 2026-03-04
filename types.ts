@@ -79,6 +79,7 @@ export interface Task {
   scheduledDateStr?: string; // YYYY-MM-DD
   deadlineDateStr?: string; // YYYY-MM-DD
   assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
+  subtasks?: Task[]; // Nested subtasks
 }
 
 export interface Project {
