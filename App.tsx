@@ -29,8 +29,8 @@ import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask } from './services/projectService';
-import { Task } from './types';
+import { fetchTasks, saveTask, fetchProjects, saveProject } from './services/projectService';
+import { Task, Project } from './types';
 import { 
   ChevronDown, 
   Calendar, 
@@ -123,8 +123,9 @@ const App: React.FC = () => {
   const [viewFilter, setViewFilter] = useState('All');
   const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects'>('timetable');
 
-  // Global Tasks
+  // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
   const [lessonPlans, setLessonPlans] = useState<Record<string, LessonPlan>>({});
@@ -189,12 +190,14 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const [plans, tasks] = await Promise.all([
+        const [plans, tasks, projs] = await Promise.all([
             fetchLessonPlans(),
-            fetchTasks()
+            fetchTasks(),
+            fetchProjects()
         ]);
         setLessonPlans(plans);
         setGlobalTasks(tasks);
+        setProjects(projs);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -1070,9 +1073,27 @@ const App: React.FC = () => {
       <LiveAssistant 
         currentWeekData={currentWeekData}
         lessonPlans={lessonPlans}
+        globalTasks={globalTasks}
+        projects={projects}
         isAdmin={isAdmin}
         onUpdateLesson={handleSaveLesson}
         onAddRecurringLesson={handleBatchSaveLessons}
+        onSaveTask={async (task) => {
+          await saveTask(task);
+          setGlobalTasks(prev => {
+            const exists = prev.find(t => t.id === task.id);
+            if (exists) return prev.map(t => t.id === task.id ? task : t);
+            return [...prev, task];
+          });
+        }}
+        onSaveProject={async (project) => {
+          await saveProject(project);
+          setProjects(prev => {
+            const exists = prev.find(p => p.id === project.id);
+            if (exists) return prev.map(p => p.id === project.id ? project : p);
+            return [...prev, project];
+          });
+        }}
       />
     </div>
   );
