@@ -27,7 +27,10 @@ import ChatWidget, { ChatMessage } from './components/ChatWidget';
 import LiveAssistant from './components/LiveAssistant';
 import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
+import ProjectPlanner from './components/ProjectPlanner';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
+import { fetchTasks, saveTask } from './services/projectService';
+import { Task } from './types';
 import { 
   ChevronDown, 
   Calendar, 
@@ -118,7 +121,10 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings'>('timetable');
+  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects'>('timetable');
+
+  // Global Tasks
+  const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
   
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
   const [lessonPlans, setLessonPlans] = useState<Record<string, LessonPlan>>({});
@@ -180,18 +186,22 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     
-    const loadLessons = async () => {
+    const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const plans = await fetchLessonPlans();
+        const [plans, tasks] = await Promise.all([
+            fetchLessonPlans(),
+            fetchTasks()
+        ]);
         setLessonPlans(plans);
+        setGlobalTasks(tasks);
       } catch (e) {
-        console.error("Failed to load lessons from DB", e);
+        console.error("Failed to load data from DB", e);
       } finally {
         setIsDataLoading(false);
       }
     };
-    loadLessons();
+    loadData();
   }, [user]);
 
   // --- Theme Logic ---
@@ -314,6 +324,28 @@ const App: React.FC = () => {
     // Delete from DB
     await deleteLessonPlan(editingLessonKey);
     setIsModalOpen(false);
+  };
+
+  const toggleTaskCompletion = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    if (isReadOnly) return;
+
+    const task = globalTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted' : 'Completed';
+    const updated = { ...task, status: nextStatus };
+
+    // Optimistic Update
+    setGlobalTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+
+    try {
+        await saveTask(updated);
+    } catch (e) {
+        console.error(e);
+        // Revert
+        setGlobalTasks(prev => prev.map(t => t.id === taskId ? task : t));
+    }
   };
 
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
@@ -789,24 +821,30 @@ const App: React.FC = () => {
       {/* Main Grid Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Tab Bar */}
-        <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2 flex gap-4 shrink-0">
+        <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2 flex gap-4 shrink-0 overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setActiveTab('timetable')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'timetable' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'timetable' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               My Timetable
             </button>
             <button 
               onClick={() => setActiveTab('meetings')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'meetings' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'meetings' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Meeting Planner
             </button>
+            <button
+              onClick={() => setActiveTab('projects')}
+              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'projects' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+            >
+              Project Planner
+            </button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4 md:p-8">
+        <div className="flex-1 overflow-auto">
           {activeTab === 'timetable' ? (
-            <div className="min-w-[1600px] mx-auto">
+            <div className="min-w-[1600px] mx-auto md:p-8 p-4">
             
                 {/* Grid Header - Sticky Top */}
                 <div className="grid grid-cols-9 gap-4 sticky top-0 z-30 bg-gray-50/95 dark:bg-slate-950/95 backdrop-blur-sm py-2 pb-4 border-b border-gray-200/50 dark:border-slate-800/50">
@@ -842,10 +880,33 @@ const App: React.FC = () => {
                     return (
                         <div key={day} className="grid grid-cols-9 gap-4 group">
                         
-                        {/* Day Label Column - Sticky Left */}
-                        <div className="col-span-1 sticky left-0 z-20 flex flex-col justify-center bg-slate-200 dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-800 dark:group-hover:border-slate-700">
-                            <span className="text-lg font-bold text-slate-700 dark:text-slate-200">{day}</span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{formatDate(rowDate)}</span>
+                        {/* Day Label & Daily Tasks Column - Sticky Left */}
+                        <div className="col-span-1 sticky left-0 z-20 flex flex-col bg-slate-200 dark:bg-slate-900 rounded-lg p-3 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-800 dark:group-hover:border-slate-700 h-full overflow-hidden">
+                            <div className="flex flex-col justify-center text-center pb-2 mb-2 border-b border-slate-300 dark:border-slate-700 shrink-0">
+                                <span className="text-lg font-bold text-slate-700 dark:text-slate-200">{day}</span>
+                                <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{formatDate(rowDate)}</span>
+                            </div>
+
+                            {/* Daily Tasks List */}
+                            <div className="flex-1 overflow-y-auto no-scrollbar space-y-1.5 mt-1 pb-1">
+                                {(() => {
+                                    const dailyTasks = globalTasks.filter(t => t.scheduledDateStr === dateStr || t.deadlineDateStr === dateStr);
+                                    if (dailyTasks.length === 0) return null;
+                                    return dailyTasks.map(task => (
+                                        <div key={task.id} className="flex items-start gap-1.5 bg-white dark:bg-slate-800 p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
+                                            <button
+                                                onClick={(e) => toggleTaskCompletion(e, task.id)}
+                                                className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                                            >
+                                                <CheckCircle2 size={12} />
+                                            </button>
+                                            <span className={`font-medium line-clamp-2 leading-tight flex-1 ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                {task.title}
+                                            </span>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
                         </div>
 
                         {/* Period Columns */}
@@ -947,14 +1008,16 @@ const App: React.FC = () => {
                     })}
                 </div>
             </div>
-          ) : (
-            <div className="max-w-7xl mx-auto">
+          ) : activeTab === 'meetings' ? (
+            <div className="max-w-7xl mx-auto md:p-8 p-4">
               <MeetingPlanner 
                 initialWeekNumber={currentWeekData?.weekNumber || 1} 
                 userTimetableWeek1={TIMETABLE_WEEK_1}
                 userTimetableWeek2={TIMETABLE_WEEK_2}
               />
             </div>
+          ) : (
+            <ProjectPlanner isReadOnly={isReadOnly} />
           )}
         </div>
       </main>

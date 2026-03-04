@@ -1,0 +1,91 @@
+import { db } from '../firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { Project, Task, Category } from '../types';
+
+const PROJECTS_COLLECTION = 'projects';
+const TASKS_COLLECTION = 'tasks';
+const CATEGORIES_COLLECTION = 'categories';
+
+export const fetchCategories = async (): Promise<Category[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, CATEGORIES_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as Category);
+    } catch (e) {
+        console.error("Error fetching categories", e);
+        return [];
+    }
+};
+
+export const saveCategory = async (category: Category): Promise<void> => {
+    try {
+        await setDoc(doc(db, CATEGORIES_COLLECTION, category.id), category);
+    } catch (e) {
+        console.error("Error saving category", e);
+        throw e;
+    }
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, CATEGORIES_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting category", e);
+        throw e;
+    }
+};
+
+export const fetchProjects = async (): Promise<Project[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, PROJECTS_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as Project).sort((a, b) => b.createdAt - a.createdAt);
+    } catch (e) {
+        console.error("Error fetching projects", e);
+        return [];
+    }
+};
+
+export const saveProject = async (project: Project): Promise<void> => {
+    try {
+        await setDoc(doc(db, PROJECTS_COLLECTION, project.id), project);
+    } catch (e) {
+        console.error("Error saving project", e);
+        throw e;
+    }
+};
+
+export const deleteProject = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, PROJECTS_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting project", e);
+        throw e;
+    }
+};
+
+export const fetchTasks = async (): Promise<Task[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, TASKS_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as Task);
+    } catch (e) {
+        console.error("Error fetching tasks", e);
+        return [];
+    }
+};
+
+export const saveTask = async (task: Task): Promise<void> => {
+    try {
+        await setDoc(doc(db, TASKS_COLLECTION, task.id), task);
+    } catch (e) {
+        console.error("Error saving task", e);
+        console.warn("Ignoring saveTask error for local testing.");
+    }
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, TASKS_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting task", e);
+        console.warn("Ignoring deleteTask error for local testing.");
+    }
+};

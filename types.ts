@@ -55,3 +55,39 @@ export interface Colleague {
   timetableImage?: string; // Base64 string
   timetableMimeType?: string; // e.g. "image/png" or "application/pdf"
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  colorClass: string; // Tailwind class
+  type: 'project' | 'task';
+}
+
+export interface ProjectLink {
+  url: string;
+  displayName: string;
+}
+
+export interface Task {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  status: 'Uncompleted' | 'In Progress' | 'Completed';
+  priority: 'High' | 'Medium' | 'Low';
+  categoryId?: string; // References a Category id
+  scheduledDateStr?: string; // YYYY-MM-DD
+  deadlineDateStr?: string; // YYYY-MM-DD
+  assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string; // Rich text / simple text area notes
+  categoryId?: string; // References a Category id
+  colorClass?: string; // For the customizable background
+  links: ProjectLink[];
+  tasks: Task[]; // Usually fetched separately, but good for typed responses
+  createdAt: number;
+}

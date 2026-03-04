@@ -1,0 +1,339 @@
+import React, { useMemo, useState } from 'react';
+import { Task, Project, Category } from '../types';
+import {
+    CheckCircle2,
+    Circle,
+    Clock,
+    CalendarDays,
+    Calendar,
+    Search,
+    Filter
+} from 'lucide-react';
+import { saveTask } from '../services/projectService';
+
+interface GlobalTasksViewProps {
+    allTasks: Task[];
+    projects: Project[];
+    categories: Category[];
+    isReadOnly: boolean;
+    onTaskUpdate: () => void;
+}
+
+type ViewMode = 'list' | 'timeline' | 'matrix';
+
+export default function GlobalTasksView({ allTasks, projects, categories, isReadOnly, onTaskUpdate }: GlobalTasksViewProps) {
+    const [viewMode, setViewMode] = useState<ViewMode>('matrix');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterProject, setFilterProject] = useState<string>('All');
+    const [filterCategory, setFilterCategory] = useState<string>('All');
+
+    const projectCategories = categories.filter(c => c.type === 'project');
+    const taskCategories = categories.filter(c => c.type === 'task');
+
+    // Derived Data & Filtering
+    const filteredTasks = useMemo(() => {
+        return allTasks.filter(t => {
+            const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesProj = filterProject === 'All' || t.projectId === filterProject;
+            const matchesCat = filterCategory === 'All' || t.categoryId === filterCategory;
+            return matchesSearch && matchesProj && matchesCat;
+        });
+    }, [allTasks, searchQuery, filterProject, filterCategory]);
+
+    // Helpers
+    const getProjectName = (projectId: string) => {
+        const p = projects.find(p => p.id === projectId);
+        return p ? p.name : 'Unknown Project';
+    };
+
+    const getCategoryDetails = (catId?: string) => {
+        return categories.find(c => c.id === catId);
+    };
+
+    const handleToggleStatus = async (task: Task) => {
+        if (isReadOnly) return;
+        const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted'
+                         : task.status === 'Uncompleted' ? 'In Progress'
+                         : 'Completed';
+
+        const updated = { ...task, status: nextStatus };
+        try {
+            await saveTask(updated);
+            onTaskUpdate();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update task.");
+        }
+    };
+
+    const getPriorityColor = (priority: string) => {
+        switch (priority) {
+            case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800/50';
+            case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
+            case 'Low': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800/50';
+            default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'Completed': return <CheckCircle2 size={16} className="text-green-500" />;
+            case 'In Progress': return <Clock size={16} className="text-amber-500" />;
+            default: return <Circle size={16} className="text-slate-300 dark:text-slate-600" />;
+        }
+    };
+
+    // Sub-Views
+
+    const renderMatrixView = () => {
+        // Eisenhower Matrix logic
+        // Y-Axis: Importance (Priority)
+        // X-Axis: Urgency (Dates)
+        // For simplicity:
+        // Quadrant 1 (Do First): Urgent & Important (High Priority + Deadline soon/passed)
+        // Quadrant 2 (Schedule): Not Urgent & Important (High Priority + No deadline or far future)
+        // Quadrant 3 (Delegate): Urgent & Not Important (Med/Low Priority + Deadline soon)
+        // Quadrant 4 (Don't Do): Not Urgent & Not Important (Med/Low Priority + No deadline)
+
+        const isUrgent = (task: Task) => {
+            if (!task.deadlineDateStr && !task.scheduledDateStr) return false;
+            const targetDate = task.deadlineDateStr ? new Date(task.deadlineDateStr) : new Date(task.scheduledDateStr!);
+            const now = new Date();
+            const daysDiff = (targetDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+            return daysDiff <= 7; // Urgent if due within 7 days
+        };
+
+        const q1 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
+        const q2 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
+        const q3 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
+        const q4 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+
+        const TaskCard = ({ task }: { task: Task }) => {
+            const cat = getCategoryDetails(task.categoryId);
+            return (
+                <div className={`p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2`}>
+                    <div className="flex justify-between items-start gap-2">
+                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                            {getStatusIcon(task.status)}
+                        </button>
+                        <span className="font-semibold text-sm flex-1 leading-tight text-slate-800 dark:text-slate-100">{task.title}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 text-[10px] mt-auto">
+                        <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={getProjectName(task.projectId)}>
+                            {getProjectName(task.projectId)}
+                        </span>
+                        {cat && (
+                            <span className={`px-1.5 py-0.5 rounded border ${cat.colorClass}`}>
+                                {cat.name}
+                            </span>
+                        )}
+                        {(task.deadlineDateStr || task.scheduledDateStr) && (
+                            <span className={`px-1.5 py-0.5 rounded flex items-center gap-1 ${isUrgent(task) ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/30 dark:border-red-800' : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-700'}`}>
+                                <CalendarDays size={10} />
+                                {task.deadlineDateStr ? new Date(task.deadlineDateStr).toLocaleDateString() : new Date(task.scheduledDateStr!).toLocaleDateString()}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full min-h-[600px]">
+                {/* Q1: Do */}
+                <div className="bg-red-50/50 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 flex flex-col">
+                    <h3 className="font-bold text-red-800 dark:text-red-400 mb-4 flex items-center justify-between">
+                        <span>Do First (Urgent & Important)</span>
+                        <span className="bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 px-2 py-0.5 rounded-full text-xs">{q1.length}</span>
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                        {q1.length === 0 ? <p className="text-sm italic text-red-400/60 text-center mt-10">No urgent high-priority tasks.</p> : q1.map(t => <TaskCard key={t.id} task={t} />)}
+                    </div>
+                </div>
+
+                {/* Q2: Schedule */}
+                <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-4 border border-blue-100 dark:border-blue-900/30 flex flex-col">
+                    <h3 className="font-bold text-blue-800 dark:text-blue-400 mb-4 flex items-center justify-between">
+                        <span>Schedule (Important, Not Urgent)</span>
+                        <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                        {q2.length === 0 ? <p className="text-sm italic text-blue-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
+                    </div>
+                </div>
+
+                {/* Q3: Delegate */}
+                <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-100 dark:border-amber-900/30 flex flex-col">
+                    <h3 className="font-bold text-amber-800 dark:text-amber-400 mb-4 flex items-center justify-between">
+                        <span>Delegate / Monitor (Urgent, Less Important)</span>
+                        <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-xs">{q3.length}</span>
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                        {q3.length === 0 ? <p className="text-sm italic text-amber-400/60 text-center mt-10">No urgent lower-priority tasks.</p> : q3.map(t => <TaskCard key={t.id} task={t} />)}
+                    </div>
+                </div>
+
+                {/* Q4: Eliminate / Later */}
+                <div className="bg-slate-100/50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex flex-col">
+                    <h3 className="font-bold text-slate-600 dark:text-slate-400 mb-4 flex items-center justify-between">
+                        <span>Do Later / Drop (Not Urgent, Less Important)</span>
+                        <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">{q4.length}</span>
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                        {q4.length === 0 ? <p className="text-sm italic text-slate-400/60 text-center mt-10">No background tasks.</p> : q4.map(t => <TaskCard key={t.id} task={t} />)}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderTimelineView = () => {
+        // Sort tasks by date (earliest first), put tasks without dates at the bottom
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
+            const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+            const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+
+        // Group by month/year
+        const groups: Record<string, Task[]> = {};
+        sortedTasks.forEach(task => {
+            const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+            const groupKey = dateStr ? new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unscheduled';
+            if (!groups[groupKey]) groups[groupKey] = [];
+            groups[groupKey].push(task);
+        });
+
+        return (
+            <div className="max-w-4xl mx-auto py-8">
+                {Object.keys(groups).length === 0 ? (
+                    <p className="text-center text-slate-500 py-12">No tasks found.</p>
+                ) : (
+                    <div className="space-y-12">
+                        {Object.entries(groups).map(([month, monthTasks]) => (
+                            <div key={month} className="relative">
+                                {/* Timeline Line */}
+                                <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
+
+                                <h3 className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-950 py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-gray-50 dark:border-slate-950 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm shrink-0">
+                                        <Calendar size={20} />
+                                    </div>
+                                    {month}
+                                </h3>
+
+                                <div className="mt-6 space-y-6 ml-16">
+                                    {monthTasks.map(task => {
+                                        const cat = getCategoryDetails(task.categoryId);
+                                        const isCompleted = task.status === 'Completed';
+                                        const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+
+                                        return (
+                                            <div key={task.id} className={`bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+
+                                                {/* Left side: Date Badge */}
+                                                <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
+                                                    {dateStr ? (
+                                                        <>
+                                                            <span className="text-2xl font-bold text-slate-800 dark:text-white leading-none">
+                                                                {new Date(dateStr).getDate()}
+                                                            </span>
+                                                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                                                                {new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm font-semibold text-slate-400 italic">None</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Right Side: Content */}
+                                                <div className="flex-1 flex items-start gap-3">
+                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                        {getStatusIcon(task.status)}
+                                                    </button>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through' : ''}`}>
+                                                            {task.title}
+                                                        </h4>
+
+                                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                            <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
+                                                                {task.priority} Priority
+                                                            </span>
+                                                            <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                                                <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                                                {getProjectName(task.projectId)}
+                                                            </span>
+                                                            {cat && (
+                                                                <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass}`}>
+                                                                    {cat.name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className="flex flex-col h-full overflow-hidden animate-in fade-in duration-300">
+            {/* Filters Header */}
+            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 sticky top-0 z-20">
+
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
+                    <button onClick={() => setViewMode('matrix')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                    <button onClick={() => setViewMode('timeline')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                </div>
+
+                <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64 min-w-[200px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Search tasks..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <select
+                        value={filterProject}
+                        onChange={(e) => setFilterProject(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 max-w-[150px]"
+                    >
+                        <option value="All">All Projects</option>
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 max-w-[150px]"
+                    >
+                        <option value="All">All Categories</option>
+                        {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-slate-950 custom-scrollbar">
+                {viewMode === 'matrix' ? renderMatrixView() : renderTimelineView()}
+            </div>
+        </div>
+    );
+}
