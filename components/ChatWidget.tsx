@@ -43,7 +43,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
           {/* Header */}
           <div className="bg-slate-900 dark:bg-slate-950 p-4 flex justify-between items-center text-white border-b border-slate-700">
             <div className="flex items-center gap-2">
-              <div className="bg-blue-600 p-1.5 rounded-lg">
+              <div className="bg-green-600 p-1.5 rounded-lg">
                 <Bot size={18} />
               </div>
               <div>
@@ -75,7 +75,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                   msg.role === 'user' 
                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200' 
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                 }`}>
                   {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                 </div>
@@ -96,7 +96,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                         li: ({node, ...props}) => <li className="pl-1" {...props} />,
                         p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                         strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-                        a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                        a: ({node, ...props}) => <a className="text-green-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                         code: ({node, ...props}) => <code className="bg-slate-950 px-1 py-0.5 rounded text-xs font-mono text-pink-400" {...props} />,
                         pre: ({node, ...props}) => <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border border-slate-700" {...props} />,
                         h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
@@ -116,7 +116,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
             ))}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full flex items-center justify-center shrink-0">
                   <Bot size={14} />
                 </div>
                  <div className="bg-slate-800 dark:bg-slate-900 text-white rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
@@ -136,12 +136,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me to add a lesson..."
-                className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
               />
               <button 
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="absolute right-2 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="absolute right-2 p-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send size={16} />
               </button>
@@ -156,7 +156,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
         className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
           isOpen 
             ? 'bg-slate-700 text-white rotate-90' 
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            : 'bg-green-600 text-white hover:bg-green-700'
         }`}
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={28} />}
