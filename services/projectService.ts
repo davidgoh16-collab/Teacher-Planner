@@ -2,9 +2,9 @@ import { db } from '../firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { Project, Task, Category } from '../types';
 
-const PROJECTS_COLLECTION = 'projects';
-const TASKS_COLLECTION = 'tasks';
-const CATEGORIES_COLLECTION = 'categories';
+const PROJECTS_COLLECTION = 'teacher_planner_projects';
+const TASKS_COLLECTION = 'teacher_planner_tasks';
+const CATEGORIES_COLLECTION = 'teacher_planner_categories';
 
 export const fetchCategories = async (): Promise<Category[]> => {
     try {
