@@ -577,7 +577,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   return (
     <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3">
       {isActive && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-blue-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -591,7 +591,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
           <div className="flex flex-col items-center py-4 gap-3">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 relative ${
               status === 'speaking' 
-                ? 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]' 
+                ? 'bg-green-600 shadow-[0_0_20px_rgba(34,197,94,0.4)]'
                 : 'bg-slate-100 dark:bg-slate-800'
             }`}>
               {status === 'speaking' ? <Volume2 className="text-white animate-bounce" /> : <Bot className="text-slate-400" />}
@@ -628,7 +628,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
              </button>
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[10px] text-blue-700 dark:text-blue-300 flex items-start gap-2">
+          <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-[10px] text-green-700 dark:text-green-300 flex items-start gap-2">
             <Info size={12} className="shrink-0 mt-0.5" />
             <span>"Share Screen" to let June review your resources, slides, or documents in real-time.</span>
           </div>
@@ -641,7 +641,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
         className={`group relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
           isActive 
             ? 'bg-slate-800 text-white' 
-            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-blue-500/20'
+            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20'
         }`}
       >
         {isConnecting ? (

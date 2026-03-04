@@ -116,7 +116,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-green-600" />
             </div>
           ) : (
             <div className="space-y-8">
@@ -133,7 +133,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                         required
                         value={newCatName}
                         onChange={(e) => setNewCatName(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                         placeholder="e.g. Extra-curricular"
                       />
                     </div>
@@ -142,7 +142,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                       <select
                         value={newCatType}
                         onChange={(e) => setNewCatType(e.target.value as 'project' | 'task')}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                       >
                         <option value="project">Project Category</option>
                         <option value="task">Task Category</option>
@@ -158,7 +158,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                           key={color.class}
                           type="button"
                           onClick={() => setNewCatColor(color.class)}
-                          className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-blue-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                          className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-green-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
                           title={color.label}
                         />
                       ))}
@@ -168,7 +168,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                   <div className="flex justify-end pt-2">
                     <button
                       type="submit"
-                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
                     >
                       <Plus size={16} /> Add Category
                     </button>

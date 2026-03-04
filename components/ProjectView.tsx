@@ -177,7 +177,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
             case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400';
-            case 'Low': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'Low': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
             default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
         }
     };
@@ -275,7 +275,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                             <button
                                                 key={bg.class}
                                                 onClick={() => setEditBgColor(bg.class)}
-                                                className={`px-3 py-1.5 rounded-md text-sm border font-medium ${bg.class} ${editBgColor === bg.class ? 'ring-2 ring-blue-500 border-transparent shadow-sm' : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'}`}
+                                                className={`px-3 py-1.5 rounded-md text-sm border font-medium ${bg.class} ${editBgColor === bg.class ? 'ring-2 ring-green-500 border-transparent shadow-sm' : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'}`}
                                             >
                                                 {bg.label}
                                             </button>
@@ -284,7 +284,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 </div>
                                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     <button onClick={() => setIsEditingSettings(false)} className="px-4 py-2 text-sm rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
-                                    <button onClick={handleSaveSettings} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Save Changes</button>
+                                    <button onClick={handleSaveSettings} className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700">Save Changes</button>
                                 </div>
                             </div>
                         </div>
@@ -344,7 +344,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 <div className="flex justify-between items-center mb-3">
                                     <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resources & Links</h3>
                                     {!isReadOnly && !isAddingLink && (
-                                        <button onClick={() => setIsAddingLink(true)} className="text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 p-1 rounded-md">
+                                        <button onClick={() => setIsAddingLink(true)} className="text-green-600 hover:text-green-700 bg-green-50 dark:bg-green-900/30 p-1 rounded-md">
                                             <Plus size={16} />
                                         </button>
                                     )}
@@ -356,7 +356,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         <input type="url" placeholder="URL (https://...)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} required className="w-full text-sm px-2 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900" />
                                         <div className="flex justify-end gap-2 pt-1">
                                             <button type="button" onClick={() => setIsAddingLink(false)} className="text-xs text-slate-500">Cancel</button>
-                                            <button type="submit" className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Add</button>
+                                            <button type="submit" className="text-xs bg-green-600 text-white px-2 py-1 rounded">Add</button>
                                         </div>
                                     </form>
                                 )}
@@ -367,7 +367,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                     )}
                                     {project.links.map((link, idx) => (
                                         <div key={idx} className="flex items-center justify-between group bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate">
+                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:underline truncate">
                                                 <LinkIcon size={14} className="shrink-0" />
                                                 <span className="truncate">{link.displayName}</span>
                                             </a>
@@ -389,14 +389,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         <div className="p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
                             <div>
                                 <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                    <CheckCircle2 className="text-blue-500" /> Tasks
+                                    <CheckCircle2 className="text-green-500" /> Tasks
                                 </h2>
                                 <p className="text-xs text-slate-500 mt-0.5">{tasks.length} total tasks</p>
                             </div>
                             {!isReadOnly && (
                                 <button
                                     onClick={() => setIsAddingTask(!isAddingTask)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                 >
                                     {isAddingTask ? <X size={16} /> : <Plus size={16} />}
                                     {isAddingTask ? 'Cancel' : 'Add Task'}
@@ -406,7 +406,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
                         {/* Add Task Form inline */}
                         {isAddingTask && !isReadOnly && (
-                            <div className="p-4 md:p-6 bg-blue-50/50 dark:bg-blue-900/10 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-4 fade-in">
+                            <div className="p-4 md:p-6 bg-green-50/50 dark:bg-green-900/10 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-4 fade-in">
                                 <form onSubmit={handleAddTask} className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Task Title *</label>
@@ -417,7 +417,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                             required
                                             placeholder="What needs to be done?"
                                             autoFocus
-                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                                         />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -446,7 +446,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         </div>
                                     </div>
                                     <div className="flex justify-end pt-2">
-                                        <button type="submit" disabled={!newTaskTitle.trim()} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                                        <button type="submit" disabled={!newTaskTitle.trim()} className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
                                             Save Task
                                         </button>
                                     </div>
@@ -494,7 +494,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
                                                 <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
                                                     {task.scheduledDateStr && (
-                                                        <span className="flex items-center gap-1.5"><CalendarDays size={12} className="text-blue-500"/> Scheduled: {new Date(task.scheduledDateStr).toLocaleDateString()}</span>
+                                                        <span className="flex items-center gap-1.5"><CalendarDays size={12} className="text-green-500"/> Scheduled: {new Date(task.scheduledDateStr).toLocaleDateString()}</span>
                                                     )}
                                                     {task.deadlineDateStr && (
                                                         <span className="flex items-center gap-1.5"><Clock size={12} className="text-red-500"/> Due: {new Date(task.deadlineDateStr).toLocaleDateString()}</span>

@@ -157,7 +157,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                <FolderKanban className="text-blue-600 dark:text-blue-400" />
+                <FolderKanban className="text-green-600 dark:text-green-400" />
                 Project Planner
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage long-term projects and tasks.</p>
@@ -168,13 +168,13 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Briefcase size={16} /> Projects
                 </button>
                 <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Clock size={16} /> All Tasks
                 </button>
@@ -192,7 +192,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             {!isReadOnly && activeTab === 'projects' && (
                 <button
                     onClick={() => setIsCreateProjectOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow"
                 >
                     <Plus size={16} /> New Project
                 </button>
@@ -202,7 +202,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
       {loading ? (
           <div className="flex-1 flex justify-center items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           </div>
       ) : activeTab === 'projects' ? (
 
@@ -216,7 +216,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                         placeholder="Search projects..."
                         value={projectSearchQuery}
                         onChange={(e) => setProjectSearchQuery(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm"
                     />
                 </div>
 
@@ -225,7 +225,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                     <select
                         value={selectedProjectCategory}
                         onChange={(e) => setSelectedProjectCategory(e.target.value)}
-                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm text-sm cursor-pointer min-w-[180px]"
+                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm text-sm cursor-pointer min-w-[180px]"
                     >
                         <option value="All">All Categories</option>
                         {projectCategories.map(cat => (
@@ -244,7 +244,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                         {!isReadOnly && !projectSearchQuery && (
                             <button
                                 onClick={() => setIsCreateProjectOpen(true)}
-                                className="text-blue-600 hover:underline"
+                                className="text-green-600 hover:underline"
                             >
                                 Create your first project
                             </button>
@@ -298,7 +298,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                         </div>
                                         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                                             <div
-                                                className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
                                                 style={{ width: `${progress}%` }}
                                             />
                                         </div>
@@ -350,7 +350,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                 required
                                 value={newProjectName}
                                 onChange={(e) => setNewProjectName(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                                 placeholder="e.g. End of Year Play"
                                 autoFocus
                             />
@@ -361,7 +361,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                             <select
                                 value={newProjectCategory}
                                 onChange={(e) => setNewProjectCategory(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                             >
                                 <option value="">No Category</option>
                                 {projectCategories.map(cat => (
@@ -375,7 +375,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                             <textarea
                                 value={newProjectDesc}
                                 onChange={(e) => setNewProjectDesc(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-y"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[100px] resize-y"
                                 placeholder="Briefly describe the project goals..."
                             />
                         </div>
@@ -392,7 +392,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                         <button
                             type="submit"
                             disabled={!newProjectName.trim()}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                         >
                             Create Project
                         </button>

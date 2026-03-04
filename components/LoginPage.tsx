@@ -34,8 +34,8 @@ const LoginPage: React.FC = () => {
         
         {/* Header Section */}
         <div className="bg-slate-900 dark:bg-slate-950 p-8 text-center border-b border-slate-800 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-900/50">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-indigo-500 to-purple-500"></div>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg shadow-green-900/50">
             <BookOpen size={32} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Teacher Planner</h1>

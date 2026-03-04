@@ -70,7 +70,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800/50';
             case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
-            case 'Low': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800/50';
+            case 'Low': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800/50';
             default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
         }
     };
@@ -153,13 +153,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 </div>
 
                 {/* Q2: Schedule */}
-                <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-4 border border-blue-100 dark:border-blue-900/30 flex flex-col">
-                    <h3 className="font-bold text-blue-800 dark:text-blue-400 mb-4 flex items-center justify-between">
+                <div className="bg-green-50/50 dark:bg-green-950/20 rounded-xl p-4 border border-green-100 dark:border-green-900/30 flex flex-col">
+                    <h3 className="font-bold text-green-800 dark:text-green-400 mb-4 flex items-center justify-between">
                         <span>Schedule (Important, Not Urgent)</span>
-                        <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
+                        <span className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
                     </h3>
                     <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
-                        {q2.length === 0 ? <p className="text-sm italic text-blue-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
+                        {q2.length === 0 ? <p className="text-sm italic text-green-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
                     </div>
                 </div>
 
@@ -217,7 +217,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
 
                                 <h3 className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-950 py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
-                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-gray-50 dark:border-slate-950 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm shrink-0">
+                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-gray-50 dark:border-slate-950 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm shrink-0">
                                         <Calendar size={20} />
                                     </div>
                                     {month}
@@ -294,8 +294,8 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 sticky top-0 z-20">
 
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
-                    <button onClick={() => setViewMode('matrix')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                    <button onClick={() => setViewMode('timeline')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                    <button onClick={() => setViewMode('matrix')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                    <button onClick={() => setViewMode('timeline')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                 </div>
 
                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
@@ -306,14 +306,14 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             placeholder="Search tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
                         />
                     </div>
 
                     <select
                         value={filterProject}
                         onChange={(e) => setFilterProject(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 max-w-[150px]"
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 max-w-[150px]"
                     >
                         <option value="All">All Projects</option>
                         {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -322,7 +322,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                     <select
                         value={filterCategory}
                         onChange={(e) => setFilterCategory(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 max-w-[150px]"
+                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 max-w-[150px]"
                     >
                         <option value="All">All Categories</option>
                         {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
