@@ -110,6 +110,10 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = getCategoryDetails(task.categoryId);
+            const subtasks = task.subtasks || [];
+            const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+            const hasSubtasks = subtasks.length > 0;
+
             return (
                 <div className={`p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2`}>
                     <div className="flex justify-between items-start gap-2">
@@ -118,6 +122,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                         </button>
                         <span className="font-semibold text-sm flex-1 leading-tight text-slate-800 dark:text-slate-100">{task.title}</span>
                     </div>
+                    {hasSubtasks && (
+                        <div className="text-[10px] font-medium text-slate-500 flex items-center gap-1 pl-6 mt-[-4px]">
+                            <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length} subtasks
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap gap-1.5 text-[10px] mt-auto">
                         <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={getProjectName(task.projectId)}>
@@ -228,6 +237,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                         const cat = getCategoryDetails(task.categoryId);
                                         const isCompleted = task.status === 'Completed';
                                         const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+                                        const subtasks = task.subtasks || [];
+                                        const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+                                        const hasSubtasks = subtasks.length > 0;
 
                                         return (
                                             <div key={task.id} className={`bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
@@ -258,6 +270,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                         <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through' : ''}`}>
                                                             {task.title}
                                                         </h4>
+                                                            {hasSubtasks && (
+                                                                <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                    <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
+                                                                </span>
+                                                            )}
 
                                                         <div className="flex flex-wrap items-center gap-2 text-xs">
                                                             <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
