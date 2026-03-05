@@ -236,7 +236,7 @@ const AppsHub: React.FC<AppsHubProps> = ({ isReadOnly }) => {
                                                 {/* Edit Button overlay */}
                                                 <button
                                                     onClick={(e) => handleOpenEditModal(e, app)}
-                                                    className={`absolute top-0 right-0 transform translate-x-2 -translate-y-2 bg-slate-800 dark:bg-slate-700 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-green-600 shadow-md ${isReadOnly ? 'hidden' : ''}`}
+                                                    className={`absolute top-2 right-2 bg-slate-800 dark:bg-slate-700 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-green-600 shadow-md ${isReadOnly ? 'hidden' : ''}`}
                                                 >
                                                     <Settings size={14} />
                                                 </button>

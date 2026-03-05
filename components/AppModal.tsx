@@ -110,9 +110,9 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-        <form onSubmit={handleSubmit} className="flex flex-col">
-          <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
+          <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <LayoutGrid className="text-green-600 dark:text-green-400" />
               {initialData ? 'Edit App' : 'Add New App'}
@@ -126,7 +126,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
             </button>
           </div>
 
-          <div className="p-6 space-y-5">
+          <div className="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
           {/* Name & URL */}
           <div className="grid grid-cols-1 gap-5">
               <div>
@@ -224,7 +224,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
           </div>
 
           {/* App Background Color Selection */}
-          <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="space-y-3 pt-5 border-t border-slate-200 dark:border-slate-700">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">App Background Color</label>
             <div className="flex flex-wrap gap-2">
               {APP_BG_COLORS.map(color => (
@@ -241,7 +241,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
 
           </div>
 
-          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
             {initialData && !isReadOnly ? (
                 <button
                     type="button"
