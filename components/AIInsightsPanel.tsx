@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { generateInsights, AIInsight, generateContentFromAction } from '../services/aiService';
 import { Sparkles, X, Check, Loader2, Bot, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Task, Project } from '../types';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { saveTask } from '../services/projectService';
+import AIContentModal from './AIContentModal';
 
 const remarkPlugins = [remarkGfm];
 
@@ -145,53 +144,38 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
             </div>
 
             {/* Generated Content Modal */}
-            {isGeneratedModalOpen && (
+            {isGenerating ? (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
-                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <Bot size={20} className="text-blue-500" />
-                                AI Generated Content
-                            </h2>
-                            <button onClick={() => { setIsGeneratedModalOpen(false); setGeneratedContent(null); }} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900">
-                            {isGenerating ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-slate-500 space-y-4">
-                                    <Loader2 size={32} className="animate-spin text-blue-500" />
-                                    <p className="text-sm font-medium">Generating content based on "{generatingAction?.title}"...</p>
-                                </div>
-                            ) : (
-                                <div className="prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={remarkPlugins}>
-                                        {generatedContent || ''}
-                                    </ReactMarkdown>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center">
-                            <p className="text-xs text-slate-500 italic">
-                                {generatingAction?.taskId ? 'This content has been appended to the task notes.' : 'You can copy this text to use it elsewhere.'}
-                            </p>
-                            <button
-                                onClick={() => {
-                                    if (generatedContent) {
-                                        navigator.clipboard.writeText(generatedContent);
-                                    }
-                                    setIsGeneratedModalOpen(false);
-                                }}
-                                disabled={isGenerating}
-                                className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-                            >
-                                <Check size={16} /> Copy & Close
-                            </button>
-                        </div>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center justify-center text-slate-500 space-y-4">
+                        <Loader2 size={32} className="animate-spin text-blue-500" />
+                        <p className="text-sm font-medium">Generating content based on "{generatingAction?.title}"...</p>
                     </div>
                 </div>
+            ) : (
+                <AIContentModal
+                    isOpen={isGeneratedModalOpen && generatedContent !== null}
+                    onClose={() => {
+                        setIsGeneratedModalOpen(false);
+                        setGeneratedContent(null);
+                    }}
+                    content={generatedContent}
+                    title={generatingAction?.title || 'AI Insights Action'}
+                    onSave={async (newContent) => {
+                        if (isReadOnly || !generatingAction?.taskId) return;
+                        const task = tasks.find(t => t.id === generatingAction.taskId);
+                        if (task) {
+                            try {
+                                const updatedTask = { ...task, aiGeneratedContent: newContent };
+                                await saveTask(updatedTask);
+                                setGeneratedContent(newContent);
+                                onTaskUpdate();
+                            } catch (e) {
+                                console.error("Failed to save AI content", e);
+                                alert("Failed to save changes.");
+                            }
+                        }
+                    }}
+                />
             )}
         </>
     );
