@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Category, Task, ProjectLink } from '../types';
 import { saveProject, saveTask, deleteTask } from '../services/projectService';
+import { generateContentFromAction, extractTaskDetails } from '../services/aiService';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
     ChevronLeft,
@@ -24,6 +25,7 @@ import {
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
+import ProjectAskAIModal from './ProjectAskAIModal';
 
 interface ProjectViewProps {
     project: Project;
@@ -37,11 +39,28 @@ interface ProjectViewProps {
 const BACKGROUND_COLORS = [
     { label: 'Default', class: 'bg-gray-50 dark:bg-slate-950' },
     { label: 'Slate', class: 'bg-slate-100 dark:bg-slate-900' },
-    { label: 'Blue', class: 'bg-blue-50 dark:bg-blue-950/30' },
-    { label: 'Green', class: 'bg-green-50 dark:bg-green-950/30' },
-    { label: 'Purple', class: 'bg-purple-50 dark:bg-purple-950/30' },
-    { label: 'Rose', class: 'bg-rose-50 dark:bg-rose-950/30' },
+    { label: 'Zinc', class: 'bg-zinc-50 dark:bg-zinc-900/50' },
+    { label: 'Stone', class: 'bg-stone-50 dark:bg-stone-900/50' },
+    { label: 'Red', class: 'bg-red-50 dark:bg-red-950/30' },
+    { label: 'Orange', class: 'bg-orange-50 dark:bg-orange-950/30' },
     { label: 'Amber', class: 'bg-amber-50 dark:bg-amber-950/30' },
+    { label: 'Yellow', class: 'bg-yellow-50 dark:bg-yellow-950/30' },
+    { label: 'Lime', class: 'bg-lime-50 dark:bg-lime-950/30' },
+    { label: 'Green', class: 'bg-green-50 dark:bg-green-950/30' },
+    { label: 'Emerald', class: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { label: 'Teal', class: 'bg-teal-50 dark:bg-teal-950/30' },
+    { label: 'Cyan', class: 'bg-cyan-50 dark:bg-cyan-950/30' },
+    { label: 'Sky', class: 'bg-sky-50 dark:bg-sky-950/30' },
+    { label: 'Blue', class: 'bg-blue-50 dark:bg-blue-950/30' },
+    { label: 'Indigo', class: 'bg-indigo-50 dark:bg-indigo-950/30' },
+    { label: 'Violet', class: 'bg-violet-50 dark:bg-violet-950/30' },
+    { label: 'Purple', class: 'bg-purple-50 dark:bg-purple-950/30' },
+    { label: 'Fuchsia', class: 'bg-fuchsia-50 dark:bg-fuchsia-950/30' },
+    { label: 'Pink', class: 'bg-pink-50 dark:bg-pink-950/30' },
+    { label: 'Rose', class: 'bg-rose-50 dark:bg-rose-950/30' },
+    { label: 'Deep Green', class: 'bg-green-100 dark:bg-green-900/50' },
+    { label: 'Deep Blue', class: 'bg-blue-100 dark:bg-blue-900/50' },
+    { label: 'Deep Purple', class: 'bg-purple-100 dark:bg-purple-900/50' },
 ];
 
 export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject }: ProjectViewProps) {
@@ -52,6 +71,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [editDesc, setEditDesc] = useState(project.description || '');
     const [editBgColor, setEditBgColor] = useState(project.colorClass || BACKGROUND_COLORS[0].class);
     const [editCategory, setEditCategory] = useState(project.categoryId || '');
+    const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
     // New Link State
     const [isAddingLink, setIsAddingLink] = useState(false);
@@ -72,6 +92,8 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // New Task State
     const [isAddingTask, setIsAddingTask] = useState(false);
+    const [aiTaskInput, setAiTaskInput] = useState('');
+    const [isGeneratingTask, setIsGeneratingTask] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskDescription, setNewTaskDescription] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
@@ -89,6 +111,9 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [selectedAiContent, setSelectedAiContent] = useState<string | null>(null);
     const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
 
+    // Project Ask AI Modal State
+    const [isAskAiModalOpen, setIsAskAiModalOpen] = useState(false);
+
     const taskCategories = allCategories.filter(c => c.type === 'task');
     const projectCategory = allCategories.find(c => c.id === project.categoryId);
 
@@ -104,6 +129,23 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             }
             return next;
         });
+    };
+
+    const handleGenerateDescription = async () => {
+        if (isReadOnly) return;
+        setIsGeneratingDesc(true);
+        try {
+            const prompt = `Write a professional, concise project description for a school project titled "${project.name}".
+            Here are the current tasks associated with this project:
+            ${tasks.map(t => `- ${t.title}`).join('\n')}
+            Keep it to 2-3 sentences max. Do not use markdown formatting.`;
+            const result = await generateContentFromAction(prompt);
+            setEditDesc(result);
+        } catch (e) {
+            console.error("Failed to generate description:", e);
+        } finally {
+            setIsGeneratingDesc(false);
+        }
     };
 
     const handleSaveSettings = async () => {
@@ -148,6 +190,23 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         } catch (e) {
             console.error(e);
             alert("Failed to delete link.");
+        }
+    };
+
+    const handleAiTaskExtract = async () => {
+        if (!aiTaskInput.trim()) return;
+        setIsGeneratingTask(true);
+        try {
+            const details = await extractTaskDetails(aiTaskInput);
+            if (details.title) setNewTaskTitle(details.title);
+            if (details.priority) setNewTaskPriority(details.priority as any);
+            if (details.scheduledDateStr) setNewTaskScheduled(details.scheduledDateStr);
+            if (details.deadlineDateStr) setNewTaskDeadline(details.deadlineDateStr);
+            setAiTaskInput('');
+        } catch (e) {
+            console.error("Failed to extract task details:", e);
+        } finally {
+            setIsGeneratingTask(false);
         }
     };
 
@@ -399,14 +458,24 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     </div>
                 </div>
 
-                {!isReadOnly && (
-                    <button
-                        onClick={() => setIsEditingSettings(!isEditingSettings)}
-                        className={`p-2 rounded-lg transition-colors border shadow-sm flex items-center gap-2 ${isEditingSettings ? 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-                    >
-                        <Settings size={18} /> <span className="hidden sm:inline text-sm font-medium">Project Settings</span>
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    {!isReadOnly && (
+                        <button
+                            onClick={() => setIsAskAiModalOpen(true)}
+                            className="p-2 rounded-lg transition-colors border shadow-sm flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                        >
+                            <Bot size={18} /> <span className="hidden sm:inline text-sm font-medium">Ask AI / Upload</span>
+                        </button>
+                    )}
+                    {!isReadOnly && (
+                        <button
+                            onClick={() => setIsEditingSettings(!isEditingSettings)}
+                            className={`p-2 rounded-lg transition-colors border shadow-sm flex items-center gap-2 ${isEditingSettings ? 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                        >
+                            <Settings size={18} /> <span className="hidden sm:inline text-sm font-medium">Project Settings</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
@@ -426,11 +495,23 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                             <h3 className="text-lg font-bold mb-4">Project Settings</h3>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
+                                        {!isReadOnly && (
+                                            <button
+                                                type="button"
+                                                onClick={handleGenerateDescription}
+                                                disabled={isGeneratingDesc}
+                                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 disabled:opacity-50"
+                                            >
+                                                <Bot size={14} /> {isGeneratingDesc ? 'Generating...' : 'Generate with AI'}
+                                            </button>
+                                        )}
+                                    </div>
                                     <textarea
                                         value={editDesc}
                                         onChange={(e) => setEditDesc(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[100px]"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[100px] text-slate-900 dark:text-white"
                                         placeholder="Add notes or a description here..."
                                     />
                                 </div>
@@ -587,6 +668,33 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         {isAddingTask && !isReadOnly && (
                             <div className="p-4 md:p-6 bg-green-50/50 dark:bg-green-900/10 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-4 fade-in">
                                 <form onSubmit={handleAddTask} className="space-y-4">
+                                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 mb-4 flex items-center gap-3">
+                                        <Bot className="text-blue-500 shrink-0" size={20} />
+                                        <div className="flex-1 relative">
+                                            <input
+                                                type="text"
+                                                value={aiTaskInput}
+                                                onChange={(e) => setAiTaskInput(e.target.value)}
+                                                placeholder="Describe task naturally (e.g., 'Grade papers tomorrow high priority')"
+                                                className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg pl-3 pr-24 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleAiTaskExtract();
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAiTaskExtract}
+                                                disabled={!aiTaskInput.trim() || isGeneratingTask}
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs px-3 py-1 rounded-md transition-colors"
+                                            >
+                                                {isGeneratingTask ? 'Extracting...' : 'Extract'}
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Task Title *</label>
                                         <input
@@ -895,6 +1003,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 onClose={() => setAiContentModalOpen(false)}
                 content={selectedAiContent}
                 title={selectedAiTaskTitle}
+            />
+
+            <ProjectAskAIModal
+                isOpen={isAskAiModalOpen}
+                onClose={() => setIsAskAiModalOpen(false)}
+                project={project}
+                onTaskAdded={(task) => setTasks(prev => [task, ...prev])}
+                isReadOnly={isReadOnly}
             />
         </div>
     );

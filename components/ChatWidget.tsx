@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
 import { fetchAIConversations, saveAIConversation, deleteAIConversation } from '../services/chatService';
+import { readFileContent } from '../utils/fileUtils';
 
 interface ChatWidgetProps {
   messages: ChatMessage[];
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
   isLoading: boolean;
   onSetMessages: (messages: ChatMessage[]) => void;
 }
@@ -26,6 +27,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
   // Renaming state
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Load conversations on mount
   useEffect(() => {
@@ -88,16 +92,35 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
     scrollToBottom();
   }, [messages, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedFile) || isLoading) return;
+
+    let fileData;
+    if (selectedFile) {
+        try {
+            fileData = await readFileContent(selectedFile);
+        } catch (err) {
+            console.error("Failed to read file", err);
+            alert("Failed to attach file.");
+            return;
+        }
+    }
 
     if (!currentConversationId) {
         setCurrentConversationId(`conv_${Date.now()}`);
     }
 
-    onSendMessage(input);
+    onSendMessage(input, fileData);
     setInput('');
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleNewConversation = () => {
@@ -322,17 +345,43 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="p-3 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shrink-0">
+            {selectedFile && (
+                <div className="mb-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-medium truncate">
+                        <Paperclip size={12} /> {selectedFile.name}
+                    </span>
+                    <button type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-200 p-0.5">
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
             <div className="relative flex items-center">
+              <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".pdf,.docx,.txt,image/*"
+              />
+              <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="absolute left-2 p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors shrink-0 disabled:opacity-50 z-10"
+                  title="Attach Document"
+              >
+                  <Paperclip size={18} />
+              </button>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me to add a lesson..."
-                className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                placeholder="Ask me to add a lesson or extract actions..."
+                className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-10 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
               />
               <button 
                 type="submit"
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || (!input.trim() && !selectedFile)}
                 className="absolute right-2 p-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send size={16} />
