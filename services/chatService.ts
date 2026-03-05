@@ -1,0 +1,33 @@
+import { db } from '../firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { AIConversation } from '../types';
+
+const CONVERSATIONS_COLLECTION = 'teacher_planner_ai_conversations';
+
+export const fetchAIConversations = async (): Promise<AIConversation[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, CONVERSATIONS_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as AIConversation).sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch (e) {
+        console.error("Error fetching AI conversations", e);
+        return [];
+    }
+};
+
+export const saveAIConversation = async (conversation: AIConversation): Promise<void> => {
+    try {
+        await setDoc(doc(db, CONVERSATIONS_COLLECTION, conversation.id), conversation);
+    } catch (e) {
+        console.error("Error saving AI conversation", e);
+        throw e;
+    }
+};
+
+export const deleteAIConversation = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, CONVERSATIONS_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting AI conversation", e);
+        throw e;
+    }
+};

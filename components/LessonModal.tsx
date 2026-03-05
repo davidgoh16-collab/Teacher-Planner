@@ -389,7 +389,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                               <select 
                                   value={classFilter} 
                                   onChange={(e) => setClassFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-green-500 outline-none transition-colors"
                               >
                                   <option value="All">All Classes</option>
                                   {uniqueSubjects.map(subj => (
@@ -408,7 +408,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                               <select 
                                   value={monthFilter} 
                                   onChange={(e) => setMonthFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-green-500 outline-none transition-colors"
                               >
                                   <option value="All">All Months</option>
                                   {uniqueMonths.map(m => (
@@ -423,7 +423,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                           <button 
                              onClick={handleToggleSelectAllVisible}
                              disabled={filteredSlots.length === 0}
-                             className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                             className="px-3 py-2 bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                              {filteredSlots.length > 0 && filteredSlots.every(s => selectedSlots.includes(s.id)) ? 'Deselect All' : 'Select All'}
                           </button>
@@ -449,11 +449,11 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => toggleSlotSelection(slot.id)}
                                 className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                                     isSelected 
-                                    ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700' 
+                                    ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
                                     : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700'
                                 }`}
                               >
-                                  <div className={`shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-300 dark:text-slate-600'}`}>
+                                  <div className={`shrink-0 ${isSelected ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-slate-600'}`}>
                                       {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
                                   </div>
                                   <div className="flex-1">
@@ -466,7 +466,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                           </span>
                                       </div>
                                       <div className="flex justify-between items-center mt-0.5">
-                                          <span className={`text-xs font-medium ${isSameSubject ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                          <span className={`text-xs font-medium ${isSameSubject ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
                                               {slot.subject}
                                           </span>
                                           <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 rounded">
@@ -482,7 +482,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
           ) : isRecurringMode ? (
               // RECURRING FORM
               <div className="space-y-6">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-sm text-green-800 dark:text-green-200">
                       <p>Create repeating events for <strong>{initialData.periodLabel}</strong> on <strong>{new Date(initialData.dateStr).toLocaleDateString('en-GB', {weekday: 'long'})}s</strong>.</p>
                   </div>
 
@@ -496,7 +496,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrenceScope('term')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                                     recurrenceScope === 'term' 
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200'
+                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
                                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
@@ -506,7 +506,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrenceScope('year')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                                     recurrenceScope === 'year' 
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200'
+                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
                                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
@@ -524,7 +524,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrencePattern('cycle')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex flex-col items-center justify-center gap-1 transition-all ${
                                     recurrencePattern === 'cycle' 
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200'
+                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
                                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
@@ -535,7 +535,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrencePattern('every')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex flex-col items-center justify-center gap-1 transition-all ${
                                     recurrencePattern === 'every' 
-                                    ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200'
+                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
                                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
@@ -562,7 +562,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         onClick={() => setType('lesson')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
                             type === 'lesson' 
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                            ? 'bg-white dark:bg-slate-700 text-green-600 dark:text-green-400 shadow-sm'
                             : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
                         }`}
                         >
@@ -588,7 +588,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     </label>
                     <input
                     type="text"
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-green-500 focus:border-green-500'}`}
                     placeholder={type === 'meeting' ? "e.g. Dept Performance Review" : "e.g. Introduction to Coastal Erosion"}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -612,7 +612,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                         href={link} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="flex-1 truncate text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
+                                        className="flex-1 truncate text-green-600 dark:text-green-400 hover:underline flex items-center gap-1.5"
                                     >
                                         <ExternalLink size={12} />
                                         {link}
@@ -638,7 +638,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         <div className="flex gap-2">
                             <input
                                 type="url"
-                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm placeholder-gray-400 dark:placeholder-slate-500"
+                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm placeholder-gray-400 dark:placeholder-slate-500"
                                 placeholder="https://meet.google.com/..."
                                 value={currentLinkInput}
                                 onChange={(e) => setCurrentLinkInput(e.target.value)}
@@ -662,7 +662,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     {type === 'meeting' ? 'Meeting Notes' : 'Notes / Homework'}
                     </label>
                     <textarea
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-green-500 focus:border-green-500'}`}
                     placeholder={type === 'meeting' ? "Minutes, action items..." : "Don't forget to collect homework..."}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -689,7 +689,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                  <button 
                     onClick={handleDuplicate}
                     disabled={selectedSlots.length === 0}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-blue-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-green-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                     Copy to {selectedSlots.length} Session{selectedSlots.length !== 1 ? 's' : ''} <ArrowRight size={16} />
                  </button>
@@ -726,7 +726,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             </button>
                             <button 
                                 onClick={() => setIsDuplicating(true)}
-                                className="flex items-center justify-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-2 rounded-lg transition-colors"
+                                className="flex items-center justify-center text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 p-2 rounded-lg transition-colors"
                                 title="Duplicate Lesson"
                             >
                                 <Copy size={18} />
@@ -755,7 +755,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             className={`flex items-center gap-2 text-white px-6 py-2 rounded-lg font-medium shadow-lg transition-all transform active:scale-95 ${
                             type === 'meeting' 
                             ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none' 
-                            : 'bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-700 shadow-slate-300 dark:shadow-none'
+                            : 'bg-slate-800 hover:bg-slate-900 dark:bg-green-600 dark:hover:bg-green-700 shadow-slate-300 dark:shadow-none'
                             }`}
                         >
                             <Save size={18} /> Save

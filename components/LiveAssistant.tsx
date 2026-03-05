@@ -4,12 +4,17 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
 import { DAYS, PERIOD_LABELS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2, TERMS } from '../constants';
 import { toISODate, addDays, generateWeeksForTerm } from '../utils/dateUtils';
+import { Task, Project } from '../types';
 
 interface LiveAssistantProps {
   currentWeekData: WeekData | undefined;
   lessonPlans: Record<string, LessonPlan>;
+  globalTasks: Task[];
+  projects: Project[];
   onUpdateLesson: (lesson: LessonPlan) => Promise<void>;
   onAddRecurringLesson: (lessons: LessonPlan[]) => Promise<void>;
+  onSaveTask: (task: Task) => Promise<void>;
+  onSaveProject: (project: Project) => Promise<void>;
   isAdmin: boolean;
 }
 
@@ -55,8 +60,12 @@ async function decodeAudioData(
 const LiveAssistant: React.FC<LiveAssistantProps> = ({ 
   currentWeekData, 
   lessonPlans, 
+  globalTasks,
+  projects,
   onUpdateLesson, 
   onAddRecurringLesson,
+  onSaveTask,
+  onSaveProject,
   isAdmin 
 }) => {
   const [isActive, setIsActive] = useState(false);
@@ -270,10 +279,33 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
           });
       });
 
+      // Format Tasks and Projects for Context
+      const activeTasks = globalTasks.filter(t => t.status !== 'Completed');
+      let tasksContext = "";
+      if (activeTasks.length > 0) {
+          tasksContext = "\nACTIVE TASKS:\n";
+          activeTasks.forEach(t => {
+              const proj = projects.find(p => p.id === t.projectId);
+              const projName = proj ? proj.name : 'Global';
+              tasksContext += ` - [${t.priority}] ${t.title} (Project: ${projName})`;
+              if (t.scheduledDateStr) tasksContext += ` | Scheduled: ${t.scheduledDateStr}`;
+              if (t.deadlineDateStr) tasksContext += ` | Due: ${t.deadlineDateStr}`;
+              tasksContext += "\n";
+          });
+      }
+
+      let projectsContext = "";
+      if (projects.length > 0) {
+          projectsContext = "\nPROJECTS:\n";
+          projects.forEach(p => {
+              projectsContext += ` - ID: ${p.id} | Name: "${p.name}"\n`;
+          });
+      }
+
       let contextString = `You are an expert Teaching Assistant called "June".
-      Your goal is to help the teacher plan lessons, review materials, and manage their schedule.
+      Your goal is to help the teacher plan lessons, review materials, manage their schedule, and track tasks.
       You have a British persona (use terms like 'maths', 'holiday', 'term').
-      You have access to the teacher's planner and, if enabled, you can see their screen.
+      You have access to the teacher's planner, their task list, their active projects, and if enabled, their screen.
 
       CONTEXT:
       Current Week: ${currentWeekData.displayString} (Week ${currentWeekData.weekNumber}).
@@ -281,19 +313,23 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
 
       CURRENT WEEK SNAPSHOT:
       ${plannerContext}
+      ${tasksContext}
+      ${projectsContext}
 
       CAPABILITIES:
       1. AUDIO & VISION: You can hear the teacher and see their screen if they share it. Use visual context to provide feedback.
       2. PLANNING: You can add/update lessons using 'updateLesson'.
       3. SCHEDULING: You can create recurring events with 'addRecurringLesson'.
       4. QUERYING: Use 'getSchedule' to check the planner for PAST or FUTURE dates not shown in the snapshot.
+      5. TASKS & PROJECTS: You can manage long-term projects and tasks using 'saveTask' and 'saveProject'.
 
       GUIDELINES:
-      - Be proactive. If you see a slide deck, offer feedback on clarity or engagement.
-      - If the teacher asks "What do I have today?", read out the "Scheduled Class" entries even if there is no plan.
-      - Distinguish between "Free" periods and "Scheduled Class - No Plan".
+      - Be proactive. Notice upcoming deadlines for tasks or empty Free/Admin periods in the snapshot, and suggest working on High priority tasks.
+      - If you see a slide deck, offer feedback on clarity or engagement.
+      - If the teacher asks "What do I have today?", read out the "Scheduled Class" entries even if there is no plan, and optionally remind them of high-priority tasks due today.
+      - Distinguish between "Free" periods and "Scheduled Class - No Plan". When they have free periods, suggest they knock out a task or do some planning.
       - Keep responses conversational and concise.
-      - Always confirm before making changes to the planner.
+      - Always confirm before making changes to the planner, tasks, or projects.
       `;
 
       // Define Tools
@@ -347,6 +383,36 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
                   },
                   required: ['dayOfWeek', 'periodLabel', 'title'],
                 },
+              },
+              {
+                name: 'saveTask',
+                description: 'Create or update a task. If no taskId is provided, a new task will be created.',
+                parameters: {
+                  type: 'OBJECT' as any,
+                  properties: {
+                    taskId: { type: 'STRING' as any, description: 'Optional. Provide to update an existing task.' },
+                    title: { type: 'STRING' as any, description: 'The title or description of the task.' },
+                    status: { type: 'STRING' as any, enum: ['Uncompleted', 'In Progress', 'Completed'] },
+                    priority: { type: 'STRING' as any, enum: ['Low', 'Medium', 'High'] },
+                    projectId: { type: 'STRING' as any, description: 'Optional ID of the project this task belongs to.' },
+                    scheduledDateStr: { type: 'STRING' as any, description: 'Optional date YYYY-MM-DD when the task should be worked on.' },
+                    deadlineDateStr: { type: 'STRING' as any, description: 'Optional deadline date YYYY-MM-DD.' }
+                  },
+                  required: ['title']
+                }
+              },
+              {
+                name: 'saveProject',
+                description: 'Create or update a project. If no projectId is provided, a new project will be created.',
+                parameters: {
+                  type: 'OBJECT' as any,
+                  properties: {
+                    projectId: { type: 'STRING' as any, description: 'Optional. Provide to update an existing project.' },
+                    name: { type: 'STRING' as any, description: 'Name of the project.' },
+                    description: { type: 'STRING' as any, description: 'Description of the project goals.' }
+                  },
+                  required: ['name']
+                }
               }
           );
       }
@@ -426,6 +492,36 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
                         completed: false
                       }));
                     await onAddRecurringLesson(batch);
+                  } else if (fc.name === 'saveTask') {
+                    const args = fc.args as any;
+                    const existingTask = args.taskId ? globalTasks.find(t => t.id === args.taskId) : undefined;
+                    const newTask: Task = {
+                      id: existingTask?.id || `task_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                      projectId: args.projectId || existingTask?.projectId || 'global',
+                      title: args.title || existingTask?.title || 'New Task',
+                      status: args.status || existingTask?.status || 'Uncompleted',
+                      priority: args.priority || existingTask?.priority || 'Medium',
+                      scheduledDateStr: args.scheduledDateStr || existingTask?.scheduledDateStr,
+                      deadlineDateStr: args.deadlineDateStr || existingTask?.deadlineDateStr,
+                      categoryId: existingTask?.categoryId
+                    };
+                    await onSaveTask(newTask);
+                    result = `Task '${newTask.title}' saved successfully with ID ${newTask.id}.`;
+                  } else if (fc.name === 'saveProject') {
+                    const args = fc.args as any;
+                    const existingProj = args.projectId ? projects.find(p => p.id === args.projectId) : undefined;
+                    const newProj: Project = {
+                      id: existingProj?.id || `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                      name: args.name || existingProj?.name || 'New Project',
+                      description: args.description !== undefined ? args.description : existingProj?.description || '',
+                      createdAt: existingProj?.createdAt || Date.now(),
+                      links: existingProj?.links || [],
+                      colorClass: existingProj?.colorClass,
+                      categoryId: existingProj?.categoryId,
+                      tasks: existingProj?.tasks || []
+                    };
+                    await onSaveProject(newProj);
+                    result = `Project '${newProj.name}' saved successfully with ID ${newProj.id}.`;
                   }
                 } catch (e) {
                   result = "error: " + (e as Error).message;
@@ -481,7 +577,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   return (
     <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3">
       {isActive && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-blue-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -495,7 +591,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
           <div className="flex flex-col items-center py-4 gap-3">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 relative ${
               status === 'speaking' 
-                ? 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]' 
+                ? 'bg-green-600 shadow-[0_0_20px_rgba(34,197,94,0.4)]'
                 : 'bg-slate-100 dark:bg-slate-800'
             }`}>
               {status === 'speaking' ? <Volume2 className="text-white animate-bounce" /> : <Bot className="text-slate-400" />}
@@ -532,7 +628,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
              </button>
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[10px] text-blue-700 dark:text-blue-300 flex items-start gap-2">
+          <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-[10px] text-green-700 dark:text-green-300 flex items-start gap-2">
             <Info size={12} className="shrink-0 mt-0.5" />
             <span>"Share Screen" to let June review your resources, slides, or documents in real-time.</span>
           </div>
@@ -545,7 +641,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
         className={`group relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
           isActive 
             ? 'bg-slate-800 text-white' 
-            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-blue-500/20'
+            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20'
         }`}
       >
         {isConnecting ? (
