@@ -17,7 +17,6 @@ interface LiveAssistantProps {
   onSaveTask: (task: Task) => Promise<void>;
   onSaveProject: (project: Project) => Promise<void>;
   isAdmin: boolean;
-  onTranscription?: (role: 'user' | 'model', text: string, isFinal: boolean) => void;
   onStatusChange?: (isActive: boolean, statusText?: string) => void;
 }
 
@@ -70,7 +69,6 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   onSaveTask,
   onSaveProject,
   isAdmin,
-  onTranscription,
   onStatusChange
 }) => {
   const [isActive, setIsActive] = useState(false);
@@ -551,35 +549,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
               }
             }
 
-            // Handle Text Transcripts
-            const sc = message.serverContent;
-            if (sc) {
-                // Check for user transcription. If finished is true, it's final. If false, it's a partial streaming segment that replaces previous partials.
-                if (sc.inputTranscription?.text) {
-                     if (onTranscription) onTranscription('user', sc.inputTranscription.text, sc.inputTranscription.finished ?? true);
-                }
-
-                // For model text, outputTranscription is similar.
-                if (sc.outputTranscription?.text) {
-                     if (onTranscription) onTranscription('model', sc.outputTranscription.text, sc.outputTranscription.finished ?? true);
-                } else if (sc.modelTurn?.parts) {
-                     // If it comes via parts, it's a stream of text parts. We consider parts to be appending chunks, so let's send them as non-final.
-                     // Actually, if we use parts, it's usually model chunks that get appended.
-                     // The API does not always send `finished` with parts.
-                     // But for `outputTranscription` it does. Let's just use `modelTurn` parts as appending chunks (isFinal = false but append style).
-                     // But our `App.tsx` logic needs to distinguish between "replace partial" and "append partial".
-                     // For simplicity, let's treat `modelTurn` text chunks as appending (by making them their own final chunks if needed, or by appending them).
-                     // Actually, the Live API usually only uses `modelTurn` for text output if modalities don't include audio.
-                     // Since we ask for AUDIO, most speech comes back in `outputTranscription`.
-                     // So we can send `textPart.text` as final chunks that just get appended.
-                     const textPart = sc.modelTurn.parts.find(p => p.text);
-                     if (textPart?.text) {
-                         if (onTranscription) onTranscription('model', textPart.text, false);
-                     }
-                }
-            }
-
             // Handle Audio Output
+            const sc = message.serverContent;
             const base64Audio = sc?.modelTurn?.parts?.find(p => p.inlineData)?.inlineData?.data;
             if (base64Audio) {
               setStatus('speaking');
