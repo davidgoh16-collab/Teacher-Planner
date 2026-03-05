@@ -14,7 +14,75 @@ const DUTY_COLOR = 'bg-orange-100 text-orange-800'; // Canteen, Mentoring
 const ADMIN_COLOR = 'bg-gray-200 text-gray-800'; // SLT, ER, Meetings
 const PPA_COLOR = 'bg-green-50 text-green-800';
 
+const POL_COLOR = 'bg-pink-100 text-pink-800';
+const HIS_COLOR = 'bg-indigo-100 text-indigo-800';
+
 export const INITIAL_COLLEAGUES: Omit<Colleague, 'id'>[] = [
+  {
+    name: "Miss A COCKS (ACO)",
+    week1: {
+      Monday: {
+        "Period 3": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 3D
+        "Period 4": createEntry("13/Pol", "D12", POL_COLOR),
+        "Period 5": createEntry("SLT Roaming", "N/A", ADMIN_COLOR), // 5C
+        "Period 6": createEntry("9V/His", "D13", HIS_COLOR),
+      },
+      Tuesday: {
+        "Period 2": createEntry("PPA", "N/A", PPA_COLOR),
+        "Period 5": createEntry("13/Pol", "V19", POL_COLOR), // 5A, 5B, 5C
+        "Period 6": createEntry("10C/His", "D12", HIS_COLOR),
+      },
+      Wednesday: {
+        "Period 3": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 3D
+        "Period 4": createEntry("10C/His", "D15", HIS_COLOR),
+        "Period 5": createEntry("SLT Roaming", "N/A", ADMIN_COLOR), // 5C
+        "Period 6": createEntry("13/Pol", "V19", POL_COLOR),
+      },
+      Thursday: {
+        "Period 2": createEntry("10C/His", "D15", HIS_COLOR),
+        "Period 3": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 3D
+        "Period 4": createEntry("ER", "N/A", ADMIN_COLOR),
+        "Period 5": createEntry("SLT Roaming", "N/A", ADMIN_COLOR), // 5A
+        "Period 6": createEntry("9V/His", "D13", HIS_COLOR),
+      },
+      Friday: {
+        "Period 2": createEntry("13/Pol", "V19", POL_COLOR),
+        "Period 3": createEntry("SLT Roaming", "N/A", ADMIN_COLOR), // 3D
+        "Period 4": createEntry("13/Pol", "V19", POL_COLOR),
+        "Period 5": createEntry("10C/His", "D12", HIS_COLOR), // 5A, 5B, 5C
+      }
+    },
+    week2: {
+      Monday: {
+        "Period 2": createEntry("13/Pol", "V19", POL_COLOR),
+        "Period 3": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 3D
+        "Period 4": createEntry("9V/His", "D13", HIS_COLOR),
+        "Period 5": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 5C
+      },
+      Tuesday: {
+        "Period 2": createEntry("PPA", "N/A", PPA_COLOR),
+        "Period 3": createEntry("SLT Roaming", "N/A", ADMIN_COLOR), // 3 / Midday
+        "Period 5": createEntry("Canteen Front", "N/A", DUTY_COLOR),
+        "Period 6": createEntry("Meeting", "N/A", ADMIN_COLOR),
+      },
+      Wednesday: {
+        "Period 2": createEntry("SLT Roaming", "N/A", ADMIN_COLOR),
+        "Period 4": createEntry("10C/His", "D12", HIS_COLOR),
+        "Period 5": createEntry("Canteen Front", "N/A", DUTY_COLOR), // 5C
+        "Period 6": createEntry("13/Pol", "V19", POL_COLOR),
+      },
+      Thursday: {
+        "Period 2": createEntry("10C/His", "D12", HIS_COLOR),
+        "Period 3": createEntry("SLT Roaming", "N/A", ADMIN_COLOR),
+        "Period 6": createEntry("9V/His", "D15", HIS_COLOR),
+      },
+      Friday: {
+        "Period 2": createEntry("13/Pol", "V19", POL_COLOR),
+        "Period 3": createEntry("SLT Roaming", "N/A", ADMIN_COLOR),
+        "Period 5": createEntry("ER", "N/A", ADMIN_COLOR), // 5A, 5B, 5C
+      }
+    }
+  },
   {
     name: "Mrs V FOX (VF)",
     week1: {
