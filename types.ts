@@ -106,11 +106,19 @@ export interface AIConversation {
   updatedAt: number;
 }
 
+export interface AppCategory {
+  id: string;
+  name: string;
+  colorClass: string;
+}
+
 export interface AppItem {
   id: string;
   name: string;
   url: string;
   iconType: 'preset' | 'imageUrl';
   iconValue: string; // the lucide icon name or image url
+  categoryId?: string;
+  colorClass?: string;
   createdAt: number;
 }
