@@ -2,6 +2,7 @@ declare global {
   interface Window {
     ENV?: {
       VITE_GEMINI_API_KEY?: string;
+      GEMINI_API_KEY?: string;
     };
   }
 }

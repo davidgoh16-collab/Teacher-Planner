@@ -12,9 +12,11 @@ COPY . .
 
 # Accept VITE_GEMINI_API_KEY as an argument at build time
 ARG VITE_GEMINI_API_KEY
+ARG GEMINI_API_KEY
 
 # Set it as an environment variable so Vite can pick it up
 ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
 
 # Build the application
 RUN npm run build
