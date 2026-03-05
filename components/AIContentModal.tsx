@@ -4,6 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI } from '@google/genai';
 
+const remarkPlugins = [remarkGfm];
+
 interface AIContentModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -264,7 +266,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
                             </div>
                         ) : (
                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                <ReactMarkdown remarkPlugins={remarkPlugins}>
                                     {editedContent}
                                 </ReactMarkdown>
                             </div>
