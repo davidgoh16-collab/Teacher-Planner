@@ -4,6 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI } from '@google/genai';
 
+const remarkPlugins = [remarkGfm];
+
 interface AIContentModalProps {
     isOpen: boolean;
     onClose: () => void;
