@@ -114,6 +114,97 @@ const TIMETABLE_SCHEMA = {
   },
 };
 
+export interface AIInsight {
+  type: 'info' | 'suggestion' | 'action';
+  title: string;
+  description: string;
+  taskId?: string; // If the insight relates to a specific task
+  actionData?: {
+    prompt: string;
+  };
+}
+
+export const generateInsights = async (
+  contextType: 'project' | 'all_tasks',
+  tasks: any[],
+  project?: any,
+  timetable?: any
+): Promise<AIInsight[]> => {
+  try {
+    const ai = getAiClient();
+
+    let contextStr = `Context Type: ${contextType}\n`;
+    if (project) {
+      contextStr += `Project Name: ${project.name}\n`;
+      contextStr += `Project Description: ${project.description || 'None'}\n`;
+    }
+    contextStr += `Tasks:\n${JSON.stringify(tasks, null, 2)}\n`;
+
+    const prompt = `
+      You are an AI assistant for a teacher planner app. Based on the provided context, generate 3-5 helpful insights.
+
+      Insights can be:
+      1. 'info': General information or summary about the workload or project status.
+      2. 'suggestion': A suggestion on what to prioritize or how to organize tasks.
+      3. 'action': A proactive offer to complete a task (e.g., draft an email, write a lesson plan).
+         If you suggest an 'action', include the 'taskId' it relates to (if any), and provide 'actionData.prompt'
+         which is a prompt that the user can run to generate the actual content.
+
+      Context:
+      ${contextStr}
+
+      Respond with a JSON array of insight objects. Do not wrap in markdown tags like \`\`\`json.
+      Example format:
+      [
+        {
+          "type": "info",
+          "title": "Project on track",
+          "description": "You have completed 50% of the tasks in this project."
+        },
+        {
+          "type": "action",
+          "title": "Draft Parent Email",
+          "description": "I can draft the email to parents for you.",
+          "taskId": "task_123",
+          "actionData": {
+            "prompt": "Draft an email to parents about the upcoming science fair..."
+          }
+        }
+      ]
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-pro",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    if (response.text) {
+      return JSON.parse(response.text);
+    }
+    return [];
+  } catch (error) {
+    console.error("Error generating insights:", error);
+    return [];
+  }
+};
+
+export const generateContentFromAction = async (prompt: string): Promise<string> => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-pro",
+      contents: [prompt],
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Error generating content:", error);
+    return "Error generating content. Please try again.";
+  }
+};
+
 export const parseTimetableImage = async (base64Data: string, mimeType: string = "image/png"): Promise<{ week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
   try {
     const prompt = `
@@ -148,7 +239,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-1.5-pro",
       contents: {
         parts: [
           { text: prompt },

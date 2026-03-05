@@ -23,14 +23,14 @@ import {
   formatDate 
 } from './utils/dateUtils';
 import LessonModal from './components/LessonModal';
-import ChatWidget, { ChatMessage } from './components/ChatWidget';
+import ChatWidget from './components/ChatWidget';
 import LiveAssistant from './components/LiveAssistant';
 import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { fetchTasks, saveTask, fetchProjects, saveProject } from './services/projectService';
-import { Task, Project } from './types';
+import { Task, Project, ChatMessage } from './types';
 import { 
   ChevronDown, 
   Calendar, 
@@ -447,6 +447,11 @@ const App: React.FC = () => {
         contextString += `Week 1: ${JSON.stringify(colleague.week1, null, 2)}\n`;
         contextString += `Week 2: ${JSON.stringify(colleague.week2, null, 2)}\n`;
       });
+      contextString += `\n----------------------------\n\n`;
+
+      contextString += `\n--- APP TASKS & PROJECTS ---\n`;
+      contextString += `Projects: ${JSON.stringify(projects.map(p => ({id: p.id, name: p.name, desc: p.description})), null, 2)}\n`;
+      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
       contextString += `\n----------------------------\n\n`;
 
       contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
@@ -1068,6 +1073,7 @@ const App: React.FC = () => {
         messages={chatMessages}
         onSendMessage={handleAiSendMessage}
         isLoading={isAiLoading}
+        onSetMessages={setChatMessages}
       />
 
       <LiveAssistant 
