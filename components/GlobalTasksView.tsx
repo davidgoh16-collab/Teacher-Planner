@@ -7,9 +7,15 @@ import {
     CalendarDays,
     Calendar,
     Search,
-    Filter
+    Filter,
+    Edit2,
+    Trash2,
+    Bot
 } from 'lucide-react';
-import { saveTask } from '../services/projectService';
+import { saveTask, deleteTask } from '../services/projectService';
+import TaskEditModal from './TaskEditModal';
+import AIInsightsPanel from './AIInsightsPanel';
+import AIContentModal from './AIContentModal';
 
 interface GlobalTasksViewProps {
     allTasks: Task[];
@@ -26,6 +32,15 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     const [searchQuery, setSearchQuery] = useState('');
     const [filterProject, setFilterProject] = useState<string>('All');
     const [filterCategory, setFilterCategory] = useState<string>('All');
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+    // AI Content Modal State
+    const [aiContentModalOpen, setAiContentModalOpen] = useState(false);
+    const [selectedAiContent, setSelectedAiContent] = useState<string | null>(null);
+    const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
 
     const projectCategories = categories.filter(c => c.type === 'project');
     const taskCategories = categories.filter(c => c.type === 'task');
@@ -64,6 +79,39 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             console.error(e);
             alert("Failed to update task.");
         }
+    };
+
+    const handleDeleteTask = async (taskId: string) => {
+        if (isReadOnly) return;
+        if (window.confirm("Are you sure you want to delete this task?")) {
+            try {
+                await deleteTask(taskId);
+                onTaskUpdate();
+            } catch (e) {
+                console.error(e);
+                alert("Failed to delete task.");
+            }
+        }
+    };
+
+    const handleEditTaskSave = async (updatedTask: Task) => {
+        if (isReadOnly) return;
+
+        try {
+            await saveTask(updatedTask);
+            onTaskUpdate();
+        } catch (e) {
+            console.error("Failed to save edited task", e);
+            alert("Failed to save changes.");
+        } finally {
+            setEditingTask(null);
+            setIsEditModalOpen(false);
+        }
+    };
+
+    const openEditModal = (task: Task) => {
+        setEditingTask(task);
+        setIsEditModalOpen(true);
     };
 
     const getPriorityColor = (priority: string) => {
@@ -115,18 +163,45 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             const hasSubtasks = subtasks.length > 0;
 
             return (
-                <div className={`p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2`}>
+                <div className={`group p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
-                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                            {getStatusIcon(task.status)}
-                        </button>
-                        <span className="font-semibold text-sm flex-1 leading-tight text-slate-800 dark:text-slate-100">{task.title}</span>
-                    </div>
-                    {hasSubtasks && (
-                        <div className="text-[10px] font-medium text-slate-500 flex items-center gap-1 pl-6 mt-[-4px]">
-                            <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length} subtasks
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                            <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                {getStatusIcon(task.status)}
+                            </button>
+                            <span className="font-semibold text-sm leading-tight text-slate-800 dark:text-slate-100 break-words">{task.title}</span>
                         </div>
-                    )}
+                        {!isReadOnly && (
+                            <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-white/80 dark:bg-slate-800/80 p-1 rounded-md backdrop-blur-sm shadow-sm border border-slate-200 dark:border-slate-700">
+                                <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1 text-slate-400 hover:text-blue-500 rounded" title="Edit Task">
+                                    <Edit2 size={14} />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded" title="Delete Task">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex flex-col gap-1 pl-6 mt-[-4px]">
+                        {hasSubtasks && (
+                            <div className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                                <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length} subtasks
+                            </div>
+                        )}
+                        {task.aiGeneratedContent && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedAiContent(task.aiGeneratedContent || null);
+                                    setSelectedAiTaskTitle(task.title);
+                                    setAiContentModalOpen(true);
+                                }}
+                                className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 w-fit bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                            >
+                                <Bot size={10} /> View AI Content
+                            </button>
+                        )}
+                    </div>
 
                     <div className="flex flex-wrap gap-1.5 text-[10px] mt-auto">
                         <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={getProjectName(task.projectId)}>
@@ -261,20 +336,36 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                 </div>
 
                                                 {/* Right Side: Content */}
-                                                <div className="flex-1 flex items-start gap-3">
-                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                                                        {getStatusIcon(task.status)}
-                                                    </button>
+                                                <div className="flex-1 flex items-start justify-between gap-3 group/task">
+                                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                            {getStatusIcon(task.status)}
+                                                        </button>
 
-                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex-1 min-w-0">
                                                         <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through' : ''}`}>
                                                             {task.title}
                                                         </h4>
+                                                        <div className="flex flex-wrap items-center gap-2 mb-2">
                                                             {hasSubtasks && (
                                                                 <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                                     <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
                                                                 </span>
                                                             )}
+                                                            {task.aiGeneratedContent && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedAiContent(task.aiGeneratedContent || null);
+                                                                        setSelectedAiTaskTitle(task.title);
+                                                                        setAiContentModalOpen(true);
+                                                                    }}
+                                                                    className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                                                >
+                                                                    <Bot size={10} /> View AI Content
+                                                                </button>
+                                                            )}
+                                                        </div>
 
                                                         <div className="flex flex-wrap items-center gap-2 text-xs">
                                                             <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
@@ -289,8 +380,20 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                     {cat.name}
                                                                 </span>
                                                             )}
+                                                            </div>
                                                         </div>
                                                     </div>
+
+                                                    {!isReadOnly && (
+                                                        <div className="flex gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
+                                                            <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit Task">
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                             </div>
@@ -349,8 +452,31 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-slate-950 custom-scrollbar">
+
+                <AIInsightsPanel
+                    contextType="all_tasks"
+                    tasks={allTasks}
+                    isReadOnly={isReadOnly}
+                    onTaskUpdate={onTaskUpdate}
+                />
+
                 {viewMode === 'matrix' ? renderMatrixView() : renderTimelineView()}
             </div>
+
+            <TaskEditModal
+                isOpen={isEditModalOpen}
+                onClose={() => { setIsEditModalOpen(false); setEditingTask(null); }}
+                task={editingTask}
+                categories={categories}
+                onSave={handleEditTaskSave}
+            />
+
+            <AIContentModal
+                isOpen={aiContentModalOpen}
+                onClose={() => setAiContentModalOpen(false)}
+                content={selectedAiContent}
+                title={selectedAiTaskTitle}
+            />
         </div>
     );
 }

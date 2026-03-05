@@ -80,6 +80,7 @@ export interface Task {
   deadlineDateStr?: string; // YYYY-MM-DD
   assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
   subtasks?: Task[]; // Nested subtasks
+  aiGeneratedContent?: string;
 }
 
 export interface Project {
@@ -91,4 +92,16 @@ export interface Project {
   links: ProjectLink[];
   tasks: Task[]; // Usually fetched separately, but good for typed responses
   createdAt: number;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export interface AIConversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: number;
 }

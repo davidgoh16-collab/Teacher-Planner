@@ -17,8 +17,13 @@ import {
     X,
     FolderKanban,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Edit2,
+    Bot
 } from 'lucide-react';
+import TaskEditModal from './TaskEditModal';
+import AIInsightsPanel from './AIInsightsPanel';
+import AIContentModal from './AIContentModal';
 
 interface ProjectViewProps {
     project: Project;
@@ -73,6 +78,16 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [newTaskCategory, setNewTaskCategory] = useState('');
     const [newTaskScheduled, setNewTaskScheduled] = useState('');
     const [newTaskDeadline, setNewTaskDeadline] = useState('');
+
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [editingParentTask, setEditingParentTask] = useState<Task | null>(null);
+
+    // AI Content Modal State
+    const [aiContentModalOpen, setAiContentModalOpen] = useState(false);
+    const [selectedAiContent, setSelectedAiContent] = useState<string | null>(null);
+    const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
 
     const taskCategories = allCategories.filter(c => c.type === 'task');
     const projectCategory = allCategories.find(c => c.id === project.categoryId);
@@ -283,6 +298,39 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         }
     };
 
+    const handleEditTaskSave = async (updatedTask: Task) => {
+        if (isReadOnly) return;
+
+        try {
+            if (editingParentTask) {
+                // We are editing a subtask
+                const updatedSubtasks = editingParentTask.subtasks?.map(st =>
+                    st.id === updatedTask.id ? updatedTask : st
+                ) || [];
+                const updatedParent = { ...editingParentTask, subtasks: updatedSubtasks };
+
+                await saveTask(updatedParent);
+                setTasks(tasks.map(t => t.id === updatedParent.id ? updatedParent : t));
+            } else {
+                // We are editing a top-level task
+                await saveTask(updatedTask);
+                setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+            }
+        } catch (e) {
+            console.error("Failed to save edited task", e);
+            alert("Failed to save changes.");
+        } finally {
+            setEditingTask(null);
+            setEditingParentTask(null);
+        }
+    };
+
+    const openEditModal = (task: Task, parentTask: Task | null = null) => {
+        setEditingTask(task);
+        setEditingParentTask(parentTask);
+        setIsEditModalOpen(true);
+    };
+
     const getPriorityColor = (priority: string) => {
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
@@ -363,6 +411,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
             <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6">
+
+                    <AIInsightsPanel
+                        contextType="project"
+                        project={project}
+                        tasks={tasks}
+                        isReadOnly={isReadOnly}
+                        onTaskUpdate={() => {}} // Will be handled by state refresh if needed, or optimistic updates
+                    />
 
                     {/* Top Section: Settings / Description & Links */}
                     {isEditingSettings ? (
@@ -626,6 +682,19 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                                 <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
                                                             </span>
                                                         )}
+                                                        {task.aiGeneratedContent && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedAiContent(task.aiGeneratedContent || null);
+                                                                    setSelectedAiTaskTitle(task.title);
+                                                                    setAiContentModalOpen(true);
+                                                                }}
+                                                                className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                                            >
+                                                                <Bot size={10} /> View AI Content
+                                                            </button>
+                                                        )}
                                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getPriorityColor(task.priority)}`}>
                                                         {task.priority}
                                                     </span>
@@ -646,14 +715,19 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                 </div>
                                             </div>
 
-                                            <div className="shrink-0 flex items-center gap-2">
+                                            <div className="shrink-0 flex items-center gap-1">
                                                 <button onClick={(e) => { e.stopPropagation(); toggleTaskExpansion(task.id); }} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
                                                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                 </button>
                                                 {!isReadOnly && (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <>
+                                                        <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Edit Task">
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
@@ -710,9 +784,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                                     </div>
                                                                 </div>
                                                                 {!isReadOnly && (
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(task, st.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded opacity-0 group-hover/subtask:opacity-100 transition-opacity">
-                                                                        <Trash2 size={14} />
-                                                                    </button>
+                                                                    <div className="flex gap-1 shrink-0">
+                                                                        <button onClick={(e) => { e.stopPropagation(); openEditModal(st, task); }} className="p-1 text-slate-400 hover:text-blue-500 rounded opacity-0 group-hover/subtask:opacity-100 transition-opacity">
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(task, st.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded opacity-0 group-hover/subtask:opacity-100 transition-opacity">
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         );
@@ -802,6 +881,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
                 </div>
             </div>
+
+            <TaskEditModal
+                isOpen={isEditModalOpen}
+                onClose={() => { setIsEditModalOpen(false); setEditingTask(null); setEditingParentTask(null); }}
+                task={editingTask}
+                categories={allCategories}
+                onSave={handleEditTaskSave}
+            />
+
+            <AIContentModal
+                isOpen={aiContentModalOpen}
+                onClose={() => setAiContentModalOpen(false)}
+                content={selectedAiContent}
+                title={selectedAiTaskTitle}
+            />
         </div>
     );
 }
