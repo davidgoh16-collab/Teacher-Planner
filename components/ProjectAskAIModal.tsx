@@ -73,7 +73,7 @@ const ProjectAskAIModal: React.FC<ProjectAskAIModalProps> = ({ isOpen, onClose, 
             Be thorough. If the user asks a general question, you can just answer it instead.`;
 
             const chat: Chat = ai.chats.create({
-                model: 'gemini-3.1-flash-lite-preview',
+                model: 'gemini-2.5-flash',
                 config: {
                     systemInstruction: systemInstruction,
                     tools: [{ functionDeclarations: [addTaskTool] }]

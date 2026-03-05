@@ -575,9 +575,9 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   };
 
   return (
-    <div className="relative z-50 flex flex-col items-end gap-3">
+    <div className="relative flex flex-col items-end">
       {isActive && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
+        <div className="absolute top-10 right-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[60]">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -638,31 +638,26 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
       <button
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
-        className={`group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
+        className={`group relative p-1.5 rounded-md transition-colors ${
           isActive 
-            ? 'bg-slate-800 text-white' 
-            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20'
+            ? 'bg-red-500 text-white hover:bg-red-600'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
         }`}
+        title={isActive ? "End Voice Session" : "Start Voice Assistant"}
       >
         {isConnecting ? (
-          <Loader2 className="animate-spin" size={24} />
+          <Loader2 className="animate-spin" size={18} />
         ) : isActive ? (
           // Show active wave animation or icon when active
           <div className="relative">
-             <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+             <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
              </span>
-             <Bot size={24} />
+             <Bot size={18} />
           </div>
         ) : (
-          <Mic size={24} />
-        )}
-        
-        {!isActive && !isConnecting && (
-          <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Teaching Assistant
-          </span>
+          <Mic size={18} />
         )}
       </button>
     </div>

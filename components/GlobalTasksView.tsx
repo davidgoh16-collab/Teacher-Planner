@@ -41,6 +41,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     const [aiContentModalOpen, setAiContentModalOpen] = useState(false);
     const [selectedAiContent, setSelectedAiContent] = useState<string | null>(null);
     const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
+    const [selectedAiTaskId, setSelectedAiTaskId] = useState<string | null>(null);
 
     const projectCategories = categories.filter(c => c.type === 'project');
     const taskCategories = categories.filter(c => c.type === 'task');
@@ -196,6 +197,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                     e.stopPropagation();
                                     setSelectedAiContent(task.aiGeneratedContent || null);
                                     setSelectedAiTaskTitle(task.title);
+                                    setSelectedAiTaskId(task.id);
                                     setAiContentModalOpen(true);
                                 }}
                                 className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 w-fit bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
@@ -362,6 +364,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                         e.stopPropagation();
                                                                         setSelectedAiContent(task.aiGeneratedContent || null);
                                                                         setSelectedAiTaskTitle(task.title);
+                                                                        setSelectedAiTaskId(task.id);
                                                                         setAiContentModalOpen(true);
                                                                     }}
                                                                     className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
@@ -480,6 +483,21 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 onClose={() => setAiContentModalOpen(false)}
                 content={selectedAiContent}
                 title={selectedAiTaskTitle}
+                onSave={async (newContent) => {
+                    if (isReadOnly || !selectedAiTaskId) return;
+                    const task = allTasks.find(t => t.id === selectedAiTaskId);
+                    if (task) {
+                        try {
+                            const updatedTask = { ...task, aiGeneratedContent: newContent };
+                            await saveTask(updatedTask);
+                            setSelectedAiContent(newContent);
+                            onTaskUpdate();
+                        } catch (e) {
+                            console.error("Failed to save AI content to task", e);
+                            alert("Failed to save AI content.");
+                        }
+                    }
+                }}
             />
         </div>
     );
