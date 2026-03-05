@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
+import AIInsightsPanel from './AIInsightsPanel';
 
 interface ProjectPlannerProps {
   isReadOnly: boolean;
@@ -207,6 +208,14 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       ) : activeTab === 'projects' ? (
 
         <div className="flex flex-col flex-1 h-full min-h-0">
+            {/* AI Insights Panel */}
+            <AIInsightsPanel
+                contextType="all_tasks"
+                tasks={allTasks}
+                isReadOnly={isReadOnly}
+                onTaskUpdate={() => loadData()}
+            />
+
             {/* Search and Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6 shrink-0">
                 <div className="relative flex-1 max-w-md">
@@ -251,66 +260,106 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                        {filteredProjects.map(project => {
-                            const projectTasks = allTasks.filter(t => t.projectId === project.id);
-                            const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
-                            const totalTasks = projectTasks.length;
-                            const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+                    <div className="space-y-8">
+                        {(() => {
+                            // Group projects by category
+                            const groups = new Map<string, typeof filteredProjects>();
+                            groups.set('uncategorized', []);
+                            projectCategories.forEach(c => groups.set(c.id, []));
 
-                            return (
-                            <div
-                                key={project.id}
-                                onClick={() => setSelectedProjectId(project.id)}
-                                className={`group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border ${project.colorClass || 'border-slate-200 dark:border-slate-800'} shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1`}
-                            >
-                                {/* Card Header with optional background color */}
-                                <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
-                                    <div className="flex justify-between items-start gap-2 mb-2">
-                                        <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-2 leading-tight">
-                                            {project.name}
-                                        </h3>
-                                        {!isReadOnly && (
-                                            <button
-                                                onClick={(e) => handleDeleteProject(project.id, e)}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all shrink-0"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
+                            filteredProjects.forEach(project => {
+                                if (project.categoryId && groups.has(project.categoryId)) {
+                                    groups.get(project.categoryId)!.push(project);
+                                } else {
+                                    groups.get('uncategorized')!.push(project);
+                                }
+                            });
+
+                            return Array.from(groups.entries()).map(([catId, catProjects]) => {
+                                if (catProjects.length === 0) return null;
+                                const category = projectCategories.find(c => c.id === catId);
+
+                                return (
+                                    <div key={catId} className="space-y-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {category ? (
+                                                <>
+                                                    <span className={`w-3 h-3 rounded-full border ${category.colorClass.split(' ')[0]} ${category.colorClass.split(' ')[2] || ''}`}></span>
+                                                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{category.name}</h2>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="w-3 h-3 rounded-full border bg-slate-200 border-slate-300"></span>
+                                                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Other Projects</h2>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                                            {catProjects.map(project => {
+                                                const projectTasks = allTasks.filter(t => t.projectId === project.id);
+                                                const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
+                                                const totalTasks = projectTasks.length;
+                                                const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+                                                return (
+                                                <div
+                                                    key={project.id}
+                                                    onClick={() => setSelectedProjectId(project.id)}
+                                                    className={`group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border ${project.colorClass || 'border-slate-200 dark:border-slate-800'} shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1`}
+                                                >
+                                                    {/* Card Header with optional background color */}
+                                                    <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
+                                                        <div className="flex justify-between items-start gap-2 mb-2">
+                                                            <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-2 leading-tight">
+                                                                {project.name}
+                                                            </h3>
+                                                            {!isReadOnly && (
+                                                                <button
+                                                                    onClick={(e) => handleDeleteProject(project.id, e)}
+                                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all shrink-0"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)}`}>
+                                                            {getCategoryName(project.categoryId)}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Card Body */}
+                                                    <div className="p-5 pt-4 flex-1 flex flex-col justify-between">
+                                                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-6 min-h-[60px]">
+                                                            {project.description || <span className="italic opacity-50">No description provided.</span>}
+                                                        </p>
+
+                                                        {/* Progress Bar & Stats */}
+                                                        <div className="space-y-3 mt-auto">
+                                                            <div className="flex justify-between items-end text-sm">
+                                                                <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
+                                                                <span className="font-bold text-slate-900 dark:text-white">{progress}%</span>
+                                                            </div>
+                                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                                                                <div
+                                                                    className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
+                                                                    style={{ width: `${progress}%` }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 pt-1">
+                                                                <span>{totalTasks} Tasks Total</span>
+                                                                <span>{completedTasks} Completed</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)}`}>
-                                        {getCategoryName(project.categoryId)}
-                                    </span>
-                                </div>
-
-                                {/* Card Body */}
-                                <div className="p-5 pt-4 flex-1 flex flex-col justify-between">
-                                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-6 min-h-[60px]">
-                                        {project.description || <span className="italic opacity-50">No description provided.</span>}
-                                    </p>
-
-                                    {/* Progress Bar & Stats */}
-                                    <div className="space-y-3 mt-auto">
-                                        <div className="flex justify-between items-end text-sm">
-                                            <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
-                                            <span className="font-bold text-slate-900 dark:text-white">{progress}%</span>
-                                        </div>
-                                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                            <div
-                                                className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 pt-1">
-                                            <span>{totalTasks} Tasks Total</span>
-                                            <span>{completedTasks} Completed</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            );
-                        })}
+                                );
+                            });
+                        })()}
                     </div>
                 )}
             </div>
