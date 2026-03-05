@@ -31,10 +31,12 @@ import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories } from './services/projectService';
-import { Task, Project, Category, ChatMessage } from './types';
+import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea } from './services/projectService';
+import { Task, Project, Category, ChatMessage, Idea } from './types';
+import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
+  Plus,
   Calendar, 
   CalendarDays,
   BookOpen, 
@@ -146,6 +148,9 @@ const App: React.FC = () => {
   
   // Calendar Modal State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Quick Add Modal State
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -1204,31 +1209,59 @@ const App: React.FC = () => {
         onSendMessage={handleAiSendMessage}
         isLoading={isAiLoading}
         onSetMessages={setChatMessages}
+        quickAddButton={
+          <button
+            onClick={() => setIsQuickAddOpen(true)}
+            className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
+          >
+            <Plus size={24} />
+            <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Quick Add
+            </span>
+          </button>
+        }
+        liveAssistantButton={
+          <LiveAssistant
+            currentWeekData={currentWeekData}
+            lessonPlans={lessonPlans}
+            globalTasks={globalTasks}
+            projects={projects}
+            isAdmin={isAdmin}
+            onUpdateLesson={handleSaveLesson}
+            onAddRecurringLesson={handleBatchSaveLessons}
+            onSaveTask={async (task) => {
+              await saveTask(task);
+              setGlobalTasks(prev => {
+                const exists = prev.find(t => t.id === task.id);
+                if (exists) return prev.map(t => t.id === task.id ? task : t);
+                return [...prev, task];
+              });
+            }}
+            onSaveProject={async (project) => {
+              await saveProject(project);
+              setProjects(prev => {
+                const exists = prev.find(p => p.id === project.id);
+                if (exists) return prev.map(p => p.id === project.id ? project : p);
+                return [...prev, project];
+              });
+            }}
+          />
+        }
       />
 
-      <LiveAssistant 
-        currentWeekData={currentWeekData}
-        lessonPlans={lessonPlans}
-        globalTasks={globalTasks}
+      <QuickAddModal
+        isOpen={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        categories={categories}
         projects={projects}
-        isAdmin={isAdmin}
-        onUpdateLesson={handleSaveLesson}
-        onAddRecurringLesson={handleBatchSaveLessons}
         onSaveTask={async (task) => {
           await saveTask(task);
-          setGlobalTasks(prev => {
-            const exists = prev.find(t => t.id === task.id);
-            if (exists) return prev.map(t => t.id === task.id ? task : t);
-            return [...prev, task];
-          });
+          setGlobalTasks(prev => [task, ...prev]);
         }}
-        onSaveProject={async (project) => {
-          await saveProject(project);
-          setProjects(prev => {
-            const exists = prev.find(p => p.id === project.id);
-            if (exists) return prev.map(p => p.id === project.id ? project : p);
-            return [...prev, project];
-          });
+        onSaveIdea={async (idea) => {
+          await saveIdea(idea);
+          // Ideas state is maintained at ProjectPlanner / ProjectView level,
+          // but saving it here works fine, they will re-fetch or optimistically update
         }}
       />
     </div>

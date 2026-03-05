@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project, Category, Task, ProjectLink } from '../types';
-import { saveProject, saveTask, deleteTask } from '../services/projectService';
+import { saveProject, saveTask, deleteTask, fetchIdeas, deleteIdea } from '../services/projectService';
 import { generateContentFromAction, extractTaskDetails } from '../services/aiService';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
@@ -20,12 +20,14 @@ import {
     ChevronDown,
     ChevronUp,
     Edit2,
-    Bot
+    Bot,
+    Lightbulb
 } from 'lucide-react';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
 import ProjectAskAIModal from './ProjectAskAIModal';
+import { Idea } from '../types';
 
 interface ProjectViewProps {
     project: Project;
@@ -63,14 +65,32 @@ const BACKGROUND_COLORS = [
     { label: 'Deep Purple', class: 'bg-purple-100 dark:bg-purple-900/50' },
 ];
 
-type ViewMode = 'list' | 'timeline' | 'matrix';
+type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
 export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
+    const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('list');
 
+    // Idea Conversion State
+    const [convertingIdea, setConvertingIdea] = useState<Idea | null>(null);
+    const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+
+    React.useEffect(() => {
+        const loadIdeas = async () => {
+            try {
+                const allIdeas = await fetchIdeas();
+                setIdeas(allIdeas.filter(i => i.projectId === project.id));
+            } catch (e) {
+                console.error("Failed to load ideas", e);
+            }
+        };
+        loadIdeas();
+    }, [project.id]);
+
     // Edit Settings State
+    const [editName, setEditName] = useState(project.name);
     const [editDesc, setEditDesc] = useState(project.description || '');
     const [editBgColor, setEditBgColor] = useState(project.colorClass || BACKGROUND_COLORS[0].class);
     const [editCategory, setEditCategory] = useState(project.categoryId || '');
@@ -122,6 +142,38 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // --- Handlers ---
 
+    const handleDeleteIdea = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isReadOnly) return;
+        try {
+            await deleteIdea(id);
+            setIdeas(prev => prev.filter(i => i.id !== id));
+        } catch (e) {
+            console.error("Failed to delete idea", e);
+        }
+    };
+
+    const handleConvertIdeaToTask = (idea: Idea) => {
+        setConvertingIdea(idea);
+        setIsConvertModalOpen(true);
+    };
+
+    const handleSaveConvertedTask = async (task: Task) => {
+        if (isReadOnly || !convertingIdea) return;
+        try {
+            await saveTask(task);
+            await deleteIdea(convertingIdea.id);
+
+            setTasks(prev => [task, ...prev]);
+            setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+        } catch (e) {
+            console.error("Failed to convert idea to task", e);
+        } finally {
+            setIsConvertModalOpen(false);
+            setConvertingIdea(null);
+        }
+    };
+
     const toggleTaskExpansion = (taskId: string) => {
         setExpandedTasks(prev => {
             const next = new Set(prev);
@@ -153,7 +205,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     const handleSaveSettings = async () => {
         if (isReadOnly) return;
-        const updated = { ...project, description: editDesc, colorClass: editBgColor, categoryId: editCategory || undefined };
+        if (!editName.trim()) {
+            alert("Project name cannot be empty.");
+            return;
+        }
+        const updated = { ...project, name: editName.trim(), description: editDesc, colorClass: editBgColor, categoryId: editCategory || undefined };
         try {
             await saveProject(updated);
             onUpdateProject(updated);
@@ -758,6 +814,16 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                             <h3 className="text-lg font-bold mb-4">Project Settings</h3>
                             <div className="space-y-4">
                                 <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Project Name</label>
+                                    <input
+                                        type="text"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                        required
+                                    />
+                                </div>
+                                <div>
                                     <div className="flex justify-between items-center mb-1">
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
                                         {!isReadOnly && (
@@ -910,29 +976,35 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
 
                         <div className="p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-wrap items-center gap-4">
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                        <CheckCircle2 className="text-green-500" /> Tasks
+                                        <CheckCircle2 className="text-green-500" /> Tasks & Ideas
                                     </h2>
-                                    <p className="text-xs text-slate-500 mt-0.5">{tasks.length} total tasks</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">{tasks.length} tasks • {ideas.length} ideas</p>
                                 </div>
 
                                 <div className="hidden sm:flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
                                     <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
                                     <button onClick={() => setViewMode('matrix')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
                                     <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                    <button onClick={() => setViewMode('ideas')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
+                                        <Lightbulb size={12} /> Ideas
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <div className="sm:hidden flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="sm:hidden flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg flex-wrap">
                                     <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
                                     <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
                                     <button onClick={() => setViewMode('timeline')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                    <button onClick={() => setViewMode('ideas')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
+                                        <Lightbulb size={10} />
+                                    </button>
                                 </div>
 
-                                {!isReadOnly && (
+                                {!isReadOnly && viewMode !== 'ideas' && (
                                     <button
                                         onClick={() => setIsAddingTask(!isAddingTask)}
                                         className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap"
@@ -1031,7 +1103,42 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         )}
 
                         {/* Task List / Views */}
-                        {tasks.length === 0 ? (
+                        {viewMode === 'ideas' ? (
+                            <div className="p-4 md:p-6 bg-slate-50 dark:bg-slate-900/50 min-h-[400px]">
+                                {ideas.length === 0 ? (
+                                    <div className="text-center text-slate-400 dark:text-slate-500 mt-10">
+                                        <Lightbulb size={40} className="mx-auto mb-3 opacity-20" />
+                                        <p>No ideas for this project yet.</p>
+                                        <p className="text-sm">Use the Quick Add button to jot down ideas.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {ideas.map(idea => (
+                                            <div key={idea.id} className="bg-amber-50 dark:bg-slate-800 border border-amber-100 dark:border-slate-700 p-4 rounded-xl shadow-sm flex flex-col group">
+                                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap flex-1">{idea.text}</p>
+                                                <div className="flex justify-between items-center mt-4 pt-3 border-t border-amber-200/50 dark:border-slate-700">
+                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                        {new Date(idea.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                    <div className="flex gap-2">
+                                                        {!isReadOnly && (
+                                                            <>
+                                                                <button onClick={(e) => handleDeleteIdea(idea.id, e)} className="p-1.5 text-slate-400 hover:text-red-500 rounded bg-white dark:bg-slate-900 shadow-sm transition-colors" title="Delete Idea">
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                                <button onClick={() => handleConvertIdeaToTask(idea)} className="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded shadow-sm transition-colors flex items-center gap-1">
+                                                                    Convert to Task
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : tasks.length === 0 ? (
                             <div className="p-12 text-center flex flex-col items-center text-slate-500">
                                 <FolderKanban size={48} className="opacity-20 mb-4" />
                                 <p>No tasks created yet.</p>
@@ -1299,6 +1406,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 project={project}
                 onTaskAdded={(task) => setTasks(prev => [task, ...prev])}
                 isReadOnly={isReadOnly}
+            />
+
+            <TaskEditModal
+                isOpen={isConvertModalOpen}
+                onClose={() => { setIsConvertModalOpen(false); setConvertingIdea(null); }}
+                task={convertingIdea ? {
+                    id: `task_${Date.now()}`,
+                    projectId: convertingIdea.projectId || project.id,
+                    title: convertingIdea.text.split('\n')[0].substring(0, 50),
+                    description: convertingIdea.text,
+                    status: 'Uncompleted',
+                    priority: 'Medium'
+                } : null}
+                categories={allCategories}
+                onSave={handleSaveConvertedTask}
             />
         </div>
     );

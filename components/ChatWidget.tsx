@@ -11,9 +11,11 @@ interface ChatWidgetProps {
   onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
   isLoading: boolean;
   onSetMessages: (messages: ChatMessage[]) => void;
+  liveAssistantButton?: React.ReactNode;
+  quickAddButton?: React.ReactNode;
 }
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages, liveAssistantButton, quickAddButton }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [input, setInput] = useState('');
@@ -391,8 +393,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
         </div>
       )}
 
-      {/* Toggle Button */}
+      {/* Toggle Button Group */}
       {!isFullScreen && (
+        <div className="flex flex-col gap-3">
+          {quickAddButton && (
+            <div className="flex justify-end">
+              {quickAddButton}
+            </div>
+          )}
+          {liveAssistantButton && (
+            <div className="flex justify-end">
+              {liveAssistantButton}
+            </div>
+          )}
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
@@ -403,6 +416,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
           >
             {isOpen ? <X size={24} /> : <MessageCircle size={28} />}
           </button>
+        </div>
       )}
     </div>
   );

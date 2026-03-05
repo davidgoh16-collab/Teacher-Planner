@@ -84,6 +84,13 @@ export interface Task {
   aiGeneratedContent?: string;
 }
 
+export interface Idea {
+  id: string;
+  text: string;
+  projectId?: string; // If undefined, it's a global idea
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   name: string;

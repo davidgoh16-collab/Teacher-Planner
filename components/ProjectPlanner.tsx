@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project, Category, Task } from '../types';
-import { fetchProjects, fetchCategories, fetchTasks, saveProject, deleteProject } from '../services/projectService';
+import { fetchProjects, fetchCategories, fetchTasks, saveProject, deleteProject, fetchIdeas, deleteIdea, saveTask } from '../services/projectService';
 import ManageCategoriesModal from './ManageCategoriesModal';
 import {
   Plus,
@@ -13,22 +13,29 @@ import {
   CalendarDays,
   MoreVertical,
   Briefcase,
-  X
+  X,
+  Lightbulb
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
 import AIInsightsPanel from './AIInsightsPanel';
+import TaskEditModal from './TaskEditModal';
+import { Idea } from '../types';
 
 interface ProjectPlannerProps {
   isReadOnly: boolean;
 }
 
 const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
-  const [activeTab, setActiveTab] = useState<'projects' | 'tasks'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [convertingIdea, setConvertingIdea] = useState<Idea | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   // Search & Filter state for Projects List
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
@@ -51,19 +58,53 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fetchedProjects, fetchedCategories, fetchedTasks] = await Promise.all([
+      const [fetchedProjects, fetchedCategories, fetchedTasks, fetchedIdeas] = await Promise.all([
         fetchProjects(),
         fetchCategories(),
-        fetchTasks()
+        fetchTasks(),
+        fetchIdeas()
       ]);
       setProjects(fetchedProjects);
       setCategories(fetchedCategories);
       setAllTasks(fetchedTasks);
+      setIdeas(fetchedIdeas);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteIdea = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isReadOnly) return;
+    try {
+        await deleteIdea(id);
+        setIdeas(prev => prev.filter(i => i.id !== id));
+    } catch (e) {
+        console.error("Failed to delete idea", e);
+    }
+  };
+
+  const handleConvertIdeaToTask = (idea: Idea) => {
+      setConvertingIdea(idea);
+      setIsTaskModalOpen(true);
+  };
+
+  const handleSaveConvertedTask = async (task: Task) => {
+      if (isReadOnly || !convertingIdea) return;
+      try {
+          await saveTask(task);
+          await deleteIdea(convertingIdea.id);
+
+          setAllTasks(prev => [task, ...prev]);
+          setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+      } catch (e) {
+          console.error("Failed to convert idea to task", e);
+      } finally {
+          setIsTaskModalOpen(false);
+          setConvertingIdea(null);
+      }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -169,15 +210,21 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Briefcase size={16} /> Projects
                 </button>
                 <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Clock size={16} /> All Tasks
+                </button>
+                <button
+                    onClick={() => setActiveTab('ideas')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    <Lightbulb size={16} /> Ideas
                 </button>
             </div>
 
@@ -205,6 +252,49 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
           <div className="flex-1 flex justify-center items-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           </div>
+      ) : activeTab === 'ideas' ? (
+        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Lightbulb className="text-amber-500" /> Global Ideas & Notes
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">Quick thoughts not yet assigned to projects or converted to tasks.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                {ideas.filter(i => !i.projectId).length === 0 ? (
+                    <div className="text-center text-slate-400 dark:text-slate-500 mt-10">
+                        <Lightbulb size={40} className="mx-auto mb-3 opacity-20" />
+                        <p>No global ideas found.</p>
+                        <p className="text-sm">Use the Quick Add button to jot down ideas.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {ideas.filter(i => !i.projectId).map(idea => (
+                            <div key={idea.id} className="bg-amber-50 dark:bg-slate-800 border border-amber-100 dark:border-slate-700 p-4 rounded-xl shadow-sm flex flex-col group">
+                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap flex-1">{idea.text}</p>
+                                <div className="flex justify-between items-center mt-4 pt-3 border-t border-amber-200/50 dark:border-slate-700">
+                                    <span className="text-[10px] text-slate-400 font-medium">
+                                        {new Date(idea.createdAt).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex gap-2">
+                                        {!isReadOnly && (
+                                            <>
+                                                <button onClick={(e) => handleDeleteIdea(idea.id, e)} className="p-1.5 text-slate-400 hover:text-red-500 rounded bg-white dark:bg-slate-900 shadow-sm transition-colors" title="Delete Idea">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                                <button onClick={() => handleConvertIdeaToTask(idea)} className="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded shadow-sm transition-colors flex items-center gap-1">
+                                                    Convert to Task
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
       ) : activeTab === 'projects' ? (
 
         <div className="flex flex-col flex-1 h-full min-h-0">
@@ -458,6 +548,21 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
         isOpen={isManageCategoriesOpen}
         onClose={() => setIsManageCategoriesOpen(false)}
         isReadOnly={isReadOnly}
+      />
+
+      <TaskEditModal
+          isOpen={isTaskModalOpen}
+          onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); }}
+          task={convertingIdea ? {
+              id: `task_${Date.now()}`,
+              projectId: convertingIdea.projectId || 'global',
+              title: convertingIdea.text.split('\n')[0].substring(0, 50),
+              description: convertingIdea.text,
+              status: 'Uncompleted',
+              priority: 'Medium'
+          } : null}
+          categories={categories}
+          onSave={handleSaveConvertedTask}
       />
 
     </div>
