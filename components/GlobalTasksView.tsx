@@ -161,9 +161,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             const subtasks = task.subtasks || [];
             const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
             const hasSubtasks = subtasks.length > 0;
+            const project = projects.find(p => p.id === task.projectId);
+            const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
 
             return (
-                <div className={`group p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
+                <div className={`group p-3 ${bgColorClass} rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
                             <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
@@ -315,9 +317,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                         const subtasks = task.subtasks || [];
                                         const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
                                         const hasSubtasks = subtasks.length > 0;
+                                        const project = projects.find(p => p.id === task.projectId);
+                                        const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
 
                                         return (
-                                            <div key={task.id} className={`bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                            <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
 
                                                 {/* Left side: Date Badge */}
                                                 <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">

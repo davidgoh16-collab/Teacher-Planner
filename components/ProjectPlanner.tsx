@@ -305,7 +305,10 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                 return (
                                                 <div
                                                     key={project.id}
-                                                    onClick={() => setSelectedProjectId(project.id)}
+                                                    onClick={() => {
+                                                        setSelectedProjectId(project.id);
+                                                        window.scrollTo(0, 0);
+                                                    }}
                                                     className={`group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border ${project.colorClass || 'border-slate-200 dark:border-slate-800'} shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1`}
                                                 >
                                                     {/* Card Header with optional background color */}
