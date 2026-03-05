@@ -23,6 +23,7 @@ import {
   formatDate 
 } from './utils/dateUtils';
 import LessonModal from './components/LessonModal';
+import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
 import LiveAssistant from './components/LiveAssistant';
 import MeetingPlanner from './components/MeetingPlanner';
@@ -30,8 +31,8 @@ import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject } from './services/projectService';
-import { Task, Project, ChatMessage } from './types';
+import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories } from './services/projectService';
+import { Task, Project, Category, ChatMessage } from './types';
 import { 
   ChevronDown, 
   Calendar, 
@@ -137,6 +138,11 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLessonKey, setEditingLessonKey] = useState<string | null>(null);
   const [editingSubjectName, setEditingSubjectName] = useState<string>('');
+
+  // Task Edit Modal State
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   
   // Calendar Modal State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -192,14 +198,16 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const [plans, tasks, projs] = await Promise.all([
+        const [plans, tasks, projs, cats] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
-            fetchProjects()
+            fetchProjects(),
+            fetchCategories()
         ]);
         setLessonPlans(plans);
         setGlobalTasks(tasks);
         setProjects(projs);
+        setCategories(cats);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -351,6 +359,28 @@ const App: React.FC = () => {
         // Revert
         setGlobalTasks(prev => prev.map(t => t.id === taskId ? task : t));
     }
+  };
+
+  const handleEditTaskSave = async (updatedTask: Task) => {
+    if (isReadOnly) return;
+
+    // Optimistic update
+    setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setIsTaskModalOpen(false);
+
+    try {
+        await saveTask(updatedTask);
+    } catch (e) {
+        console.error("Failed to save edited task", e);
+        // Reload to revert
+        const tasks = await fetchTasks();
+        setGlobalTasks(tasks);
+    }
+  };
+
+  const openTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
   };
 
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
@@ -537,7 +567,7 @@ const App: React.FC = () => {
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-3.1-flash-lite-preview',
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
@@ -982,7 +1012,9 @@ const App: React.FC = () => {
                                         const isDue = task.deadlineDateStr === dateStr;
 
                                         return (
-                                            <div key={task.id} className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask`}>
+                                            <div key={task.id}
+                                                 onClick={() => openTaskModal(task)}
+                                                 className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                 <button
                                                     onClick={(e) => toggleTaskCompletion(e, task.id)}
                                                     className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
@@ -1119,6 +1151,14 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+
+      <TaskEditModal
+        isOpen={isTaskModalOpen}
+        onClose={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
+        task={editingTask}
+        categories={categories}
+        onSave={handleEditTaskSave}
+      />
 
       <LessonModal 
         isOpen={isModalOpen}
