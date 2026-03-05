@@ -397,44 +397,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
           </form>
         </div>
 
-      {/* Live Mini Player */}
-      {!isOpen && !isFullScreen && isLiveActive && (
-        <div
-           onClick={() => setIsOpen(true)}
-           className="mb-4 w-72 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl border border-green-500/50 p-3 flex flex-col gap-2 cursor-pointer hover:border-green-400 transition-colors animate-in slide-in-from-bottom-5 fade-in pointer-events-auto"
-        >
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-bold text-green-400 uppercase tracking-tighter">Live Session</span>
-                </div>
-                <span className="text-[10px] text-slate-400">{liveStatusText || 'Active'}</span>
-            </div>
-
-            <div className="bg-slate-800 dark:bg-slate-900 rounded-lg p-2 text-xs text-slate-300 h-16 overflow-hidden relative">
-                {messages.length > 0 ? (
-                    <div className="flex flex-col gap-1 justify-end min-h-full">
-                        {messages.slice(-2).map((msg, i) => (
-                           <div key={i} className="line-clamp-2">
-                               <span className={msg.role === 'user' ? 'text-blue-400' : 'text-green-400 font-semibold'}>
-                                   {msg.role === 'user' ? 'You: ' : 'June: '}
-                               </span>
-                               {msg.text}
-                           </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 italic">
-                        Listening for audio...
-                    </div>
-                )}
-                {/* Fade out bottom text */}
-                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-slate-800 dark:from-slate-900 to-transparent pointer-events-none" />
-            </div>
-            <div className="text-center text-[10px] text-slate-500 mt-1 font-medium">Click to open chat</div>
-        </div>
-      )}
-
       {/* Toggle Button Group */}
       {!isFullScreen && (
         <div className="flex flex-col gap-3 items-end pointer-events-auto">
