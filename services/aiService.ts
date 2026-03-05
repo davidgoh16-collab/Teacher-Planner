@@ -181,7 +181,17 @@ export const generateInsights = async (
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      let jsonStr = response.text.trim();
+      // Remove potential markdown wrappers like ```json ... ```
+      if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.substring(7);
+      } else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.substring(3);
+      }
+      if (jsonStr.endsWith('```')) {
+        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
+      }
+      return JSON.parse(jsonStr.trim());
     }
     return [];
   } catch (error) {
