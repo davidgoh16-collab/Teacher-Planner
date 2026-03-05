@@ -30,6 +30,9 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
     const [selectedText, setSelectedText] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Memoize remark plugins
+    const remarkPlugins = React.useMemo(() => [remarkGfm], []);
+
     // Reset state when modal opens with new content
     useEffect(() => {
         if (isOpen && content) {
