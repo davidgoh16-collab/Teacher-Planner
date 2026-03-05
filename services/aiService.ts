@@ -173,7 +173,7 @@ export const generateInsights = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -194,7 +194,7 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
     });
     return response.text || "";
@@ -221,7 +221,7 @@ export const extractTaskDetails = async (naturalLanguageInput: string): Promise<
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-2.5-flash",
             contents: [prompt],
             config: {
                 responseMimeType: "application/json",
@@ -272,7 +272,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { text: prompt },

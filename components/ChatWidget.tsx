@@ -194,6 +194,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
               </div>
             </div>
             <div className="flex items-center gap-1">
+                {liveAssistantButton && (
+                    <div className="mr-1">
+                        {liveAssistantButton}
+                    </div>
+                )}
                 <button
                   onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                   className={`p-1.5 rounded-md transition-colors ${isHistoryOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
@@ -399,11 +404,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
           {quickAddButton && (
             <div className="flex justify-end">
               {quickAddButton}
-            </div>
-          )}
-          {liveAssistantButton && (
-            <div className="flex justify-end">
-              {liveAssistantButton}
             </div>
           )}
           <button
