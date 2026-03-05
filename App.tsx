@@ -412,8 +412,8 @@ const App: React.FC = () => {
     return simple;
   };
 
-  const handleAiSendMessage = async (userMessage: string) => {
-    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+  const handleAiSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
+    setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
 
     try {
@@ -505,30 +505,58 @@ const App: React.FC = () => {
         }
       };
 
+      const addTaskToProjectTool: FunctionDeclaration = {
+        name: 'addTaskToProject',
+        description: 'Add a new task to an existing project.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            projectId: { type: Type.STRING, description: 'The ID of the project.' },
+            title: { type: Type.STRING, description: 'Task title.' },
+            description: { type: Type.STRING, description: 'Task notes or description.' },
+            priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'], description: 'Default is Medium.' }
+          },
+          required: ['projectId', 'title']
+        }
+      };
+
       const systemInstruction = isReadOnly
-        ? `You are an expert teacher's assistant. You have access to the user's timetable.
-           The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans.`
-        : `You are an expert teacher's assistant. You help plan lessons and meetings.
+        ? `You are an expert teacher's assistant. You have access to the user's timetable and projects.
+           The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks.`
+        : `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
            
            RULES:
            1. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
            2. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
            3. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
            4. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
+           5. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
            
            ${contextString}`;
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-1.5-pro',
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
-          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool] }] : undefined
+          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTaskToProjectTool] }] : undefined
         }
       });
+
+      let finalMessage: any = userMessage;
+      if (fileData) {
+         if (fileData.isBase64) {
+             finalMessage = [
+                 userMessage,
+                 { inlineData: { data: fileData.text, mimeType: fileData.mimeType } }
+             ];
+         } else {
+             finalMessage = `User Message: ${userMessage}\n\nAttached Document Content:\n${fileData.text}`;
+         }
+      }
       
-      const response = await chat.sendMessage({ message: userMessage });
+      const response = await chat.sendMessage({ message: finalMessage });
 
       // Handle Function Calls
       const functionCalls = response.functionCalls;
@@ -641,6 +669,38 @@ const App: React.FC = () => {
                         }
                      });
                    }
+                } else if (call.name === 'addTaskToProject') {
+                    const args = call.args as any;
+                    const newTask: Task = {
+                        id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        projectId: args.projectId,
+                        title: args.title,
+                        description: args.description || undefined,
+                        priority: args.priority || 'Medium',
+                        status: 'Uncompleted',
+                        subtasks: []
+                    };
+
+                    try {
+                        await saveTask(newTask);
+                        setGlobalTasks(prev => [...prev, newTask]);
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Added task "${newTask.title}" to project.` }
+                            }
+                        });
+                    } catch (e) {
+                        console.error(e);
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { error: `Failed to save task.` }
+                            }
+                        });
+                    }
                 }
             }
             
@@ -713,24 +773,24 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       
       {/* Top Navigation Bar */}
-      <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-lg z-50 sticky top-0 border-b border-transparent dark:border-slate-800">
+      <header className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white shadow-lg z-50 sticky top-0 border-b border-gray-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
           
           <div className="flex items-center gap-3">
-            <div className="bg-green-600 p-2 rounded-lg">
+            <div className="bg-green-600 p-2 rounded-lg shadow-sm">
               <BookOpen size={24} className="text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Teacher Planner</h1>
-              <p className="text-xs text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-400 ml-1 font-semibold">(View Only)</span>}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 bg-slate-800 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-700">
+          <div className="flex flex-wrap items-center gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm">
             {/* Term Selector */}
             <div className="relative group">
               <select 
-                className="appearance-none bg-slate-900 dark:bg-slate-800 text-white pl-4 pr-10 py-2 rounded-lg border border-slate-600 hover:border-slate-500 focus:outline-none focus:border-green-500 text-sm font-medium cursor-pointer transition-colors"
+                className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
                 value={selectedTermId}
                 onChange={handleTermChange}
               >
@@ -738,16 +798,16 @@ const App: React.FC = () => {
                   <option key={term.id} value={term.id}>{term.name}</option>
                 ))}
               </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
             </div>
 
             {/* Class Filter */}
-            <div className="relative group border-l border-slate-700 pl-3 ml-1">
-               <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-3 ml-1">
+               <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
                   <Filter size={14} />
                </div>
                <select 
-                  className="appearance-none bg-slate-900 dark:bg-slate-800 text-white pl-9 pr-8 py-2 rounded-lg border border-slate-600 hover:border-slate-500 focus:outline-none focus:border-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[150px] truncate"
+                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-9 pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[150px] truncate shadow-sm"
                   value={viewFilter}
                   onChange={(e) => setViewFilter(e.target.value)}
                >
@@ -756,24 +816,24 @@ const App: React.FC = () => {
                       <option key={subj} value={subj}>{subj}</option>
                   ))}
                </select>
-               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
             </div>
 
             {/* Week Navigator */}
-            <div className="flex items-center bg-slate-900 dark:bg-slate-800 rounded-lg border border-slate-600">
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm">
               <button 
                 onClick={handlePrevWeek} 
                 disabled={selectedWeekIndex === 0}
-                className="p-2 hover:bg-slate-700 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
               >
                 <ChevronLeft size={18} />
               </button>
               
-              <div className="px-4 py-2 min-w-[140px] text-center border-l border-r border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors" onClick={handleJumpToCurrent} title="Jump to current week">
-                 <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+              <div className="px-4 py-2 min-w-[140px] text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" onClick={handleJumpToCurrent} title="Jump to current week">
+                 <div className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
                     {currentWeekData ? `Week ${currentWeekData.weekNumber}` : 'Loading...'}
                  </div>
-                 <div className="text-sm font-bold whitespace-nowrap">
+                 <div className="text-sm font-bold text-slate-800 dark:text-white whitespace-nowrap">
                     {currentWeekData?.displayString}
                  </div>
               </div>
@@ -781,7 +841,7 @@ const App: React.FC = () => {
               <button 
                 onClick={handleNextWeek}
                 disabled={selectedWeekIndex >= weeksInTerm.length - 1}
-                className="p-2 hover:bg-slate-700 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
               >
                 <ChevronRight size={18} />
               </button>
@@ -791,7 +851,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <button 
                 onClick={cycleTheme}
-                className="flex items-center gap-2 bg-slate-800 dark:bg-slate-900 hover:bg-slate-700 dark:hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-2 rounded-lg transition-colors border border-slate-700"
+                className="flex items-center gap-2 bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
                 title={`Theme: ${theme}`}
             >
                 {getThemeIcon()}
@@ -799,7 +859,7 @@ const App: React.FC = () => {
             
             <button 
                 onClick={() => setIsCalendarOpen(true)}
-                className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors px-3"
+                className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors px-3"
             >
                 <CalendarDays size={14} /> <span className="hidden sm:inline">Calendar</span>
             </button>
@@ -807,24 +867,24 @@ const App: React.FC = () => {
             {isAdmin && (
                 <button 
                     onClick={exportData} 
-                    className="hidden md:flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors px-3"
+                    className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors px-3"
                 >
                     <Download size={14} /> Backup
                 </button>
             )}
 
             {/* User Profile / Logout */}
-            <div className="flex items-center gap-3 pl-3 border-l border-slate-700 ml-1">
+            <div className="flex items-center gap-3 pl-3 border-l border-gray-300 dark:border-slate-700 ml-1">
               {user?.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-slate-600" />
+                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-gray-300 dark:border-slate-600 shadow-sm" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold shadow-inner">
+                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
                   {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
                 </div>
               )}
               <button 
                 onClick={() => signOut(auth)} 
-                className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors"
                 title="Sign Out"
               >
                 <LogOut size={16} />

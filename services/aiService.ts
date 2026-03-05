@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { WeeklyTimetable } from "../types";
 
-const getAiClient = () => {
+export const getAiClient = () => {
   const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
   return new GoogleGenAI({ apiKey });
 };
@@ -203,6 +203,40 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
     console.error("Error generating content:", error);
     return "Error generating content. Please try again.";
   }
+};
+
+export const extractTaskDetails = async (naturalLanguageInput: string): Promise<{ title: string, priority: string, scheduledDateStr: string, deadlineDateStr: string }> => {
+    try {
+        const ai = getAiClient();
+        const prompt = `
+            Extract task details from the following natural language input:
+            "${naturalLanguageInput}"
+
+            Return a JSON object with the following keys:
+            - title (string): A short, clear title for the task.
+            - priority (string): Must be exactly "High", "Medium", or "Low". Default to "Medium" if not specified.
+            - scheduledDateStr (string): The start or scheduled date in "YYYY-MM-DD" format. If words like "tomorrow", "next week" are used, calculate the date relative to today (${new Date().toISOString().split('T')[0]}). If not specified, return an empty string "".
+            - deadlineDateStr (string): The due date or deadline in "YYYY-MM-DD" format. Calculate relative to today if needed. If not specified, return an empty string "".
+
+            Do not wrap in markdown tags like \`\`\`json.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-1.5-pro",
+            contents: [prompt],
+            config: {
+                responseMimeType: "application/json",
+            },
+        });
+
+        if (response.text) {
+            return JSON.parse(response.text);
+        }
+        throw new Error("No response text from Gemini");
+    } catch (error) {
+        console.error("Error extracting task details:", error);
+        return { title: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "" };
+    }
 };
 
 export const parseTimetableImage = async (base64Data: string, mimeType: string = "image/png"): Promise<{ week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
