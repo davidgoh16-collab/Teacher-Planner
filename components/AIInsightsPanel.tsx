@@ -5,6 +5,8 @@ import { Task, Project } from '../types';
 import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
 
+const remarkPlugins = [remarkGfm];
+
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
     tasks: Task[];
