@@ -158,18 +158,6 @@ const App: React.FC = () => {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
 
-  // Live Streaming State
-  // Keep track of the current streaming block for user and model to handle partials
-  const [liveStreamState, setLiveStreamState] = useState<{userChunk: string, modelChunk: string}>({userChunk: '', modelChunk: ''});
-
-  // Combine committed messages with current streaming chunks
-  const displayMessages = useMemo(() => {
-     const msgs = [...chatMessages];
-     if (liveStreamState.userChunk) msgs.push({ role: 'user', text: liveStreamState.userChunk });
-     if (liveStreamState.modelChunk) msgs.push({ role: 'model', text: liveStreamState.modelChunk });
-     return msgs;
-  }, [chatMessages, liveStreamState]);
-
   // --- Derived Data ---
   const currentTerm = TERMS.find(t => t.id === selectedTermId) || TERMS[0];
   const weeksInTerm = useMemo(() => generateWeeksForTerm(currentTerm), [currentTerm]);
@@ -1219,7 +1207,7 @@ const App: React.FC = () => {
       )}
 
       <ChatWidget 
-        messages={displayMessages}
+        messages={chatMessages}
         onSendMessage={handleAiSendMessage}
         isLoading={isAiLoading}
         onSetMessages={setChatMessages}
@@ -1262,46 +1250,6 @@ const App: React.FC = () => {
             onStatusChange={(active, statusText) => {
               setIsLiveActive(active);
               if (statusText) setLiveStatusText(statusText);
-              if (!active) {
-                 // Clean up any remaining chunks on close
-                 setLiveStreamState({userChunk: '', modelChunk: ''});
-              }
-            }}
-            onTranscription={(role, text, isFinal) => {
-              if (isFinal) {
-                 // Once final, commit it to the main chat messages array
-                 setChatMessages(prev => {
-                     // If it's the model, and the last message is ALSO the model, we can just append if it's within a session.
-                     // But Live API outputTranscription usually groups sentences.
-                     // Let's just push it as a new message, or append to the last if they are contiguous model chunks.
-                     // To prevent stuttering, let's look at the last committed message.
-                     const lastMsg = prev[prev.length - 1];
-                     if (lastMsg && lastMsg.role === role) {
-                         const updated = [...prev];
-                         updated[updated.length - 1] = { ...lastMsg, text: lastMsg.text + " " + text };
-                         return updated;
-                     }
-                     return [...prev, { role, text }];
-                 });
-                 // Clear the active chunk for this role
-                 setLiveStreamState(prev => ({
-                     ...prev,
-                     [role === 'user' ? 'userChunk' : 'modelChunk']: ''
-                 }));
-              } else {
-                 // For non-final, just update the chunk so it displays instantly in the UI
-                 // The Gemini API `text` field for partials contains the *entire* partial sentence so far, not just the diff.
-                 // So we overwrite the chunk.
-                 setLiveStreamState(prev => {
-                     // For model modelTurn.parts we decided to append them in LiveAssistant, but they come without isFinal.
-                     // Wait, we pass `isFinal: false` for modelTurn.parts in LiveAssistant.
-                     // Let's just treat all `isFinal: false` as full string replacements for the current sentence block.
-                     return {
-                        ...prev,
-                        [role === 'user' ? 'userChunk' : 'modelChunk']: text
-                     };
-                 });
-              }
             }}
           />
         }
