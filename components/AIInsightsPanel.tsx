@@ -127,13 +127,13 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                 {insight.description}
                             </p>
 
-                            {insight.type === 'action' && !isReadOnly && (
+                            {insight.actionData?.prompt && !isReadOnly && (
                                 <div className="mt-3 ml-7">
                                     <button
                                         onClick={() => handleAcceptAction(insight)}
                                         className="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1.5 px-3 rounded-md transition-colors flex items-center gap-1.5 group-hover:shadow-sm"
                                     >
-                                        <Bot size={12} /> Accept & Generate
+                                        <Bot size={12} /> Action This / Generate
                                     </button>
                                 </div>
                             )}

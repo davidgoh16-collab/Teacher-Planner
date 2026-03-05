@@ -146,9 +146,8 @@ export const generateInsights = async (
       Insights can be:
       1. 'info': General information or summary about the workload or project status.
       2. 'suggestion': A suggestion on what to prioritize or how to organize tasks.
-      3. 'action': A proactive offer to complete a task (e.g., draft an email, write a lesson plan).
-         If you suggest an 'action', include the 'taskId' it relates to (if any), and provide 'actionData.prompt'
-         which is a prompt that the user can run to generate the actual content.
+      3. 'action': A proactive offer to complete a task, draft content, consolidate communication, or restructure a process.
+         If you suggest an 'action', you MUST provide 'actionData.prompt' which is a prompt that the AI can run to generate the actual content or draft. For example, if you suggest "Consolidate Oasis Communications", the prompt should be "Draft a consolidated email to Oasis addressing both the English literature setups and the Bromcom communication issues."
 
       Context:
       ${contextStr}

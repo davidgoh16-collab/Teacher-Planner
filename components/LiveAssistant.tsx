@@ -575,7 +575,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="relative z-50 flex flex-col items-end gap-3">
       {isActive && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
@@ -638,7 +638,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
       <button
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
-        className={`group relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
+        className={`group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
           isActive 
             ? 'bg-slate-800 text-white' 
             : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20'
@@ -660,7 +660,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
         )}
         
         {!isActive && !isConnecting && (
-          <span className="absolute right-16 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             Teaching Assistant
           </span>
         )}
