@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, Loader2, X, Bot, Info, Monitor, MonitorOff } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
@@ -575,9 +576,9 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   };
 
   return (
-    <div className="relative flex flex-col items-end">
-      {isActive && (
-        <div className="absolute top-10 right-0 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[60]">
+    <>
+      {isActive && createPortal(
+        <div className="fixed top-24 right-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[9999]">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -632,9 +633,11 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
             <Info size={12} className="shrink-0 mt-0.5" />
             <span>"Share Screen" to let June review your resources, slides, or documents in real-time.</span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
+      <div className="relative flex flex-col items-end">
       <button
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
@@ -660,7 +663,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
           <Mic size={18} />
         )}
       </button>
-    </div>
+      </div>
+    </>
   );
 };
 
