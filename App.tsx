@@ -420,7 +420,7 @@ const App: React.FC = () => {
     try {
       if (!currentWeekData) throw new Error("No active week data");
 
-      const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       
       // Build context about the current week's timetable

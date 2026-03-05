@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { WeeklyTimetable } from "../types";
 
 export const getAiClient = () => {
-  const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
   return new GoogleGenAI({ apiKey });
 };
 
