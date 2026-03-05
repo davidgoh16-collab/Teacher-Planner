@@ -6,6 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { saveTask } from '../services/projectService';
 
+const remarkPlugins = [remarkGfm];
+
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
     tasks: Task[];
@@ -164,7 +166,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                 </div>
                             ) : (
                                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    <ReactMarkdown remarkPlugins={remarkPlugins}>
                                         {generatedContent || ''}
                                     </ReactMarkdown>
                                 </div>
