@@ -105,3 +105,12 @@ export interface AIConversation {
   messages: ChatMessage[];
   updatedAt: number;
 }
+
+export interface AppItem {
+  id: string;
+  name: string;
+  url: string;
+  iconType: 'preset' | 'imageUrl';
+  iconValue: string; // the lucide icon name or image url
+  createdAt: number;
+}
