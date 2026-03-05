@@ -51,7 +51,8 @@ import {
   LogOut,
   Loader2,
   Lock,
-  Filter
+  Filter,
+  Clock
 } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -974,19 +975,32 @@ const App: React.FC = () => {
                                 {(() => {
                                     const dailyTasks = globalTasks.filter(t => t.scheduledDateStr === dateStr || t.deadlineDateStr === dateStr);
                                     if (dailyTasks.length === 0) return null;
-                                    return dailyTasks.map(task => (
-                                        <div key={task.id} className="flex items-start gap-1.5 bg-white dark:bg-slate-800 p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
-                                            <button
-                                                onClick={(e) => toggleTaskCompletion(e, task.id)}
-                                                className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
-                                            >
-                                                <CheckCircle2 size={12} />
-                                            </button>
-                                            <span className={`font-medium line-clamp-2 leading-tight flex-1 ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                                                {task.title}
-                                            </span>
-                                        </div>
-                                    ));
+                                    return dailyTasks.map(task => {
+                                        const project = projects.find(p => p.id === task.projectId);
+                                        const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
+                                        const isScheduled = task.scheduledDateStr === dateStr;
+                                        const isDue = task.deadlineDateStr === dateStr;
+
+                                        return (
+                                            <div key={task.id} className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask`}>
+                                                <button
+                                                    onClick={(e) => toggleTaskCompletion(e, task.id)}
+                                                    className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                                                >
+                                                    <CheckCircle2 size={12} />
+                                                </button>
+                                                <div className="flex-1 flex flex-col min-w-0">
+                                                    <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        {task.title}
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                                        {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className="text-green-600 dark:text-green-400" /> Sch</span>}
+                                                        {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className="text-red-600 dark:text-red-400" /> Due</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
                                 })()}
                             </div>
                         </div>
