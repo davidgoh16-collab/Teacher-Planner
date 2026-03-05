@@ -20,6 +20,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
     // AI Edit State
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
+    const [isGeneratingPro, setIsGeneratingPro] = useState(false);
 
     // Selection state for targeted editing
     const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -83,6 +84,35 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
         setIsEditing(false);
     };
 
+    const handleRegenerateWithPro = async () => {
+        setIsGeneratingPro(true);
+        try {
+            const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+            const ai = new GoogleGenAI({ apiKey });
+
+            const systemPrompt = `You are a professional assistant. Please rewrite and elevate the following content to be more comprehensive, professional, and well-structured.`;
+            const prompt = `Please rewrite this content to be better:\n\n${editedContent}`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3.1-pro-preview',
+                contents: prompt,
+                config: {
+                    systemInstruction: systemPrompt,
+                }
+            });
+
+            if (response.text) {
+                saveToHistory(editedContent);
+                setEditedContent(response.text);
+            }
+        } catch (error) {
+            console.error("AI Regenerate Pro Error:", error);
+            alert("Failed to regenerate with Pro model.");
+        } finally {
+            setIsGeneratingPro(false);
+        }
+    };
+
     const handleAiEdit = async () => {
         if (!aiPrompt.trim()) return;
 
@@ -128,7 +158,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
             }
 
             const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
                 contents: prompt,
                 config: {
                     systemInstruction: systemPrompt,
@@ -291,12 +321,22 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
 
                 {/* Footer */}
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
-                    <button
-                        onClick={() => navigator.clipboard.writeText(editedContent)}
-                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                    >
-                        Copy to Clipboard
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigator.clipboard.writeText(editedContent)}
+                            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                        >
+                            Copy to Clipboard
+                        </button>
+                        <button
+                            onClick={handleRegenerateWithPro}
+                            disabled={isGeneratingPro}
+                            className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800/50 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {isGeneratingPro ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
+                            Regenerate with 3.1 Pro
+                        </button>
+                    </div>
                     {!isEditing && (
                         <button
                             onClick={onClose}
