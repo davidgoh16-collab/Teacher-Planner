@@ -279,6 +279,19 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 </div>
             )}
 
+            {selectedTaskIds.size > 0 && !isReadOnly && (
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
+                    <div className="w-px h-4 bg-slate-700"></div>
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                        <CheckCircle2 size={16} /> Mark Completed
+                    </button>
+                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
+                        <Trash2 size={16} /> Delete
+                    </button>
+                </div>
+            )}
+
                 {/* Q1: Do */}
                 <div className="bg-red-50/50 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 flex flex-col">
                     <h3 className="font-bold text-red-800 dark:text-red-400 mb-4 flex items-center justify-between">
