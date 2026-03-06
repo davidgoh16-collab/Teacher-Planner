@@ -273,18 +273,32 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   }
 };
 
-export const extractTaskDetails = async (naturalLanguageInput: string): Promise<{ title: string, priority: string, scheduledDateStr: string, deadlineDateStr: string }> => {
+export const extractTaskDetails = async (
+    naturalLanguageInput: string,
+    projects?: { id: string; name: string }[],
+    categories?: { id: string; name: string }[]
+): Promise<{ title: string, description: string, priority: string, scheduledDateStr: string, deadlineDateStr: string, projectId: string, categoryId: string }> => {
     try {
         const ai = getAiClient();
+
+        const projectsStr = projects && projects.length > 0 ? `Available Projects: ${projects.map(p => `"${p.name}" (ID: ${p.id})`).join(', ')}` : "No projects available.";
+        const categoriesStr = categories && categories.length > 0 ? `Available Categories: ${categories.map(c => `"${c.name}" (ID: ${c.id})`).join(', ')}` : "No categories available.";
+
         const prompt = `
             Extract task details from the following natural language input:
             "${naturalLanguageInput}"
 
+            ${projectsStr}
+            ${categoriesStr}
+
             Return a JSON object with the following keys:
             - title (string): A short, clear title for the task.
+            - description (string): Any remaining details, notes, or steps. If none, return an empty string "".
             - priority (string): Must be exactly "High", "Medium", or "Low". Default to "Medium" if not specified.
             - scheduledDateStr (string): The start or scheduled date in "YYYY-MM-DD" format. If words like "tomorrow", "next week" are used, calculate the date relative to today (${new Date().toISOString().split('T')[0]}). If not specified, return an empty string "".
             - deadlineDateStr (string): The due date or deadline in "YYYY-MM-DD" format. Calculate relative to today if needed. If not specified, return an empty string "".
+            - projectId (string): The ID of the project if the user mentions one of the Available Projects. Otherwise, return an empty string "".
+            - categoryId (string): The ID of the category if the user mentions one of the Available Categories. Otherwise, return an empty string "".
 
             Do not wrap in markdown tags like \`\`\`json.
         `;
@@ -303,7 +317,7 @@ export const extractTaskDetails = async (naturalLanguageInput: string): Promise<
         throw new Error("No response text from Gemini");
     } catch (error) {
         console.error("Error extracting task details:", error);
-        return { title: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "" };
+        return { title: "", description: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "", projectId: "", categoryId: "" };
     }
 };
 
