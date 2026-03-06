@@ -124,6 +124,75 @@ export interface AIInsight {
   };
 }
 
+/**
+ * Robustly parses a JSON string, handling potential markdown wrappers
+ * or trailing conversational text from the AI response.
+ */
+function extractAndParseJSON(jsonStr: string): any {
+  let text = jsonStr.trim();
+
+  // Try standard parse first
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Continue to fallback
+  }
+
+  // Clean markdown formatting if present
+  if (text.startsWith('```json')) {
+    text = text.substring(7);
+  } else if (text.startsWith('```')) {
+    text = text.substring(3);
+  }
+  if (text.endsWith('```')) {
+    text = text.substring(0, text.length - 3);
+  }
+  text = text.trim();
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Continue to extraction fallback
+  }
+
+  // Find the first '[' and last ']' for an array
+  const firstBracket = text.indexOf('[');
+  const lastBracket = text.lastIndexOf(']');
+
+  // Find the first '{' and last '}' for an object
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+
+  // Determine if the outermost structure is likely an array or an object
+  let firstCharIndex = -1;
+  let lastCharIndex = -1;
+
+  if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
+    if (firstBrace === -1 || firstBracket < firstBrace) {
+      firstCharIndex = firstBracket;
+      lastCharIndex = lastBracket;
+    }
+  }
+
+  if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+    if (firstBracket === -1 || firstBrace < firstBracket) {
+      firstCharIndex = firstBrace;
+      lastCharIndex = lastBrace;
+    }
+  }
+
+  if (firstCharIndex !== -1 && lastCharIndex !== -1 && firstCharIndex < lastCharIndex) {
+    try {
+      const potentialJson = text.substring(firstCharIndex, lastCharIndex + 1);
+      return JSON.parse(potentialJson);
+    } catch (e) {
+      console.error("Failed to parse extracted JSON:", e);
+    }
+  }
+
+  throw new Error("Could not parse JSON from string: " + jsonStr);
+}
+
 export const generateInsights = async (
   contextType: 'project' | 'all_tasks',
   tasks: any[],
@@ -181,17 +250,7 @@ export const generateInsights = async (
     });
 
     if (response.text) {
-      let jsonStr = response.text.trim();
-      // Remove potential markdown wrappers like ```json ... ```
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.substring(7);
-      } else if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.substring(3);
-      }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
-      }
-      return JSON.parse(jsonStr.trim());
+      return extractAndParseJSON(response.text);
     }
     return [];
   } catch (error) {
@@ -239,7 +298,7 @@ export const extractTaskDetails = async (naturalLanguageInput: string): Promise<
         });
 
         if (response.text) {
-            return JSON.parse(response.text);
+            return extractAndParseJSON(response.text);
         }
         throw new Error("No response text from Gemini");
     } catch (error) {
@@ -301,7 +360,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      return extractAndParseJSON(response.text);
     }
     throw new Error("No response text from Gemini");
   } catch (error) {
