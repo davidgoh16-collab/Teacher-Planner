@@ -130,3 +130,11 @@ export interface AppItem {
   colorClass?: string;
   createdAt: number;
 }
+
+export interface RoutineTask {
+  id: string;
+  title: string;
+  priority: 'High' | 'Medium' | 'Low';
+  lastCompletedDateStr?: string; // YYYY-MM-DD
+  createdAt: number;
+}

@@ -115,6 +115,41 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // New Task State
     const [isAddingTask, setIsAddingTask] = useState(false);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+
+    const toggleTaskSelection = (taskId: string, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const newSelection = new Set(selectedTaskIds);
+        if (newSelection.has(taskId)) {
+            newSelection.delete(taskId);
+        } else {
+            newSelection.add(taskId);
+        }
+        setSelectedTaskIds(newSelection);
+    };
+
+    const handleBulkDelete = async () => {
+        if (!window.confirm(`Are you sure you want to delete ${selectedTaskIds.size} selected task(s)?`)) return;
+        const idsToDelete = Array.from(selectedTaskIds);
+        setSelectedTaskIds(new Set());
+        for (const id of idsToDelete) {
+            try { await deleteTask(id); } catch (e) { console.error("Failed to delete task in bulk", id, e); }
+        }
+    };
+
+    const handleBulkComplete = async () => {
+        const idsToUpdate = Array.from(selectedTaskIds);
+        setSelectedTaskIds(new Set());
+        const flatTasks = tasks;
+        for (const id of idsToUpdate) {
+            const task = flatTasks.find(t => t.id === id);
+            if (task && task.status !== 'Completed') {
+                try { await saveTask({ ...task, status: 'Completed' as const }); } catch (e) { console.error("Failed to complete task in bulk", id, e); }
+            }
+        }
+    };
+
     const [aiTaskInput, setAiTaskInput] = useState('');
     const [isGeneratingTask, setIsGeneratingTask] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -257,8 +292,9 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         if (!aiTaskInput.trim()) return;
         setIsGeneratingTask(true);
         try {
-            const details = await extractTaskDetails(aiTaskInput);
+            const details = await extractTaskDetails(aiTaskInput, [project], []);
             if (details.title) setNewTaskTitle(details.title);
+            if (details.description) setNewTaskDescription(details.description);
             if (details.priority) setNewTaskPriority(details.priority as any);
             if (details.scheduledDateStr) setNewTaskScheduled(details.scheduledDateStr);
             if (details.deadlineDateStr) setNewTaskDeadline(details.deadlineDateStr);
@@ -516,7 +552,9 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             const hasSubtasks = subtasks.length > 0;
             const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
 
-            return (
+
+
+    return (
                 <div className={`group p-3 ${bgColorClass} rounded-lg shadow-sm border flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -530,7 +568,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1 text-slate-400 hover:text-blue-500 rounded" title="Edit Task">
                                     <Edit2 size={14} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded" title="Delete Task">
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded" title="Delete Task">
                                     <Trash2 size={14} />
                                 </button>
                             </div>
@@ -736,7 +774,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                             <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit Task">
                                                                 <Edit2 size={16} />
                                                             </button>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
                                                                 <Trash2 size={16} />
                                                             </button>
                                                         </div>
@@ -813,6 +851,19 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     {/* Top Section: Settings / Description & Links */}
                     {isEditingSettings ? (
                         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2">
+            {selectedTaskIds.size > 0 && !isReadOnly && (
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
+                    <div className="w-px h-4 bg-slate-700"></div>
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                        <CheckCircle2 size={16} /> Mark Completed
+                    </button>
+                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
+                        <Trash2 size={16} /> Delete
+                    </button>
+                </div>
+            )}
+
                             <h3 className="text-lg font-bold mb-4">Project Settings</h3>
                             <div className="space-y-4">
                                 <div>
@@ -1229,7 +1280,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                         <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Edit Task">
                                                             <Edit2 size={16} />
                                                         </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
+                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
                                                             <Trash2 size={16} />
                                                         </button>
                                                     </>
