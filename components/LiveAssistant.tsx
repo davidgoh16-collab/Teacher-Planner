@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, Loader2, X, Bot, Info, Monitor, MonitorOff } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
@@ -16,6 +17,7 @@ interface LiveAssistantProps {
   onSaveTask: (task: Task) => Promise<void>;
   onSaveProject: (project: Project) => Promise<void>;
   isAdmin: boolean;
+  onStatusChange?: (isActive: boolean, statusText?: string) => void;
 }
 
 // Audio Utils as per guidelines
@@ -66,12 +68,26 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   onAddRecurringLesson,
   onSaveTask,
   onSaveProject,
-  isAdmin 
+  isAdmin,
+  onStatusChange
 }) => {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'listening' | 'speaking'>('idle');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  useEffect(() => {
+    if (onStatusChange) {
+      if (!isActive && !isConnecting) onStatusChange(false);
+      else {
+        let statusText = "Connecting...";
+        if (isActive) {
+          statusText = status === 'speaking' ? "June is speaking..." : "Listening...";
+        }
+        onStatusChange(true, statusText);
+      }
+    }
+  }, [isActive, isConnecting, status, onStatusChange]);
   
   const sessionRef = useRef<any>(null);
   const audioContextInRef = useRef<AudioContext | null>(null);
@@ -240,7 +256,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
     setIsConnecting(true);
 
     try {
-      const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -534,7 +550,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
             }
 
             // Handle Audio Output
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            const sc = message.serverContent;
+            const base64Audio = sc?.modelTurn?.parts?.find(p => p.inlineData)?.inlineData?.data;
             if (base64Audio) {
               setStatus('speaking');
               const outCtx = audioContextOutRef.current;
@@ -575,9 +592,9 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3">
-      {isActive && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-bottom-5 fade-in duration-300 w-72">
+    <>
+      {isActive && createPortal(
+        <div className="fixed top-24 right-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-4 border border-green-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[9999]">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -632,40 +649,38 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
             <Info size={12} className="shrink-0 mt-0.5" />
             <span>"Share Screen" to let June review your resources, slides, or documents in real-time.</span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
+      <div className="relative flex flex-col items-end">
       <button
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
-        className={`group relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform active:scale-95 ${
+        className={`group relative p-1.5 rounded-md transition-colors ${
           isActive 
-            ? 'bg-slate-800 text-white' 
-            : 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20'
+            ? 'bg-red-500 text-white hover:bg-red-600'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
         }`}
+        title={isActive ? "End Voice Session" : "Start Voice Assistant"}
       >
         {isConnecting ? (
-          <Loader2 className="animate-spin" size={24} />
+          <Loader2 className="animate-spin" size={18} />
         ) : isActive ? (
           // Show active wave animation or icon when active
           <div className="relative">
-             <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+             <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
              </span>
-             <Bot size={24} />
+             <Bot size={18} />
           </div>
         ) : (
-          <Mic size={24} />
-        )}
-        
-        {!isActive && !isConnecting && (
-          <span className="absolute right-16 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Teaching Assistant
-          </span>
+          <Mic size={18} />
         )}
       </button>
-    </div>
+      </div>
+    </>
   );
 };
 

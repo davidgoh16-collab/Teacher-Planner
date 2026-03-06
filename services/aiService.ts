@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { WeeklyTimetable } from "../types";
 
 export const getAiClient = () => {
-  const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
   return new GoogleGenAI({ apiKey });
 };
 
@@ -124,6 +124,75 @@ export interface AIInsight {
   };
 }
 
+/**
+ * Robustly parses a JSON string, handling potential markdown wrappers
+ * or trailing conversational text from the AI response.
+ */
+function extractAndParseJSON(jsonStr: string): any {
+  let text = jsonStr.trim();
+
+  // Try standard parse first
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Continue to fallback
+  }
+
+  // Clean markdown formatting if present
+  if (text.startsWith('```json')) {
+    text = text.substring(7);
+  } else if (text.startsWith('```')) {
+    text = text.substring(3);
+  }
+  if (text.endsWith('```')) {
+    text = text.substring(0, text.length - 3);
+  }
+  text = text.trim();
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Continue to extraction fallback
+  }
+
+  // Find the first '[' and last ']' for an array
+  const firstBracket = text.indexOf('[');
+  const lastBracket = text.lastIndexOf(']');
+
+  // Find the first '{' and last '}' for an object
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+
+  // Determine if the outermost structure is likely an array or an object
+  let firstCharIndex = -1;
+  let lastCharIndex = -1;
+
+  if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
+    if (firstBrace === -1 || firstBracket < firstBrace) {
+      firstCharIndex = firstBracket;
+      lastCharIndex = lastBracket;
+    }
+  }
+
+  if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+    if (firstBracket === -1 || firstBrace < firstBracket) {
+      firstCharIndex = firstBrace;
+      lastCharIndex = lastBrace;
+    }
+  }
+
+  if (firstCharIndex !== -1 && lastCharIndex !== -1 && firstCharIndex < lastCharIndex) {
+    try {
+      const potentialJson = text.substring(firstCharIndex, lastCharIndex + 1);
+      return JSON.parse(potentialJson);
+    } catch (e) {
+      console.error("Failed to parse extracted JSON:", e);
+    }
+  }
+
+  throw new Error("Could not parse JSON from string: " + jsonStr);
+}
+
 export const generateInsights = async (
   contextType: 'project' | 'all_tasks',
   tasks: any[],
@@ -146,9 +215,8 @@ export const generateInsights = async (
       Insights can be:
       1. 'info': General information or summary about the workload or project status.
       2. 'suggestion': A suggestion on what to prioritize or how to organize tasks.
-      3. 'action': A proactive offer to complete a task (e.g., draft an email, write a lesson plan).
-         If you suggest an 'action', include the 'taskId' it relates to (if any), and provide 'actionData.prompt'
-         which is a prompt that the user can run to generate the actual content.
+      3. 'action': A proactive offer to complete a task, draft content, consolidate communication, or restructure a process.
+         If you suggest an 'action', you MUST provide 'actionData.prompt' which is a prompt that the AI can run to generate the actual content or draft. For example, if you suggest "Consolidate Oasis Communications", the prompt should be "Draft a consolidated email to Oasis addressing both the English literature setups and the Bromcom communication issues."
 
       Context:
       ${contextStr}
@@ -174,7 +242,7 @@ export const generateInsights = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: "gemini-3.1-flash-lite-preview",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -182,7 +250,7 @@ export const generateInsights = async (
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      return extractAndParseJSON(response.text);
     }
     return [];
   } catch (error) {
@@ -195,7 +263,7 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: "gemini-3.1-flash-lite-preview",
       contents: [prompt],
     });
     return response.text || "";
@@ -222,7 +290,7 @@ export const extractTaskDetails = async (naturalLanguageInput: string): Promise<
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-1.5-pro",
+            model: "gemini-3.1-flash-lite-preview",
             contents: [prompt],
             config: {
                 responseMimeType: "application/json",
@@ -230,7 +298,7 @@ export const extractTaskDetails = async (naturalLanguageInput: string): Promise<
         });
 
         if (response.text) {
-            return JSON.parse(response.text);
+            return extractAndParseJSON(response.text);
         }
         throw new Error("No response text from Gemini");
     } catch (error) {
@@ -273,7 +341,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: "gemini-3.1-flash-lite-preview",
       contents: {
         parts: [
           { text: prompt },
@@ -292,7 +360,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
     });
 
     if (response.text) {
-      return JSON.parse(response.text);
+      return extractAndParseJSON(response.text);
     }
     throw new Error("No response text from Gemini");
   } catch (error) {

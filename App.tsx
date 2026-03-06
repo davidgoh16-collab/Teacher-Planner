@@ -23,6 +23,7 @@ import {
   formatDate 
 } from './utils/dateUtils';
 import LessonModal from './components/LessonModal';
+import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
 import LiveAssistant from './components/LiveAssistant';
 import MeetingPlanner from './components/MeetingPlanner';
@@ -30,10 +31,12 @@ import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject } from './services/projectService';
-import { Task, Project, ChatMessage } from './types';
+import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea } from './services/projectService';
+import { Task, Project, Category, ChatMessage, Idea } from './types';
+import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
+  Plus,
   Calendar, 
   CalendarDays,
   BookOpen, 
@@ -51,7 +54,8 @@ import {
   LogOut,
   Loader2,
   Lock,
-  Filter
+  Filter,
+  Clock
 } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -136,13 +140,23 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLessonKey, setEditingLessonKey] = useState<string | null>(null);
   const [editingSubjectName, setEditingSubjectName] = useState<string>('');
+
+  // Task Edit Modal State
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   
   // Calendar Modal State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
+  // Quick Add Modal State
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isLiveActive, setIsLiveActive] = useState(false);
+  const [liveStatusText, setLiveStatusText] = useState('');
 
   // --- Derived Data ---
   const currentTerm = TERMS.find(t => t.id === selectedTermId) || TERMS[0];
@@ -191,14 +205,16 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const [plans, tasks, projs] = await Promise.all([
+        const [plans, tasks, projs, cats] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
-            fetchProjects()
+            fetchProjects(),
+            fetchCategories()
         ]);
         setLessonPlans(plans);
         setGlobalTasks(tasks);
         setProjects(projs);
+        setCategories(cats);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -352,6 +368,28 @@ const App: React.FC = () => {
     }
   };
 
+  const handleEditTaskSave = async (updatedTask: Task) => {
+    if (isReadOnly) return;
+
+    // Optimistic update
+    setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setIsTaskModalOpen(false);
+
+    try {
+        await saveTask(updatedTask);
+    } catch (e) {
+        console.error("Failed to save edited task", e);
+        // Reload to revert
+        const tasks = await fetchTasks();
+        setGlobalTasks(tasks);
+    }
+  };
+
+  const openTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
     e.stopPropagation();
     if (isReadOnly) return;
@@ -419,7 +457,7 @@ const App: React.FC = () => {
     try {
       if (!currentWeekData) throw new Error("No active week data");
 
-      const apiKey = window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       
       // Build context about the current week's timetable
@@ -536,7 +574,7 @@ const App: React.FC = () => {
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-3.1-flash-lite-preview',
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
@@ -974,19 +1012,34 @@ const App: React.FC = () => {
                                 {(() => {
                                     const dailyTasks = globalTasks.filter(t => t.scheduledDateStr === dateStr || t.deadlineDateStr === dateStr);
                                     if (dailyTasks.length === 0) return null;
-                                    return dailyTasks.map(task => (
-                                        <div key={task.id} className="flex items-start gap-1.5 bg-white dark:bg-slate-800 p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
-                                            <button
-                                                onClick={(e) => toggleTaskCompletion(e, task.id)}
-                                                className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
-                                            >
-                                                <CheckCircle2 size={12} />
-                                            </button>
-                                            <span className={`font-medium line-clamp-2 leading-tight flex-1 ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                                                {task.title}
-                                            </span>
-                                        </div>
-                                    ));
+                                    return dailyTasks.map(task => {
+                                        const project = projects.find(p => p.id === task.projectId);
+                                        const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
+                                        const isScheduled = task.scheduledDateStr === dateStr;
+                                        const isDue = task.deadlineDateStr === dateStr;
+
+                                        return (
+                                            <div key={task.id}
+                                                 onClick={() => openTaskModal(task)}
+                                                 className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
+                                                <button
+                                                    onClick={(e) => toggleTaskCompletion(e, task.id)}
+                                                    className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                                                >
+                                                    <CheckCircle2 size={12} />
+                                                </button>
+                                                <div className="flex-1 flex flex-col min-w-0">
+                                                    <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        {task.title}
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                                        {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className="text-green-600 dark:text-green-400" /> Sch</span>}
+                                                        {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className="text-red-600 dark:text-red-400" /> Due</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
                                 })()}
                             </div>
                         </div>
@@ -1106,6 +1159,14 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      <TaskEditModal
+        isOpen={isTaskModalOpen}
+        onClose={() => { setIsTaskModalOpen(false); setEditingTask(null); }}
+        task={editingTask}
+        categories={categories}
+        onSave={handleEditTaskSave}
+      />
+
       <LessonModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -1150,31 +1211,65 @@ const App: React.FC = () => {
         onSendMessage={handleAiSendMessage}
         isLoading={isAiLoading}
         onSetMessages={setChatMessages}
+        quickAddButton={
+          <button
+            onClick={() => setIsQuickAddOpen(true)}
+            className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
+          >
+            <Plus size={24} />
+            <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Quick Add
+            </span>
+          </button>
+        }
+        liveAssistantButton={
+          <LiveAssistant
+            currentWeekData={currentWeekData}
+            lessonPlans={lessonPlans}
+            globalTasks={globalTasks}
+            projects={projects}
+            isAdmin={isAdmin}
+            onUpdateLesson={handleSaveLesson}
+            onAddRecurringLesson={handleBatchSaveLessons}
+            onSaveTask={async (task) => {
+              await saveTask(task);
+              setGlobalTasks(prev => {
+                const exists = prev.find(t => t.id === task.id);
+                if (exists) return prev.map(t => t.id === task.id ? task : t);
+                return [...prev, task];
+              });
+            }}
+            onSaveProject={async (project) => {
+              await saveProject(project);
+              setProjects(prev => {
+                const exists = prev.find(p => p.id === project.id);
+                if (exists) return prev.map(p => p.id === project.id ? project : p);
+                return [...prev, project];
+              });
+            }}
+            onStatusChange={(active, statusText) => {
+              setIsLiveActive(active);
+              if (statusText) setLiveStatusText(statusText);
+            }}
+          />
+        }
+        isLiveActive={isLiveActive}
+        liveStatusText={liveStatusText}
       />
 
-      <LiveAssistant 
-        currentWeekData={currentWeekData}
-        lessonPlans={lessonPlans}
-        globalTasks={globalTasks}
+      <QuickAddModal
+        isOpen={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        categories={categories}
         projects={projects}
-        isAdmin={isAdmin}
-        onUpdateLesson={handleSaveLesson}
-        onAddRecurringLesson={handleBatchSaveLessons}
         onSaveTask={async (task) => {
           await saveTask(task);
-          setGlobalTasks(prev => {
-            const exists = prev.find(t => t.id === task.id);
-            if (exists) return prev.map(t => t.id === task.id ? task : t);
-            return [...prev, task];
-          });
+          setGlobalTasks(prev => [task, ...prev]);
         }}
-        onSaveProject={async (project) => {
-          await saveProject(project);
-          setProjects(prev => {
-            const exists = prev.find(p => p.id === project.id);
-            if (exists) return prev.map(p => p.id === project.id ? project : p);
-            return [...prev, project];
-          });
+        onSaveIdea={async (idea) => {
+          await saveIdea(idea);
+          // Ideas state is maintained at ProjectPlanner / ProjectView level,
+          // but saving it here works fine, they will re-fetch or optimistically update
         }}
       />
     </div>

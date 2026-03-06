@@ -1,10 +1,11 @@
 import { db } from '../firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { Project, Task, Category } from '../types';
+import { Project, Task, Category, Idea } from '../types';
 
 const PROJECTS_COLLECTION = 'teacher_planner_projects';
 const TASKS_COLLECTION = 'teacher_planner_tasks';
 const CATEGORIES_COLLECTION = 'teacher_planner_categories';
+const IDEAS_COLLECTION = 'teacher_planner_ideas';
 
 export const fetchCategories = async (): Promise<Category[]> => {
     try {
@@ -87,5 +88,33 @@ export const deleteTask = async (id: string): Promise<void> => {
     } catch (e) {
         console.error("Error deleting task", e);
         console.warn("Ignoring deleteTask error for local testing.");
+    }
+};
+
+export const fetchIdeas = async (): Promise<Idea[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, IDEAS_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as Idea).sort((a, b) => b.createdAt - a.createdAt);
+    } catch (e) {
+        console.error("Error fetching ideas", e);
+        return [];
+    }
+};
+
+export const saveIdea = async (idea: Idea): Promise<void> => {
+    try {
+        await setDoc(doc(db, IDEAS_COLLECTION, idea.id), idea);
+    } catch (e) {
+        console.error("Error saving idea", e);
+        throw e;
+    }
+};
+
+export const deleteIdea = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, IDEAS_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting idea", e);
+        throw e;
     }
 };

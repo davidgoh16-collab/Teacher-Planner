@@ -2,6 +2,7 @@ declare global {
   interface Window {
     ENV?: {
       VITE_GEMINI_API_KEY?: string;
+      GEMINI_API_KEY?: string;
     };
   }
 }
@@ -81,6 +82,13 @@ export interface Task {
   assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
   subtasks?: Task[]; // Nested subtasks
   aiGeneratedContent?: string;
+}
+
+export interface Idea {
+  id: string;
+  text: string;
+  projectId?: string; // If undefined, it's a global idea
+  createdAt: number;
 }
 
 export interface Project {

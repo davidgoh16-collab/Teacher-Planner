@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2, Maximize2, Minimize2, List,
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
+
 import { fetchAIConversations, saveAIConversation, deleteAIConversation } from '../services/chatService';
 import { readFileContent } from '../utils/fileUtils';
 
@@ -11,11 +12,34 @@ interface ChatWidgetProps {
   onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
   isLoading: boolean;
   onSetMessages: (messages: ChatMessage[]) => void;
+  liveAssistantButton?: React.ReactNode;
+  quickAddButton?: React.ReactNode;
+  isLiveActive?: boolean;
+  liveStatusText?: string;
 }
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages, liveAssistantButton, quickAddButton, isLiveActive, liveStatusText }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // Memoize remark plugins and markdown components
+  const remarkPlugins = React.useMemo(() => [remarkGfm], []);
+  const markdownComponents = React.useMemo(() => ({
+    ul: ({node, ...props}: any) => <ul className="list-disc list-outside ml-4 mb-2 space-y-1" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-outside ml-4 mb-2 space-y-1" {...props} />,
+    li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
+    p: ({node, ...props}: any) => <p className="mb-2 last:mb-0" {...props} />,
+    strong: ({node, ...props}: any) => <strong className="font-bold text-white" {...props} />,
+    a: ({node, ...props}: any) => <a className="text-green-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+    code: ({node, ...props}: any) => <code className="bg-slate-950 px-1 py-0.5 rounded text-xs font-mono text-pink-400" {...props} />,
+    pre: ({node, ...props}: any) => <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border border-slate-700" {...props} />,
+    h1: ({node, ...props}: any) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
+    h2: ({node, ...props}: any) => <h2 className="text-base font-bold mb-2 mt-3" {...props} />,
+    h3: ({node, ...props}: any) => <h3 className="text-sm font-bold mb-1 mt-2" {...props} />,
+    table: ({node, ...props}: any) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-slate-700 border border-slate-700 rounded-lg" {...props} /></div>,
+    th: ({node, ...props}: any) => <th className="px-3 py-2 bg-slate-900 text-left text-xs font-medium text-slate-300 uppercase tracking-wider border-b border-slate-700" {...props} />,
+    td: ({node, ...props}: any) => <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-300 border-b border-slate-800" {...props} />,
+  }), []);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -168,18 +192,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
 
   const containerClasses = isFullScreen
     ? "fixed inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col animate-in fade-in"
-    : "fixed bottom-6 right-6 z-50 flex flex-col items-end";
+    : "fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none";
 
   const windowClasses = isFullScreen
-    ? "w-full h-full flex flex-col"
-    : "mb-4 w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col border border-gray-200 dark:border-slate-700 overflow-hidden transition-all animate-in slide-in-from-bottom-10 fade-in duration-200";
+    ? "w-full h-full flex flex-col pointer-events-auto"
+    : "mb-4 w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col border border-gray-200 dark:border-slate-700 overflow-hidden transition-all animate-in slide-in-from-bottom-10 fade-in duration-200 pointer-events-auto";
 
   return (
     <div className={containerClasses}>
-      {/* Chat Window */}
-      {(isOpen || isFullScreen) && (
-        <div className={windowClasses}>
-          
+      {/* Chat Window - Always mounted to preserve state (like LiveAssistant), but visually hidden when closed */}
+      <div className={`${windowClasses} ${(!isOpen && !isFullScreen) ? 'hidden' : ''}`}>
           {/* Header */}
           <div className="bg-slate-900 dark:bg-slate-950 p-4 flex justify-between items-center text-white border-b border-slate-700 shrink-0">
             <div className="flex items-center gap-3">
@@ -192,6 +214,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
               </div>
             </div>
             <div className="flex items-center gap-1">
+                {liveAssistantButton && (
+                    <div className="mr-1">
+                        {liveAssistantButton}
+                    </div>
+                )}
                 <button
                   onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                   className={`p-1.5 rounded-md transition-colors ${isHistoryOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
@@ -303,23 +330,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                   ) : (
                     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          ul: ({node, ...props}) => <ul className="list-disc list-outside ml-4 mb-2 space-y-1" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-4 mb-2 space-y-1" {...props} />,
-                        li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-                        a: ({node, ...props}) => <a className="text-green-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                        code: ({node, ...props}) => <code className="bg-slate-950 px-1 py-0.5 rounded text-xs font-mono text-pink-400" {...props} />,
-                        pre: ({node, ...props}) => <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border border-slate-700" {...props} />,
-                        h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-3" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1 mt-2" {...props} />,
-                        table: ({node, ...props}) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-slate-700 border border-slate-700 rounded-lg" {...props} /></div>,
-                        th: ({node, ...props}) => <th className="px-3 py-2 bg-slate-900 text-left text-xs font-medium text-slate-300 uppercase tracking-wider border-b border-slate-700" {...props} />,
-                          td: ({node, ...props}) => <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-300 border-b border-slate-800" {...props} />,
-                        }}
+                        remarkPlugins={remarkPlugins}
+                        components={markdownComponents}
                       >
                         {msg.text}
                       </ReactMarkdown>
@@ -389,10 +401,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
             </div>
           </form>
         </div>
-      )}
 
-      {/* Toggle Button */}
+      {/* Toggle Button Group */}
       {!isFullScreen && (
+        <div className="flex flex-col gap-3 items-end pointer-events-auto">
+          {quickAddButton && (
+            <div className="flex justify-end">
+              {quickAddButton}
+            </div>
+          )}
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
@@ -403,6 +420,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
           >
             {isOpen ? <X size={24} /> : <MessageCircle size={28} />}
           </button>
+        </div>
       )}
     </div>
   );
