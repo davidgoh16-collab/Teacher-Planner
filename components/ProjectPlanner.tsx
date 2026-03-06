@@ -14,12 +14,14 @@ import {
   MoreVertical,
   Briefcase,
   X,
-  Lightbulb
+  Lightbulb,
+  RotateCw
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
 import AIInsightsPanel from './AIInsightsPanel';
 import TaskEditModal from './TaskEditModal';
+import RoutineTasksView from './RoutineTasksView';
 import { Idea } from '../types';
 
 interface ProjectPlannerProps {
@@ -27,7 +29,7 @@ interface ProjectPlannerProps {
 }
 
 const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
-  const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -50,6 +52,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState('');
+  const [addingGeneralTaskCategory, setAddingGeneralTaskCategory] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -91,19 +94,18 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       setIsTaskModalOpen(true);
   };
 
-  const handleSaveConvertedTask = async (task: Task) => {
-      if (isReadOnly || !convertingIdea) return;
+  const handleSaveConvertedTask = async (task: Task) => { if (isReadOnly) return; if (!convertingIdea && !addingGeneralTaskCategory) return;
       try {
           await saveTask(task);
-          await deleteIdea(convertingIdea.id);
+          if (convertingIdea) await deleteIdea(convertingIdea.id);
 
           setAllTasks(prev => [task, ...prev]);
-          setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+          if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
       } catch (e) {
           console.error("Failed to convert idea to task", e);
       } finally {
           setIsTaskModalOpen(false);
-          setConvertingIdea(null);
+          setConvertingIdea(null); setAddingGeneralTaskCategory(null);
       }
   };
 
@@ -226,6 +228,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                 >
                     <Lightbulb size={16} /> Ideas
                 </button>
+                <button
+                    onClick={() => setActiveTab('routines')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'routines' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    <RotateCw size={16} /> Routines
+                </button>
             </div>
 
             <div className="w-px h-8 bg-slate-300 dark:bg-slate-700 mx-1 hidden md:block"></div>
@@ -295,6 +303,8 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                 )}
             </div>
         </div>
+      ) : activeTab === 'routines' ? (
+        <RoutineTasksView isReadOnly={isReadOnly} />
       ) : activeTab === 'projects' ? (
 
         <div className="flex flex-col flex-1 h-full min-h-0">
@@ -303,7 +313,9 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                 contextType="all_tasks"
                 tasks={allTasks}
                 isReadOnly={isReadOnly}
-                onTaskUpdate={() => loadData()}
+                onTaskUpdate={() => {
+        // Prevent refresh scroll jump, assume components handle local state
+    }}
             />
 
             {/* Search and Filter Bar */}
@@ -386,6 +398,35 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+
+                                            {/* General Tasks Card */}
+                                            {catId !== 'uncategorized' && (
+                                                <div className="group flex flex-col bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 overflow-hidden">
+                                                    <div className="p-5 pb-4 border-b border-slate-200 dark:border-slate-700/50">
+                                                        <div className="flex justify-between items-start gap-2 mb-2">
+                                                            <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300 line-clamp-2 leading-tight flex items-center gap-2">
+                                                                <Filter size={18} className="text-slate-400" /> General Tasks
+                                                            </h3>
+                                                        </div>
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                            Unassigned
+                                                        </span>
+                                                    </div>
+                                                    <div className="p-4 flex-1 flex flex-col">
+                                                        <ul className="space-y-2 mb-4 flex-1">
+                                                            {allTasks.filter(t => t.categoryId === catId && (!t.projectId || t.projectId === '')).slice(0, 3).map(task => (
+                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 truncate flex items-center gap-2">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                                                                    {task.title}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                        <button onClick={(e) => { e.stopPropagation(); setAddingGeneralTaskCategory(catId); setIsTaskModalOpen(true); }} className="mt-auto w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                            <Plus size={16} /> Add Task
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {catProjects.map(project => {
                                                 const projectTasks = allTasks.filter(t => t.projectId === project.id);
                                                 const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
@@ -464,7 +505,9 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             projects={projects}
             categories={categories}
             isReadOnly={isReadOnly}
-            onTaskUpdate={() => loadData()} // Reload everything if task changes
+            onTaskUpdate={() => {
+        // Prevent refresh scroll jump, assume components handle local state
+    }} // Reload everything if task changes
           />
       )}
 
@@ -553,14 +596,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       <TaskEditModal
           isOpen={isTaskModalOpen}
           onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); }}
-          task={convertingIdea ? {
-              id: `task_${Date.now()}`,
-              projectId: convertingIdea.projectId || 'global',
-              title: convertingIdea.text.split('\n')[0].substring(0, 50),
-              description: convertingIdea.text,
-              status: 'Uncompleted',
-              priority: 'Medium'
-          } : null}
+          task={convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
           categories={categories}
           onSave={handleSaveConvertedTask}
       />

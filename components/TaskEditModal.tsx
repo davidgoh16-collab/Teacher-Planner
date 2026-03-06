@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Category } from '../types';
+import { Task, Category, Project } from '../types';
 import { X } from 'lucide-react';
 
 interface TaskEditModalProps {
+    projects?: Project[];
     isOpen: boolean;
     onClose: () => void;
     task: Task | null;
@@ -10,11 +11,12 @@ interface TaskEditModalProps {
     onSave: (updatedTask: Task) => void;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, categories, onSave }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, categories, projects = [], onSave }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState<Task['priority']>('Medium');
     const [categoryId, setCategoryId] = useState('');
+    const [projectId, setProjectId] = useState('');
     const [scheduledDateStr, setScheduledDateStr] = useState('');
     const [deadlineDateStr, setDeadlineDateStr] = useState('');
 
@@ -24,6 +26,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
             setDescription(task.description || '');
             setPriority(task.priority);
             setCategoryId(task.categoryId || '');
+            setProjectId(task.projectId || '');
             setScheduledDateStr(task.scheduledDateStr || '');
             setDeadlineDateStr(task.deadlineDateStr || '');
         }
@@ -38,6 +41,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
         if (!title.trim()) return;
 
         const updatedTask: Task = {
+            ...task,
+            projectId: projectId || '',
             ...task,
             title: title.trim(),
             description: description.trim() || undefined,
@@ -82,6 +87,21 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                             />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            {projects && projects.length > 0 && (
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Project</label>
+                                    <select
+                                        value={projectId}
+                                        onChange={(e) => setProjectId(e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    >
+                                        <option value="">General (No Project)</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
                                 <select

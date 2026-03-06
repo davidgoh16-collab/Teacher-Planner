@@ -206,6 +206,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 <div className={`group p-3 ${bgColorClass} rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
+                            <input
+                                type="checkbox"
+                                checked={selectedTaskIds.has(task.id)}
+                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                            />
                             <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                 {getStatusIcon(task.status)}
                             </button>
@@ -407,6 +414,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                 {/* Right Side: Content */}
                                                 <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                     <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <input
+                                type="checkbox"
+                                checked={selectedTaskIds.has(task.id)}
+                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                            />
                                                         <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                             {getStatusIcon(task.status)}
                                                         </button>
