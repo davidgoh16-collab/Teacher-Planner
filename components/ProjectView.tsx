@@ -36,6 +36,9 @@ interface ProjectViewProps {
     isReadOnly: boolean;
     onBack: () => void;
     onUpdateProject: (updatedProj: Project) => void;
+    onTaskUpdate?: () => void;
+    onTaskDeleted?: (taskId: string) => void;
+    onTaskUpdated?: (task: Task) => void;
 }
 
 const BACKGROUND_COLORS = [
@@ -67,7 +70,7 @@ const BACKGROUND_COLORS = [
 
 type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
-export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject }: ProjectViewProps) {
+export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -117,8 +120,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [isAddingTask, setIsAddingTask] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
-    const toggleTaskSelection = (taskId: string, e: React.MouseEvent) => {
-        e.preventDefault();
+    const toggleTaskSelection = (taskId: string, e: React.MouseEvent | React.ChangeEvent) => {
         e.stopPropagation();
         const newSelection = new Set(selectedTaskIds);
         if (newSelection.has(taskId)) {
@@ -134,7 +136,10 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         const idsToDelete = Array.from(selectedTaskIds);
         setSelectedTaskIds(new Set());
         for (const id of idsToDelete) {
-            try { await deleteTask(id); } catch (e) { console.error("Failed to delete task in bulk", id, e); }
+            try {
+                await deleteTask(id);
+                if (onTaskDeleted) onTaskDeleted(id);
+            } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
     };
 
@@ -145,7 +150,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         for (const id of idsToUpdate) {
             const task = flatTasks.find(t => t.id === id);
             if (task && task.status !== 'Completed') {
-                try { await saveTask({ ...task, status: 'Completed' as const }); } catch (e) { console.error("Failed to complete task in bulk", id, e); }
+                try {
+                    const updatedTask = { ...task, status: 'Completed' as const };
+                    await saveTask(updatedTask);
+                    if (onTaskUpdated) onTaskUpdated(updatedTask);
+                } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
     };
@@ -354,6 +363,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
         try {
             await saveTask(updated);
+            if (onTaskUpdated) onTaskUpdated(updated);
         } catch (e) {
             console.error(e);
             // Revert
@@ -366,6 +376,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         if (window.confirm("Are you sure you want to delete this task?")) {
             try {
                 await deleteTask(taskId);
+                if (onTaskDeleted) onTaskDeleted(taskId);
                 setTasks(tasks.filter(t => t.id !== taskId));
             } catch (e) {
                 console.error(e);
@@ -469,6 +480,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             } else {
                 // We are editing a top-level task
                 await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
                 setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
             }
         } catch (e) {
@@ -865,32 +877,6 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     {/* Top Section: Settings / Description & Links */}
                     {isEditingSettings ? (
                         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2">
-            {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
-                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
-                    <div className="w-px h-4 bg-slate-700"></div>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
-                        <CheckCircle2 size={16} /> Mark Completed
-                    </button>
-                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
-                        <Trash2 size={16} /> Delete
-                    </button>
-                </div>
-            )}
-
-            {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
-                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
-                    <div className="w-px h-4 bg-slate-700"></div>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
-                        <CheckCircle2 size={16} /> Mark Completed
-                    </button>
-                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
-                        <Trash2 size={16} /> Delete
-                    </button>
-                </div>
-            )}
-
                             <h3 className="text-lg font-bold mb-4">Project Settings</h3>
                             <div className="space-y-4">
                                 <div>
@@ -1492,6 +1478,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         try {
                             const updatedTask = { ...task, aiGeneratedContent: newContent };
                             await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
                             setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
                             setSelectedAiContent(newContent);
                         } catch (e) {
@@ -1524,6 +1511,18 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 categories={allCategories}
                 onSave={handleSaveConvertedTask}
             />
+            {selectedTaskIds.size > 0 && !isReadOnly && (
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
+                    <div className="w-px h-4 bg-slate-700"></div>
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                        <CheckCircle2 size={16} /> Mark Completed
+                    </button>
+                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
+                        <Trash2 size={16} /> Delete
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
