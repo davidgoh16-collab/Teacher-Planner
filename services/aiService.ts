@@ -119,6 +119,7 @@ export interface AIInsight {
   title: string;
   description: string;
   taskIds?: string[]; // If the insight relates to specific tasks
+  actionType?: 'generate_content' | 'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks';
   actionData?: {
     prompt: string;
   };
@@ -214,11 +215,14 @@ export const generateInsights = async (
 
       Insights can be 'info', 'suggestion', or 'action'.
 
-      CRITICAL REQUIREMENT: For EVERY insight (whether info, suggestion, or action), you MUST provide an 'actionData.prompt' that allows the user to take a meaningful action via an AI agent.
-      For example:
-      - If 'info' says "You have 5 high priority tasks", the prompt should be "Show me the high priority tasks and ask me which one I want to tackle first."
-      - If 'suggestion' says "Group Bromcom communication", the prompt should be "Draft a single email summarizing all Bromcom transition issues."
-      - If 'action' says "Delete tasks called 'test'", the prompt should be "Delete all tasks that have the word 'test' in the title."
+      CRITICAL REQUIREMENT: For EVERY insight, you MUST provide an 'actionType'.
+
+      Valid 'actionType' values and their purpose:
+      - "generate_content": For drafting emails, letters, or long text. 'actionData.prompt' should instruct what to generate.
+      - "delete_tasks": For suggesting deletion of duplicate, obsolete, or completed tasks. MUST include 'taskIds'. 'actionData.prompt' is optional but should explain why they are deleted.
+      - "group_tasks": For combining related tasks or communications. MUST include 'taskIds'. 'actionData.prompt' should describe the grouping logic.
+      - "review_tasks": For highlighting high-priority or urgent tasks. MUST include 'taskIds'. 'actionData.prompt' should describe what the user should focus on.
+      - "update_tasks": For changing dates, priorities, or statuses of multiple tasks. MUST include 'taskIds'. 'actionData.prompt' should describe the update.
 
       If the insight specifically targets existing tasks (like grouping them, reviewing high priority, or deleting them), you MUST include an array of their IDs in 'taskIds'.
 
@@ -233,8 +237,9 @@ export const generateInsights = async (
           "title": "High Priority Workload",
           "description": "You have 12 high-priority tasks requiring attention.",
           "taskIds": ["task_1", "task_5", "task_8"],
+          "actionType": "review_tasks",
           "actionData": {
-            "prompt": "Review these high priority tasks and help me prioritize which one to do first."
+            "prompt": "Review these high priority tasks."
           }
         },
         {
@@ -242,15 +247,26 @@ export const generateInsights = async (
           "title": "Clean up test tasks",
           "description": "There are several tasks named 'test' that should be removed.",
           "taskIds": ["task_3", "task_9"],
+          "actionType": "delete_tasks",
           "actionData": {
-            "prompt": "Delete all tasks named 'test'."
+            "prompt": "These tasks look like tests and can be deleted."
+          }
+        },
+        {
+          "type": "action",
+          "title": "Draft Parent Email",
+          "description": "You have a task to contact parents about Bromcom.",
+          "taskIds": ["task_10"],
+          "actionType": "generate_content",
+          "actionData": {
+            "prompt": "Draft an email to parents regarding the Bromcom transition."
           }
         }
       ]
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
       config: {
         responseMimeType: "application/json",
@@ -271,7 +287,7 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: [prompt],
     });
     return response.text || "";
@@ -312,7 +328,7 @@ export const extractTaskDetails = async (
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-2.5-flash",
             contents: [prompt],
             config: {
                 responseMimeType: "application/json",
@@ -363,7 +379,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { text: prompt },

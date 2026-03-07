@@ -27,7 +27,7 @@ import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
 import ProjectAskAIModal from './ProjectAskAIModal';
-import BulkTaskAIModal from './BulkTaskAIModal';
+import ReviewTasksModal from './ReviewTasksModal';
 import { Idea } from '../types';
 
 interface ProjectViewProps {
@@ -182,8 +182,8 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
     const [selectedAiTaskId, setSelectedAiTaskId] = useState<string | null>(null);
 
-    // Bulk AI Modal State
-    const [bulkAiModalOpen, setBulkAiModalOpen] = useState(false);
+    // Review Tasks Modal State
+    const [reviewTasksModalOpen, setReviewTasksModalOpen] = useState(false);
 
     // Project Ask AI Modal State
     const [isAskAiModalOpen, setIsAskAiModalOpen] = useState(false);
@@ -1518,13 +1518,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 onSave={handleSaveConvertedTask}
             />
 
-            <BulkTaskAIModal
-                isOpen={bulkAiModalOpen}
+            <ReviewTasksModal
+                isOpen={reviewTasksModalOpen}
                 onClose={() => {
-                    setBulkAiModalOpen(false);
+                    setReviewTasksModalOpen(false);
                     setSelectedTaskIds(new Set());
                 }}
                 tasks={tasks.filter(t => selectedTaskIds.has(t.id))}
+                actionType="generic"
                 isReadOnly={isReadOnly}
                 onTasksUpdated={() => {
                     if (onTaskUpdate) onTaskUpdate();
@@ -1535,7 +1536,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
                     <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
                     <div className="w-px h-4 bg-slate-700"></div>
-                    <button onClick={() => setBulkAiModalOpen(true)} className="text-sm hover:text-blue-400 flex items-center gap-1 transition-colors">
+                    <button onClick={() => setReviewTasksModalOpen(true)} className="text-sm hover:text-blue-400 flex items-center gap-1 transition-colors">
                         <Bot size={16} /> Ask AI
                     </button>
                     <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">

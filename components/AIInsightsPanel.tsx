@@ -4,7 +4,7 @@ import { Sparkles, X, Check, Loader2, Bot, FileText, CheckCircle2, ChevronRight 
 import { Task, Project } from '../types';
 import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
-import BulkTaskAIModal from './BulkTaskAIModal';
+import ReviewTasksModal from './ReviewTasksModal';
 
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
@@ -25,10 +25,11 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const [isGenerating, setIsGenerating] = useState(false);
     const [isGeneratedModalOpen, setIsGeneratedModalOpen] = useState(false);
 
-    // Bulk AI Modal State
-    const [bulkAiModalOpen, setBulkAiModalOpen] = useState(false);
-    const [bulkAiTasks, setBulkAiTasks] = useState<Task[]>([]);
-    const [bulkAiPrompt, setBulkAiPrompt] = useState<string | undefined>(undefined);
+    // Review Tasks Modal State
+    const [reviewModalOpen, setReviewModalOpen] = useState(false);
+    const [reviewTasks, setReviewTasks] = useState<Task[]>([]);
+    const [reviewActionType, setReviewActionType] = useState<'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks' | 'generic'>('generic');
+    const [reviewPrompt, setReviewPrompt] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         // Automatically fetch insights on load
@@ -54,13 +55,14 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const handleAcceptAction = async (insight: AIInsight) => {
         if (!insight.actionData?.prompt || isReadOnly) return;
 
-        // If the insight specifies a list of tasks, use the BulkTaskAIModal
-        if (insight.taskIds && insight.taskIds.length > 0) {
+        // If the insight specifies an action type that targets tasks
+        if (insight.actionType !== 'generate_content' && insight.taskIds && insight.taskIds.length > 0) {
             const targetedTasks = tasks.filter(t => insight.taskIds!.includes(t.id));
             if (targetedTasks.length > 0) {
-                setBulkAiTasks(targetedTasks);
-                setBulkAiPrompt(insight.actionData.prompt);
-                setBulkAiModalOpen(true);
+                setReviewTasks(targetedTasks);
+                setReviewActionType(insight.actionType as any);
+                setReviewPrompt(insight.actionData.prompt);
+                setReviewModalOpen(true);
                 return;
             }
         }
@@ -164,15 +166,16 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                 </div>
             </div>
 
-            <BulkTaskAIModal
-                isOpen={bulkAiModalOpen}
+            <ReviewTasksModal
+                isOpen={reviewModalOpen}
                 onClose={() => {
-                    setBulkAiModalOpen(false);
-                    setBulkAiTasks([]);
-                    setBulkAiPrompt(undefined);
+                    setReviewModalOpen(false);
+                    setReviewTasks([]);
+                    setReviewPrompt(undefined);
                 }}
-                tasks={bulkAiTasks}
-                initialPrompt={bulkAiPrompt}
+                tasks={reviewTasks}
+                actionType={reviewActionType}
+                initialPrompt={reviewPrompt}
                 isReadOnly={isReadOnly}
                 onTasksUpdated={onTaskUpdate}
             />
