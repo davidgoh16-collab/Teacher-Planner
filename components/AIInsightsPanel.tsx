@@ -4,6 +4,7 @@ import { Sparkles, X, Check, Loader2, Bot, FileText, CheckCircle2, ChevronRight 
 import { Task, Project } from '../types';
 import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
+import BulkTaskAIModal from './BulkTaskAIModal';
 
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
@@ -23,6 +24,11 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isGeneratedModalOpen, setIsGeneratedModalOpen] = useState(false);
+
+    // Bulk AI Modal State
+    const [bulkAiModalOpen, setBulkAiModalOpen] = useState(false);
+    const [bulkAiTasks, setBulkAiTasks] = useState<Task[]>([]);
+    const [bulkAiPrompt, setBulkAiPrompt] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         // Automatically fetch insights on load
@@ -48,6 +54,19 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const handleAcceptAction = async (insight: AIInsight) => {
         if (!insight.actionData?.prompt || isReadOnly) return;
 
+        // If the insight specifies a list of tasks, use the BulkTaskAIModal
+        if (insight.taskIds && insight.taskIds.length > 0) {
+            const targetedTasks = tasks.filter(t => insight.taskIds!.includes(t.id));
+            if (targetedTasks.length > 0) {
+                setBulkAiTasks(targetedTasks);
+                setBulkAiPrompt(insight.actionData.prompt);
+                setBulkAiModalOpen(true);
+                return;
+            }
+        }
+
+        // If it targets a single task using the old 'taskId' prop (for backwards compatibility),
+        // or just generating general content
         setGeneratingAction(insight);
         setIsGenerating(true);
         setIsGeneratedModalOpen(true);
@@ -56,9 +75,13 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
             const content = await generateContentFromAction(insight.actionData.prompt);
             setGeneratedContent(content);
 
-            // If linked to a task, update the task to indicate AI content exists
-            if (insight.taskId) {
-                const task = tasks.find(t => t.id === insight.taskId);
+            // If linked to a task (old single taskId format), update the task to indicate AI content exists
+            // Since we changed to taskIds, we check the first element if taskIds is present but length 1,
+            // or we use the old logic if legacy data exists.
+            const targetTaskId = (insight as any).taskId || (insight.taskIds && insight.taskIds.length === 1 ? insight.taskIds[0] : null);
+
+            if (targetTaskId) {
+                const task = tasks.find(t => t.id === targetTaskId);
                 if (task) {
                     const updatedTask = {
                         ...task,
@@ -132,7 +155,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                         onClick={() => handleAcceptAction(insight)}
                                         className="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1.5 px-3 rounded-md transition-colors flex items-center gap-1.5 group-hover:shadow-sm"
                                     >
-                                        <Bot size={12} /> Action This / Generate
+                                        <Bot size={12} /> {insight.taskIds && insight.taskIds.length > 0 ? "Review & Action" : "Action This / Generate"}
                                     </button>
                                 </div>
                             )}
@@ -140,6 +163,19 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                     ))}
                 </div>
             </div>
+
+            <BulkTaskAIModal
+                isOpen={bulkAiModalOpen}
+                onClose={() => {
+                    setBulkAiModalOpen(false);
+                    setBulkAiTasks([]);
+                    setBulkAiPrompt(undefined);
+                }}
+                tasks={bulkAiTasks}
+                initialPrompt={bulkAiPrompt}
+                isReadOnly={isReadOnly}
+                onTasksUpdated={onTaskUpdate}
+            />
 
             {/* Generated Content Modal */}
             {isGenerating ? (
@@ -159,8 +195,9 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                     content={generatedContent}
                     title={generatingAction?.title || 'AI Insights Action'}
                     onSave={async (newContent) => {
-                        if (isReadOnly || !generatingAction?.taskId) return;
-                        const task = tasks.find(t => t.id === generatingAction.taskId);
+                        const targetTaskId = (generatingAction as any)?.taskId || (generatingAction?.taskIds && generatingAction.taskIds.length === 1 ? generatingAction.taskIds[0] : null);
+                        if (isReadOnly || !targetTaskId) return;
+                        const task = tasks.find(t => t.id === targetTaskId);
                         if (task) {
                             try {
                                 const updatedTask = { ...task, aiGeneratedContent: newContent };
