@@ -135,6 +135,8 @@ export interface RoutineTask {
   id: string;
   title: string;
   priority: 'High' | 'Medium' | 'Low';
+  type: 'daily' | 'weekly';
+  daysOfWeek?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
   lastCompletedDateStr?: string; // YYYY-MM-DD
   createdAt: number;
 }
