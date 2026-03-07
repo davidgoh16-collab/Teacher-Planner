@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Colleague, WeeklyTimetable } from '../types';
 import { fetchColleagues, saveColleague, deleteColleague, seedDatabase } from '../services/colleagueService';
-import { parseTimetableImage } from '../services/aiService';
+import { parseTimetableImage, parseTimetableText } from '../services/aiService';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { Users, Upload, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText } from 'lucide-react';
 
@@ -27,6 +27,8 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedFileBase64, setUploadedFileBase64] = useState<string | null>(null);
   const [uploadedFileMimeType, setUploadedFileMimeType] = useState<string | null>(null);
+  const [timetableText, setTimetableText] = useState('');
+  const [inputMode, setInputMode] = useState<'file' | 'text'>('file');
 
   // Viewing Timetable State
   const [viewingColleague, setViewingColleague] = useState<Colleague | null>(null);
@@ -50,6 +52,8 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
     setUploadedFileBase64(null);
     setUploadedFileMimeType(null);
     setUploadError(null);
+    setTimetableText('');
+    setInputMode('file');
   };
 
   const handleDeleteColleague = async (id: string) => {
@@ -106,6 +110,31 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       };
       img.onerror = (err) => reject(err);
     });
+  };
+
+  const handleTextSubmit = async () => {
+    if (!timetableText.trim()) return;
+
+    setUploading(true);
+    setUploadError(null);
+    setParsedWeek1(null);
+    setParsedWeek2(null);
+
+    try {
+      const result = await parseTimetableText(timetableText);
+
+      setParsedWeek1(result.week1 || null);
+      setParsedWeek2(result.week2 || null);
+
+      if ((!result.week1 || Object.keys(result.week1).length === 0) && (!result.week2 || Object.keys(result.week2).length === 0)) {
+         setUploadError("Could not detect any valid timetable data from the text. Please check the content.");
+      }
+    } catch (err) {
+      console.error(err);
+      setUploadError("Failed to parse timetable text. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,44 +530,90 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Upload Timetable (PDF or Image)
-                </label>
-                <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors ${parsedWeek1 || parsedWeek2 ? 'border-green-300 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}>
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="timetable-upload"
-                    disabled={uploading}
-                  />
-                  <label htmlFor="timetable-upload" className="cursor-pointer flex flex-col items-center w-full">
-                    {uploading ? (
-                      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
-                    ) : (parsedWeek1 || parsedWeek2) ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
-                    ) : (
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    )}
-                    
-                    <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                      {uploading ? "Analyzing document..." : (parsedWeek1 || parsedWeek2) ? "Timetable Loaded" : "Click to upload"}
-                    </span>
-                    
-                    {!uploading && (
-                      <span className="text-xs text-gray-400 mt-1">
-                        Supports PDF (multi-page) or Images (PNG/JPG)
-                      </span>
-                    )}
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Timetable Source
+                  </label>
+                  <div className="flex bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
+                    <button
+                      onClick={() => setInputMode('file')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'file' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                      File/Image
+                    </button>
+                    <button
+                      onClick={() => setInputMode('text')}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                      Text
+                    </button>
+                  </div>
+                </div>
 
+                {inputMode === 'file' ? (
+                  <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors ${parsedWeek1 || parsedWeek2 ? 'border-green-300 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="timetable-upload"
+                      disabled={uploading}
+                    />
+                    <label htmlFor="timetable-upload" className="cursor-pointer flex flex-col items-center w-full">
+                      {uploading ? (
+                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
+                      ) : (parsedWeek1 || parsedWeek2) ? (
+                        <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
+                      ) : (
+                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      )}
+
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        {uploading ? "Analyzing document..." : (parsedWeek1 || parsedWeek2) ? "Timetable Loaded" : "Click to upload"}
+                      </span>
+
+                      {!uploading && (
+                        <span className="text-xs text-gray-400 mt-1">
+                          Supports PDF (multi-page) or Images (PNG/JPG)
+                        </span>
+                      )}
+
+                      {(parsedWeek1 || parsedWeek2) && !uploading && (
+                         <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                            {parsedWeek1 && parsedWeek2 ? "Found Week 1 & Week 2" : parsedWeek1 ? "Found Week 1 Only" : "Found Week 2 Only"}
+                         </div>
+                      )}
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={timetableText}
+                      onChange={(e) => setTimetableText(e.target.value)}
+                      placeholder="Paste timetable text here..."
+                      className="w-full h-32 px-3 py-2 text-sm text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:text-gray-300 dark:border-slate-700 custom-scrollbar"
+                      disabled={uploading}
+                    />
+                    <button
+                      onClick={handleTextSubmit}
+                      disabled={uploading || !timetableText.trim()}
+                      className="self-end px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                    >
+                      {uploading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</>
+                      ) : (
+                        <><FileText className="w-4 h-4" /> Process Text</>
+                      )}
+                    </button>
                     {(parsedWeek1 || parsedWeek2) && !uploading && (
-                       <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                       <div className="mt-1 text-xs text-green-600 dark:text-green-400 text-right">
                           {parsedWeek1 && parsedWeek2 ? "Found Week 1 & Week 2" : parsedWeek1 ? "Found Week 1 Only" : "Found Week 2 Only"}
                        </div>
                     )}
-                  </label>
-                </div>
+                  </div>
+                )}
+
                 {uploadError && (
                   <p className="text-sm text-red-500 mt-2 text-center">{uploadError}</p>
                 )}
