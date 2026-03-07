@@ -186,6 +186,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                     setSelectedProjectId(null);
                     loadData(); // Reload to get fresh task counts
                 }}
+                onTaskUpdate={() => { loadData(); }}
                 onUpdateProject={(updatedProj) => {
                     setProjects(prev => prev.map(p => p.id === updatedProj.id ? updatedProj : p));
                 }}
@@ -506,7 +507,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             categories={categories}
             isReadOnly={isReadOnly}
             onTaskUpdate={() => {
-        // Prevent refresh scroll jump, assume components handle local state
+        loadData();
     }} // Reload everything if task changes
           />
       )}

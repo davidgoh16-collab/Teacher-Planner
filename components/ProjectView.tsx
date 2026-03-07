@@ -36,6 +36,7 @@ interface ProjectViewProps {
     isReadOnly: boolean;
     onBack: () => void;
     onUpdateProject: (updatedProj: Project) => void;
+    onTaskUpdate: () => void;
 }
 
 const BACKGROUND_COLORS = [
@@ -67,7 +68,7 @@ const BACKGROUND_COLORS = [
 
 type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
-export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject }: ProjectViewProps) {
+export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -136,6 +137,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         for (const id of idsToDelete) {
             try { await deleteTask(id); } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
+        onTaskUpdate();
     };
 
     const handleBulkComplete = async () => {
@@ -148,6 +150,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 try { await saveTask({ ...task, status: 'Completed' as const }); } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
+        onTaskUpdate();
     };
 
     const [aiTaskInput, setAiTaskInput] = useState('');
@@ -865,32 +868,6 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     {/* Top Section: Settings / Description & Links */}
                     {isEditingSettings ? (
                         <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2">
-            {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
-                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
-                    <div className="w-px h-4 bg-slate-700"></div>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
-                        <CheckCircle2 size={16} /> Mark Completed
-                    </button>
-                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
-                        <Trash2 size={16} /> Delete
-                    </button>
-                </div>
-            )}
-
-            {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
-                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
-                    <div className="w-px h-4 bg-slate-700"></div>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
-                        <CheckCircle2 size={16} /> Mark Completed
-                    </button>
-                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
-                        <Trash2 size={16} /> Delete
-                    </button>
-                </div>
-            )}
-
                             <h3 className="text-lg font-bold mb-4">Project Settings</h3>
                             <div className="space-y-4">
                                 <div>
@@ -1524,6 +1501,18 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 categories={allCategories}
                 onSave={handleSaveConvertedTask}
             />
+            {selectedTaskIds.size > 0 && !isReadOnly && (
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                    <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
+                    <div className="w-px h-4 bg-slate-700"></div>
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                        <CheckCircle2 size={16} /> Mark Completed
+                    </button>
+                    <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
+                        <Trash2 size={16} /> Delete
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
