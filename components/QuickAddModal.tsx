@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task, Category, Project, Idea } from '../types';
-import { X, Check } from 'lucide-react';
+import { extractTaskDetails } from '../services/aiService';
+import { X, Check, Bot } from 'lucide-react';
 
 interface QuickAddModalProps {
     isOpen: boolean;
@@ -23,7 +24,11 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
     const [taskScheduledDateStr, setTaskScheduledDateStr] = useState('');
     const [taskDeadlineDateStr, setTaskDeadlineDateStr] = useState('');
 
-    // Idea State
+        // AI State
+    const [aiTaskInput, setAiTaskInput] = useState('');
+    const [isExtracting, setIsExtracting] = useState(false);
+
+// Idea State
     const [ideaText, setIdeaText] = useState('');
     const [ideaProjectId, setIdeaProjectId] = useState('');
 
@@ -31,7 +36,27 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
 
     const taskCategories = categories.filter(c => c.type === 'task');
 
-    const handleSaveTask = (e: React.FormEvent) => {
+
+    const handleAiTaskExtract = async () => {
+        if (!aiTaskInput.trim()) return;
+        setIsExtracting(true);
+        try {
+            const details = await extractTaskDetails(aiTaskInput, projects, categories);
+            if (details.title) setTaskTitle(details.title);
+            if (details.description) setTaskDescription(details.description);
+            if (details.priority) setTaskPriority(details.priority as any);
+            if (details.scheduledDateStr) setTaskScheduledDateStr(details.scheduledDateStr);
+            if (details.deadlineDateStr) setTaskDeadlineDateStr(details.deadlineDateStr);
+            if (details.projectId) setTaskProjectId(details.projectId);
+            if (details.categoryId) setTaskCategoryId(details.categoryId);
+            setAiTaskInput('');
+        } catch (e) {
+            console.error("Failed to extract task details:", e);
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+const handleSaveTask = (e: React.FormEvent) => {
         e.preventDefault();
         if (!taskTitle.trim()) return;
 
@@ -112,6 +137,33 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
                 <div className="p-6 overflow-y-auto max-h-[70vh]">
                     {activeTab === 'task' ? (
                         <form id="quickAddTaskForm" onSubmit={handleSaveTask} className="space-y-4">
+                        <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 flex items-center gap-3 mb-2">
+                            <Bot className="text-blue-500 shrink-0" size={20} />
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={aiTaskInput}
+                                    onChange={(e) => setAiTaskInput(e.target.value)}
+                                    placeholder="Describe task naturally (e.g., 'Grade papers tomorrow high priority')"
+                                    className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-lg pl-3 pr-24 py-2 text-sm focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAiTaskExtract();
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAiTaskExtract}
+                                    disabled={!aiTaskInput.trim() || isExtracting}
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs px-3 py-1 rounded-md transition-colors"
+                                >
+                                    {isExtracting ? 'Extracting...' : 'Extract'}
+                                </button>
+                            </div>
+                        </div>
+
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Title *</label>
                                 <input

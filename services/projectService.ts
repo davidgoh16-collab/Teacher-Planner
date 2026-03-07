@@ -118,3 +118,26 @@ export const deleteIdea = async (id: string): Promise<void> => {
         throw e;
     }
 };
+import { RoutineTask } from '../types';
+
+export const fetchRoutineTasks = async (): Promise<RoutineTask[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'teacher_planner_routine_tasks'));
+    const tasks: RoutineTask[] = [];
+    querySnapshot.forEach((docSnap) => {
+      tasks.push(docSnap.data() as RoutineTask);
+    });
+    return tasks;
+  } catch (e) {
+    console.error("Error fetching routine tasks", e);
+    return [];
+  }
+};
+
+export const saveRoutineTask = async (task: RoutineTask): Promise<void> => {
+  try { await setDoc(doc(db, 'teacher_planner_routine_tasks', task.id), task); } catch (e) {}
+};
+
+export const deleteRoutineTask = async (id: string): Promise<void> => {
+  try { await deleteDoc(doc(db, 'teacher_planner_routine_tasks', id)); } catch (e) {}
+};
