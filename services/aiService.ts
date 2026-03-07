@@ -267,7 +267,7 @@ export const generateInsights = async (
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: [prompt],
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
       },
@@ -288,7 +288,7 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
     const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: [prompt],
+      contents: prompt,
     });
     return response.text || "";
   } catch (error) {
@@ -329,7 +329,7 @@ export const extractTaskDetails = async (
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: [prompt],
+            contents: prompt,
             config: {
                 responseMimeType: "application/json",
             },
