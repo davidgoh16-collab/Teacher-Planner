@@ -55,6 +55,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 if (onTaskDeleted) onTaskDeleted(id);
             } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
+        onTaskUpdate();
     };
 
     const handleBulkComplete = async () => {
@@ -71,6 +72,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
+        onTaskUpdate();
     };
 
     const [filterProject, setFilterProject] = useState<string>('All');

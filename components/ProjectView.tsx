@@ -141,6 +141,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 if (onTaskDeleted) onTaskDeleted(id);
             } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
+        onTaskUpdate();
     };
 
     const handleBulkComplete = async () => {
@@ -157,6 +158,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
+        onTaskUpdate();
     };
 
     const [aiTaskInput, setAiTaskInput] = useState('');
