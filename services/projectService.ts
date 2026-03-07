@@ -118,7 +118,37 @@ export const deleteIdea = async (id: string): Promise<void> => {
         throw e;
     }
 };
-import { RoutineTask } from '../types';
+import { RoutineTask, CommunicationMessage } from '../types';
+
+const MESSAGES_COLLECTION = 'teacher_planner_messages';
+
+export const fetchCommunicationMessages = async (): Promise<CommunicationMessage[]> => {
+    try {
+        const querySnapshot = await getDocs(collection(db, MESSAGES_COLLECTION));
+        return querySnapshot.docs.map(docSnap => docSnap.data() as CommunicationMessage).sort((a, b) => b.createdAt - a.createdAt);
+    } catch (e) {
+        console.error("Error fetching communication messages", e);
+        return [];
+    }
+};
+
+export const saveCommunicationMessage = async (message: CommunicationMessage): Promise<void> => {
+    try {
+        await setDoc(doc(db, MESSAGES_COLLECTION, message.id), message);
+    } catch (e) {
+        console.error("Error saving communication message", e);
+        throw e;
+    }
+};
+
+export const deleteCommunicationMessage = async (id: string): Promise<void> => {
+    try {
+        await deleteDoc(doc(db, MESSAGES_COLLECTION, id));
+    } catch (e) {
+        console.error("Error deleting communication message", e);
+        throw e;
+    }
+};
 
 export const fetchRoutineTasks = async (): Promise<RoutineTask[]> => {
   try {

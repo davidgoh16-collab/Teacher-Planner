@@ -140,3 +140,14 @@ export interface RoutineTask {
   lastCompletedDateStr?: string; // YYYY-MM-DD
   createdAt: number;
 }
+
+export interface CommunicationMessage {
+  id: string;
+  type: 'email' | 'message' | 'letter';
+  audience: 'parent' | 'staff' | 'announcement';
+  recipient: string;
+  replyToText?: string;
+  instructions: string;
+  generatedContent: string;
+  createdAt: number;
+}
