@@ -16,6 +16,7 @@ import { saveTask, deleteTask } from '../services/projectService';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
+import BulkTaskAIModal from './BulkTaskAIModal';
 
 interface GlobalTasksViewProps {
     allTasks: Task[];
@@ -81,6 +82,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+    // Bulk AI Modal State
+    const [bulkAiModalOpen, setBulkAiModalOpen] = useState(false);
 
     // AI Content Modal State
     const [aiContentModalOpen, setAiContentModalOpen] = useState(false);
@@ -560,10 +564,27 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                     }
                 }}
             />
+
+            <BulkTaskAIModal
+                isOpen={bulkAiModalOpen}
+                onClose={() => {
+                    setBulkAiModalOpen(false);
+                    setSelectedTaskIds(new Set());
+                }}
+                tasks={allTasks.filter(t => selectedTaskIds.has(t.id))}
+                isReadOnly={isReadOnly}
+                onTasksUpdated={() => {
+                    if (onTaskUpdate) onTaskUpdate();
+                }}
+            />
+
             {selectedTaskIds.size > 0 && !isReadOnly && (
                 <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
                     <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
                     <div className="w-px h-4 bg-slate-700"></div>
+                    <button onClick={() => setBulkAiModalOpen(true)} className="text-sm hover:text-blue-400 flex items-center gap-1 transition-colors">
+                        <Bot size={16} /> Ask AI
+                    </button>
                     <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
                         <CheckCircle2 size={16} /> Mark Completed
                     </button>

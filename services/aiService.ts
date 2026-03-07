@@ -118,7 +118,7 @@ export interface AIInsight {
   type: 'info' | 'suggestion' | 'action';
   title: string;
   description: string;
-  taskId?: string; // If the insight relates to a specific task
+  taskIds?: string[]; // If the insight relates to specific tasks
   actionData?: {
     prompt: string;
   };
@@ -212,11 +212,15 @@ export const generateInsights = async (
     const prompt = `
       You are an AI assistant for a teacher planner app. Based on the provided context, generate 3-5 helpful insights.
 
-      Insights can be:
-      1. 'info': General information or summary about the workload or project status.
-      2. 'suggestion': A suggestion on what to prioritize or how to organize tasks.
-      3. 'action': A proactive offer to complete a task, draft content, consolidate communication, or restructure a process.
-         If you suggest an 'action', you MUST provide 'actionData.prompt' which is a prompt that the AI can run to generate the actual content or draft. For example, if you suggest "Consolidate Oasis Communications", the prompt should be "Draft a consolidated email to Oasis addressing both the English literature setups and the Bromcom communication issues."
+      Insights can be 'info', 'suggestion', or 'action'.
+
+      CRITICAL REQUIREMENT: For EVERY insight (whether info, suggestion, or action), you MUST provide an 'actionData.prompt' that allows the user to take a meaningful action via an AI agent.
+      For example:
+      - If 'info' says "You have 5 high priority tasks", the prompt should be "Show me the high priority tasks and ask me which one I want to tackle first."
+      - If 'suggestion' says "Group Bromcom communication", the prompt should be "Draft a single email summarizing all Bromcom transition issues."
+      - If 'action' says "Delete tasks called 'test'", the prompt should be "Delete all tasks that have the word 'test' in the title."
+
+      If the insight specifically targets existing tasks (like grouping them, reviewing high priority, or deleting them), you MUST include an array of their IDs in 'taskIds'.
 
       Context:
       ${contextStr}
@@ -226,16 +230,20 @@ export const generateInsights = async (
       [
         {
           "type": "info",
-          "title": "Project on track",
-          "description": "You have completed 50% of the tasks in this project."
+          "title": "High Priority Workload",
+          "description": "You have 12 high-priority tasks requiring attention.",
+          "taskIds": ["task_1", "task_5", "task_8"],
+          "actionData": {
+            "prompt": "Review these high priority tasks and help me prioritize which one to do first."
+          }
         },
         {
-          "type": "action",
-          "title": "Draft Parent Email",
-          "description": "I can draft the email to parents for you.",
-          "taskId": "task_123",
+          "type": "suggestion",
+          "title": "Clean up test tasks",
+          "description": "There are several tasks named 'test' that should be removed.",
+          "taskIds": ["task_3", "task_9"],
           "actionData": {
-            "prompt": "Draft an email to parents about the upcoming science fair..."
+            "prompt": "Delete all tasks named 'test'."
           }
         }
       ]
