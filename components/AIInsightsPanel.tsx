@@ -4,6 +4,7 @@ import { Sparkles, X, Check, Loader2, Bot, FileText, CheckCircle2, ChevronRight 
 import { Task, Project } from '../types';
 import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
+import ReviewTasksModal from './ReviewTasksModal';
 
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
@@ -23,6 +24,12 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const [generatedContent, setGeneratedContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isGeneratedModalOpen, setIsGeneratedModalOpen] = useState(false);
+
+    // Review Tasks Modal State
+    const [reviewModalOpen, setReviewModalOpen] = useState(false);
+    const [reviewTasks, setReviewTasks] = useState<Task[]>([]);
+    const [reviewActionType, setReviewActionType] = useState<'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks' | 'generic'>('generic');
+    const [reviewPrompt, setReviewPrompt] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         // Automatically fetch insights on load
@@ -48,6 +55,20 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const handleAcceptAction = async (insight: AIInsight) => {
         if (!insight.actionData?.prompt || isReadOnly) return;
 
+        // If the insight specifies an action type that targets tasks
+        if (insight.actionType !== 'generate_content' && insight.taskIds && insight.taskIds.length > 0) {
+            const targetedTasks = tasks.filter(t => insight.taskIds!.includes(t.id));
+            if (targetedTasks.length > 0) {
+                setReviewTasks(targetedTasks);
+                setReviewActionType(insight.actionType as any);
+                setReviewPrompt(insight.actionData.prompt);
+                setReviewModalOpen(true);
+                return;
+            }
+        }
+
+        // If it targets a single task using the old 'taskId' prop (for backwards compatibility),
+        // or just generating general content
         setGeneratingAction(insight);
         setIsGenerating(true);
         setIsGeneratedModalOpen(true);
@@ -56,9 +77,13 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
             const content = await generateContentFromAction(insight.actionData.prompt);
             setGeneratedContent(content);
 
-            // If linked to a task, update the task to indicate AI content exists
-            if (insight.taskId) {
-                const task = tasks.find(t => t.id === insight.taskId);
+            // If linked to a task (old single taskId format), update the task to indicate AI content exists
+            // Since we changed to taskIds, we check the first element if taskIds is present but length 1,
+            // or we use the old logic if legacy data exists.
+            const targetTaskId = (insight as any).taskId || (insight.taskIds && insight.taskIds.length === 1 ? insight.taskIds[0] : null);
+
+            if (targetTaskId) {
+                const task = tasks.find(t => t.id === targetTaskId);
                 if (task) {
                     const updatedTask = {
                         ...task,
@@ -132,7 +157,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                         onClick={() => handleAcceptAction(insight)}
                                         className="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 py-1.5 px-3 rounded-md transition-colors flex items-center gap-1.5 group-hover:shadow-sm"
                                     >
-                                        <Bot size={12} /> Action This / Generate
+                                        <Bot size={12} /> {insight.taskIds && insight.taskIds.length > 0 ? "Review & Action" : "Action This / Generate"}
                                     </button>
                                 </div>
                             )}
@@ -140,6 +165,20 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                     ))}
                 </div>
             </div>
+
+            <ReviewTasksModal
+                isOpen={reviewModalOpen}
+                onClose={() => {
+                    setReviewModalOpen(false);
+                    setReviewTasks([]);
+                    setReviewPrompt(undefined);
+                }}
+                tasks={reviewTasks}
+                actionType={reviewActionType}
+                initialPrompt={reviewPrompt}
+                isReadOnly={isReadOnly}
+                onTasksUpdated={onTaskUpdate}
+            />
 
             {/* Generated Content Modal */}
             {isGenerating ? (
@@ -159,8 +198,9 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                     content={generatedContent}
                     title={generatingAction?.title || 'AI Insights Action'}
                     onSave={async (newContent) => {
-                        if (isReadOnly || !generatingAction?.taskId) return;
-                        const task = tasks.find(t => t.id === generatingAction.taskId);
+                        const targetTaskId = (generatingAction as any)?.taskId || (generatingAction?.taskIds && generatingAction.taskIds.length === 1 ? generatingAction.taskIds[0] : null);
+                        if (isReadOnly || !targetTaskId) return;
+                        const task = tasks.find(t => t.id === targetTaskId);
                         if (task) {
                             try {
                                 const updatedTask = { ...task, aiGeneratedContent: newContent };

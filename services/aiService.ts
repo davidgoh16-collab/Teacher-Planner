@@ -118,7 +118,8 @@ export interface AIInsight {
   type: 'info' | 'suggestion' | 'action';
   title: string;
   description: string;
-  taskId?: string; // If the insight relates to a specific task
+  taskIds?: string[]; // If the insight relates to specific tasks
+  actionType?: 'generate_content' | 'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks';
   actionData?: {
     prompt: string;
   };
@@ -212,11 +213,18 @@ export const generateInsights = async (
     const prompt = `
       You are an AI assistant for a teacher planner app. Based on the provided context, generate 3-5 helpful insights.
 
-      Insights can be:
-      1. 'info': General information or summary about the workload or project status.
-      2. 'suggestion': A suggestion on what to prioritize or how to organize tasks.
-      3. 'action': A proactive offer to complete a task, draft content, consolidate communication, or restructure a process.
-         If you suggest an 'action', you MUST provide 'actionData.prompt' which is a prompt that the AI can run to generate the actual content or draft. For example, if you suggest "Consolidate Oasis Communications", the prompt should be "Draft a consolidated email to Oasis addressing both the English literature setups and the Bromcom communication issues."
+      Insights can be 'info', 'suggestion', or 'action'.
+
+      CRITICAL REQUIREMENT: For EVERY insight, you MUST provide an 'actionType'.
+
+      Valid 'actionType' values and their purpose:
+      - "generate_content": For drafting emails, letters, or long text. 'actionData.prompt' should instruct what to generate.
+      - "delete_tasks": For suggesting deletion of duplicate, obsolete, or completed tasks. MUST include 'taskIds'. 'actionData.prompt' is optional but should explain why they are deleted.
+      - "group_tasks": For combining related tasks or communications. MUST include 'taskIds'. 'actionData.prompt' should describe the grouping logic.
+      - "review_tasks": For highlighting high-priority or urgent tasks. MUST include 'taskIds'. 'actionData.prompt' should describe what the user should focus on.
+      - "update_tasks": For changing dates, priorities, or statuses of multiple tasks. MUST include 'taskIds'. 'actionData.prompt' should describe the update.
+
+      If the insight specifically targets existing tasks (like grouping them, reviewing high priority, or deleting them), you MUST include an array of their IDs in 'taskIds'.
 
       Context:
       ${contextStr}
@@ -226,24 +234,40 @@ export const generateInsights = async (
       [
         {
           "type": "info",
-          "title": "Project on track",
-          "description": "You have completed 50% of the tasks in this project."
+          "title": "High Priority Workload",
+          "description": "You have 12 high-priority tasks requiring attention.",
+          "taskIds": ["task_1", "task_5", "task_8"],
+          "actionType": "review_tasks",
+          "actionData": {
+            "prompt": "Review these high priority tasks."
+          }
+        },
+        {
+          "type": "suggestion",
+          "title": "Clean up test tasks",
+          "description": "There are several tasks named 'test' that should be removed.",
+          "taskIds": ["task_3", "task_9"],
+          "actionType": "delete_tasks",
+          "actionData": {
+            "prompt": "These tasks look like tests and can be deleted."
+          }
         },
         {
           "type": "action",
           "title": "Draft Parent Email",
-          "description": "I can draft the email to parents for you.",
-          "taskId": "task_123",
+          "description": "You have a task to contact parents about Bromcom.",
+          "taskIds": ["task_10"],
+          "actionType": "generate_content",
           "actionData": {
-            "prompt": "Draft an email to parents about the upcoming science fair..."
+            "prompt": "Draft an email to parents regarding the Bromcom transition."
           }
         }
       ]
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
-      contents: [prompt],
+      model: "gemini-2.5-flash",
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
       },
@@ -263,8 +287,8 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
-      contents: [prompt],
+      model: "gemini-2.5-flash",
+      contents: prompt,
     });
     return response.text || "";
   } catch (error) {
@@ -304,8 +328,8 @@ export const extractTaskDetails = async (
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
-            contents: [prompt],
+            model: "gemini-2.5-flash",
+            contents: prompt,
             config: {
                 responseMimeType: "application/json",
             },
@@ -355,7 +379,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { text: prompt },
