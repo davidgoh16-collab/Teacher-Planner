@@ -186,7 +186,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                     setSelectedProjectId(null);
                     loadData(); // Reload to get fresh task counts
                 }}
-                onTaskUpdate={() => { loadData(); }}
+                onTaskDeleted={(taskId) => {
+                    setAllTasks(prev => prev.filter(t => t.id !== taskId));
+                }}
+                onTaskUpdated={(updatedTask) => {
+                    setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+                }}
                 onUpdateProject={(updatedProj) => {
                     setProjects(prev => prev.map(p => p.id === updatedProj.id ? updatedProj : p));
                 }}
@@ -506,9 +511,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             projects={projects}
             categories={categories}
             isReadOnly={isReadOnly}
-            onTaskUpdate={() => {
-        loadData();
-    }} // Reload everything if task changes
+            onTaskDeleted={(taskId) => {
+                setAllTasks(prev => prev.filter(t => t.id !== taskId));
+            }}
+            onTaskUpdated={(updatedTask) => {
+                setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+            }} // Reload everything if task changes
           />
       )}
 

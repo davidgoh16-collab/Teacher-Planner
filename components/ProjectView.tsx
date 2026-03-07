@@ -36,7 +36,9 @@ interface ProjectViewProps {
     isReadOnly: boolean;
     onBack: () => void;
     onUpdateProject: (updatedProj: Project) => void;
-    onTaskUpdate: () => void;
+    onTaskUpdate?: () => void;
+    onTaskDeleted?: (taskId: string) => void;
+    onTaskUpdated?: (task: Task) => void;
 }
 
 const BACKGROUND_COLORS = [
@@ -68,7 +70,7 @@ const BACKGROUND_COLORS = [
 
 type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
-export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate }: ProjectViewProps) {
+export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -118,8 +120,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
     const [isAddingTask, setIsAddingTask] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
-    const toggleTaskSelection = (taskId: string, e: React.MouseEvent) => {
-        e.preventDefault();
+    const toggleTaskSelection = (taskId: string, e: React.MouseEvent | React.ChangeEvent) => {
         e.stopPropagation();
         const newSelection = new Set(selectedTaskIds);
         if (newSelection.has(taskId)) {
@@ -135,7 +136,10 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         const idsToDelete = Array.from(selectedTaskIds);
         setSelectedTaskIds(new Set());
         for (const id of idsToDelete) {
-            try { await deleteTask(id); } catch (e) { console.error("Failed to delete task in bulk", id, e); }
+            try {
+                await deleteTask(id);
+                if (onTaskDeleted) onTaskDeleted(id);
+            } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
         onTaskUpdate();
     };
@@ -147,7 +151,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         for (const id of idsToUpdate) {
             const task = flatTasks.find(t => t.id === id);
             if (task && task.status !== 'Completed') {
-                try { await saveTask({ ...task, status: 'Completed' as const }); } catch (e) { console.error("Failed to complete task in bulk", id, e); }
+                try {
+                    const updatedTask = { ...task, status: 'Completed' as const };
+                    await saveTask(updatedTask);
+                    if (onTaskUpdated) onTaskUpdated(updatedTask);
+                } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
         onTaskUpdate();
@@ -357,6 +365,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
         try {
             await saveTask(updated);
+            if (onTaskUpdated) onTaskUpdated(updated);
         } catch (e) {
             console.error(e);
             // Revert
@@ -369,6 +378,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         if (window.confirm("Are you sure you want to delete this task?")) {
             try {
                 await deleteTask(taskId);
+                if (onTaskDeleted) onTaskDeleted(taskId);
                 setTasks(tasks.filter(t => t.id !== taskId));
             } catch (e) {
                 console.error(e);
@@ -472,6 +482,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             } else {
                 // We are editing a top-level task
                 await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
                 setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
             }
         } catch (e) {
@@ -1469,6 +1480,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         try {
                             const updatedTask = { ...task, aiGeneratedContent: newContent };
                             await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
                             setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
                             setSelectedAiContent(newContent);
                         } catch (e) {

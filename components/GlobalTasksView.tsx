@@ -22,18 +22,19 @@ interface GlobalTasksViewProps {
     projects: Project[];
     categories: Category[];
     isReadOnly: boolean;
-    onTaskUpdate: () => void;
+    onTaskUpdate?: () => void;
+    onTaskDeleted?: (taskId: string) => void;
+    onTaskUpdated?: (task: Task) => void;
 }
 
 type ViewMode = 'list' | 'timeline' | 'matrix';
 
-export default function GlobalTasksView({ allTasks, projects, categories, isReadOnly, onTaskUpdate }: GlobalTasksViewProps) {
+export default function GlobalTasksView({ allTasks, projects, categories, isReadOnly, onTaskUpdate, onTaskDeleted, onTaskUpdated }: GlobalTasksViewProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('matrix');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
-    const toggleTaskSelection = (taskId: string, e: React.MouseEvent) => {
-        e.preventDefault();
+    const toggleTaskSelection = (taskId: string, e: React.MouseEvent | React.ChangeEvent) => {
         e.stopPropagation();
         const newSelection = new Set(selectedTaskIds);
         if (newSelection.has(taskId)) {
@@ -49,7 +50,10 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         const idsToDelete = Array.from(selectedTaskIds);
         setSelectedTaskIds(new Set());
         for (const id of idsToDelete) {
-            try { await deleteTask(id); } catch (e) { console.error("Failed to delete task in bulk", id, e); }
+            try {
+                await deleteTask(id);
+                if (onTaskDeleted) onTaskDeleted(id);
+            } catch (e) { console.error("Failed to delete task in bulk", id, e); }
         }
         onTaskUpdate();
     };
@@ -61,7 +65,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         for (const id of idsToUpdate) {
             const task = flatTasks.find(t => t.id === id);
             if (task && task.status !== 'Completed') {
-                try { await saveTask({ ...task, status: 'Completed' as const }); } catch (e) { console.error("Failed to complete task in bulk", id, e); }
+                try {
+                    const updatedTask = { ...task, status: 'Completed' as const };
+                    await saveTask(updatedTask);
+                    if (onTaskUpdated) onTaskUpdated(updatedTask);
+                } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
         }
         onTaskUpdate();
@@ -112,7 +120,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         const updated = { ...task, status: nextStatus };
         try {
             await saveTask(updated);
-            onTaskUpdate();
+            if (onTaskUpdated) onTaskUpdated(updated);
         } catch (e) {
             console.error(e);
             alert("Failed to update task.");
@@ -124,7 +132,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         if (window.confirm("Are you sure you want to delete this task?")) {
             try {
                 await deleteTask(taskId);
-                onTaskUpdate();
+                if (onTaskDeleted) onTaskDeleted(taskId);
             } catch (e) {
                 console.error(e);
                 alert("Failed to delete task.");
@@ -137,7 +145,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
         try {
             await saveTask(updatedTask);
-            onTaskUpdate();
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
         } catch (e) {
             console.error("Failed to save edited task", e);
             alert("Failed to save changes.");
@@ -544,7 +552,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             const updatedTask = { ...task, aiGeneratedContent: newContent };
                             await saveTask(updatedTask);
                             setSelectedAiContent(newContent);
-                            onTaskUpdate();
+                            // onTaskUpdate(); replaced by specific updates below if any
                         } catch (e) {
                             console.error("Failed to save AI content to task", e);
                             alert("Failed to save AI content.");
