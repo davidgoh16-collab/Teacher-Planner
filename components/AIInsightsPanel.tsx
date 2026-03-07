@@ -6,6 +6,10 @@ import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
 import ReviewTasksModal from './ReviewTasksModal';
 
+// Global cache for insights to avoid regenerating every time the component remounts
+const insightsCache: Record<string, AIInsight[]> = {};
+const dismissedCache: Set<string> = new Set();
+
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
     tasks: Task[];
@@ -31,9 +35,22 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const [reviewActionType, setReviewActionType] = useState<'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks' | 'generic'>('generic');
     const [reviewPrompt, setReviewPrompt] = useState<string | undefined>(undefined);
 
+    const cacheKey = contextType === 'project' ? `project_${project?.id}` : 'all_tasks';
+
     useEffect(() => {
+        // Initialize from cache
+        if (dismissedCache.has(cacheKey)) {
+            setIsDismissed(true);
+            return;
+        }
+
+        if (insightsCache[cacheKey]) {
+            setInsights(insightsCache[cacheKey]);
+            return;
+        }
+
         // Automatically fetch insights on load
-        if (!isReadOnly && tasks.length > 0 && !isDismissed) {
+        if (!isReadOnly && tasks.length > 0 && !isDismissed && !insightsCache[cacheKey]) {
             loadInsights();
         }
     }, [contextType, project?.id]); // Refetch if project changes or context changes
@@ -42,14 +59,22 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
         setIsLoading(true);
         try {
             const fetched = await generateInsights(contextType, tasks, project);
-            if (fetched && fetched.length > 0) {
-                setInsights(fetched);
+            if (fetched) {
+                insightsCache[cacheKey] = fetched;
+                if (fetched.length > 0) {
+                    setInsights(fetched);
+                }
             }
         } catch (e) {
             console.error(e);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleDismiss = () => {
+        setIsDismissed(true);
+        dismissedCache.add(cacheKey);
     };
 
     const handleAcceptAction = async (insight: AIInsight) => {
@@ -125,7 +150,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                         </div>
                         AI Project Insights
                     </div>
-                    <button onClick={() => setIsDismissed(true)} className="text-green-600/60 hover:text-green-800 dark:text-green-400/60 dark:hover:text-green-300 transition-colors p-1">
+                    <button onClick={handleDismiss} className="text-green-600/60 hover:text-green-800 dark:text-green-400/60 dark:hover:text-green-300 transition-colors p-1">
                         <X size={18} />
                     </button>
                 </div>

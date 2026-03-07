@@ -345,6 +345,61 @@ export const extractTaskDetails = async (
     }
 };
 
+export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
+  try {
+    const prompt = `
+      Analyze this text representation of a timetable.
+      Extract the schedule for Week 1 and Week 2.
+
+      Look for headers like "Week 1" or "Week 2" to identify which schedule is which.
+      If the text only contains one week, populate that week and leave the other empty.
+
+      The timetable typically has rows for periods (P1, P2, P3A, P3B, P3C, P3D, P4, P5A, P5B, P5C, P6) and columns for days (Mon-Fri).
+
+      For each slot, extract the subject/activity.
+      If a slot is empty, return null.
+
+      Map the periods to the following keys:
+      - "Period 1": P1
+      - "Period 2": P2
+      - "Period 3": P3A, P3B, P3C, P3D. If ANY of these have a class, use that class. If multiple have classes, use the first one.
+      - "Period 4": P4
+      - "Period 5": P5A, P5B, P5C. If ANY of these have a class, use that class. If multiple have classes, use the first one.
+      - "Period 6": P6
+
+      Ignore "Morning Mtg" and "Afternoon Mtg" unless explicitly stated.
+
+      Return a JSON object with "week1" and "week2" keys.
+
+      IMPORTANT: Do NOT hallucinate. If a slot is empty in the text, it MUST be null in the JSON.
+      Do NOT fill in default values.
+
+      Assign a colorClass based on the subject (e.g., Math=blue, English=yellow, Science=green, etc.). Use Tailwind classes like "bg-blue-100 text-blue-800".
+
+      Here is the text to analyze:
+      ${text}
+    `;
+
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: TIMETABLE_SCHEMA,
+      },
+    });
+
+    if (response.text) {
+      return extractAndParseJSON(response.text);
+    }
+    throw new Error("No response text from Gemini");
+  } catch (error) {
+    console.error("Error parsing timetable from text:", error);
+    throw error;
+  }
+};
+
 export const parseTimetableImage = async (base64Data: string, mimeType: string = "image/png"): Promise<{ week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
   try {
     const prompt = `
