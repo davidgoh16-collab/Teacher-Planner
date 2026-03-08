@@ -15,7 +15,7 @@ interface AIInsightsPanelProps {
     tasks: Task[];
     project?: Project;
     isReadOnly: boolean;
-    onTaskUpdate: () => void;
+    onTaskUpdate?: () => void;
 }
 
 export default function AIInsightsPanel({ contextType, tasks, project, isReadOnly, onTaskUpdate }: AIInsightsPanelProps) {
@@ -115,7 +115,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                         aiGeneratedContent: content
                     };
                     await saveTask(updatedTask);
-                    onTaskUpdate();
+                    if (onTaskUpdate) onTaskUpdate();
                 }
             }
         } catch (e) {
@@ -231,7 +231,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                 const updatedTask = { ...task, aiGeneratedContent: newContent };
                                 await saveTask(updatedTask);
                                 setGeneratedContent(newContent);
-                                onTaskUpdate();
+                                if (onTaskUpdate) onTaskUpdate();
                             } catch (e) {
                                 console.error("Failed to save AI content", e);
                                 alert("Failed to save changes.");
