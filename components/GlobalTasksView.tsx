@@ -10,9 +10,13 @@ import {
     Filter,
     Edit2,
     Trash2,
-    Bot
+    Bot,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
+import { getContrastTextColor } from '../utils/colorUtils';
 import { saveTask, deleteTask } from '../services/projectService';
+import { handleTaskRecurrence } from '../utils/taskUtils';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
@@ -92,6 +96,10 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
     const [selectedAiTaskId, setSelectedAiTaskId] = useState<string | null>(null);
 
+    // Collapsible states
+    const [isCompletedMatrixExpanded, setIsCompletedMatrixExpanded] = useState(true);
+    const [isCompletedTimelineExpanded, setIsCompletedTimelineExpanded] = useState(true);
+
     const projectCategories = categories.filter(c => c.type === 'project');
     const taskCategories = categories.filter(c => c.type === 'task');
 
@@ -121,7 +129,51 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                          : task.status === 'Uncompleted' ? 'In Progress'
                          : 'Completed';
 
-        const updated = { ...task, status: nextStatus };
+        let updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+
+        if (nextStatus === 'Completed' && updated.recurrenceType) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            let nextDate = new Date(now);
+
+            if (updated.recurrenceType === 'daily') {
+                nextDate.setDate(nextDate.getDate() + 1);
+            } else if (updated.recurrenceType === 'weekly' && updated.recurrenceDays && updated.recurrenceDays.length > 0) {
+                let minDays = 7;
+                const todayDay = now.getDay();
+                for (const day of updated.recurrenceDays) {
+                    let diff = day - todayDay;
+                    if (diff <= 0) diff += 7;
+                    if (diff < minDays) minDays = diff;
+                }
+                nextDate.setDate(nextDate.getDate() + minDays);
+            }
+
+            const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const newDateStr = formatDate(nextDate);
+
+            let newScheduled = updated.scheduledDateStr;
+            let newDeadline = updated.deadlineDateStr;
+
+            if (updated.scheduledDateStr && updated.deadlineDateStr) {
+                const gap = new Date(updated.deadlineDateStr).getTime() - new Date(updated.scheduledDateStr).getTime();
+                newScheduled = newDateStr;
+                newDeadline = formatDate(new Date(nextDate.getTime() + gap));
+            } else if (updated.scheduledDateStr) {
+                newScheduled = newDateStr;
+            } else if (updated.deadlineDateStr) {
+                newDeadline = newDateStr;
+            }
+
+            updated = {
+                ...updated,
+                status: 'Uncompleted',
+                completedAt: undefined,
+                scheduledDateStr: newScheduled,
+                deadlineDateStr: newDeadline,
+            };
+        }
+
         try {
             await saveTask(updated);
             if (onTaskUpdated) onTaskUpdated(updated);
@@ -205,6 +257,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         const q2 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
         const q3 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
         const q4 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+        const completed = filteredTasks.filter(t => t.status === 'Completed');
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = getCategoryDetails(task.categoryId);
@@ -270,7 +323,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             {getProjectName(task.projectId)}
                         </span>
                         {cat && (
-                            <span className={`px-1.5 py-0.5 rounded border ${cat.colorClass}`}>
+                            <span className={`px-1.5 py-0.5 rounded border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                                 {cat.name}
                             </span>
                         )}
@@ -330,13 +383,37 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                         {q4.length === 0 ? <p className="text-sm italic text-slate-400/60 text-center mt-10">No background tasks.</p> : q4.map(t => <TaskCard key={t.id} task={t} />)}
                     </div>
                 </div>
+
+                {/* Completed Tasks (Full Width) */}
+                {completed.length > 0 && (
+                    <div className="md:col-span-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex flex-col mt-4">
+                        <div
+                            className="flex items-center justify-between cursor-pointer group"
+                            onClick={() => setIsCompletedMatrixExpanded(!isCompletedMatrixExpanded)}
+                        >
+                            <h3 className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
+                                {isCompletedMatrixExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                <span>Completed</span>
+                            </h3>
+                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">{completed.length}</span>
+                        </div>
+                        {isCompletedMatrixExpanded && (
+                            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 opacity-60 hover:opacity-100 transition-opacity mt-4">
+                                {completed.map(t => <TaskCard key={t.id} task={t} />)}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         );
     };
 
     const renderTimelineView = () => {
+        const uncompletedTasks = filteredTasks.filter(t => t.status !== 'Completed');
+        const completedTasks = filteredTasks.filter(t => t.status === 'Completed');
+
         // Sort tasks by date (earliest first), put tasks without dates at the bottom
-        const sortedTasks = [...filteredTasks].sort((a, b) => {
+        const sortedTasks = [...uncompletedTasks].sort((a, b) => {
             const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
             const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
             return new Date(dateA).getTime() - new Date(dateB).getTime();
@@ -349,6 +426,20 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             const groupKey = dateStr ? new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unscheduled';
             if (!groups[groupKey]) groups[groupKey] = [];
             groups[groupKey].push(task);
+        });
+
+        const sortedCompletedTasks = [...completedTasks].sort((a, b) => {
+            const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+            const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+
+        const completedGroups: Record<string, Task[]> = {};
+        sortedCompletedTasks.forEach(task => {
+            const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+            const groupKey = dateStr ? new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unscheduled';
+            if (!completedGroups[groupKey]) completedGroups[groupKey] = [];
+            completedGroups[groupKey].push(task);
         });
 
         return (
@@ -448,7 +539,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                 {getProjectName(task.projectId)}
                                                             </span>
                                                             {cat && (
-                                                                <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass}`}>
+                                                                <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                                                                     {cat.name}
                                                                 </span>
                                                             )}
@@ -474,6 +565,121 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 </div>
                             </div>
                         ))}
+
+                        {Object.keys(completedGroups).length > 0 && (
+                            <div className="mt-16 pt-8 border-t-2 border-dashed border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100 transition-opacity">
+                                <div
+                                    className="flex items-center cursor-pointer group mb-8"
+                                    onClick={() => setIsCompletedTimelineExpanded(!isCompletedTimelineExpanded)}
+                                >
+                                    <h2 className="text-xl font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
+                                        {isCompletedTimelineExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
+                                        <CheckCircle2 size={24} /> Completed Timeline
+                                    </h2>
+                                </div>
+
+                                {isCompletedTimelineExpanded && (
+                                <div className="space-y-12">
+                                    {Object.entries(completedGroups).map(([month, monthTasks]) => (
+                                        <div key={month} className="relative">
+                                            <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:border-slate-800 -z-10"></div>
+
+                                            <h3 className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm py-2 text-lg font-bold text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                                                <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-900 rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+                                                    <Calendar size={20} />
+                                                </div>
+                                                {month}
+                                            </h3>
+
+                                            <div className="mt-6 space-y-6 ml-16">
+                                                {monthTasks.map(task => {
+                                                    const cat = getCategoryDetails(task.categoryId);
+                                                    const isCompleted = task.status === 'Completed';
+                                                    const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+                                                    const subtasks = task.subtasks || [];
+                                                    const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+                                                    const hasSubtasks = subtasks.length > 0;
+                                                    const project = projects.find(p => p.id === task.projectId);
+                                                    const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
+
+                                                    return (
+                                                        <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                                            <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
+                                                                {dateStr ? (
+                                                                    <>
+                                                                        <span className="text-2xl font-bold text-slate-800 dark:text-white leading-none">
+                                                                            {new Date(dateStr).getDate()}
+                                                                        </span>
+                                                                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                                                                            {new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-sm font-semibold text-slate-400 italic">None</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex-1 flex items-start justify-between gap-3 group/task">
+                                                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedTaskIds.has(task.id)}
+                                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                    />
+                                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                                        {getStatusIcon(task.status)}
+                                                                    </button>
+
+                                                                    <div className="flex-1 min-w-0">
+                                                                    <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through text-slate-500' : ''}`}>
+                                                                        {task.title}
+                                                                    </h4>
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                        {hasSubtasks && (
+                                                                            <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                                <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex flex-wrap items-center gap-2 text-xs grayscale">
+                                                                        <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
+                                                                            {task.priority} Priority
+                                                                        </span>
+                                                                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                                                            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                                                            {getProjectName(task.projectId)}
+                                                                        </span>
+                                                                        {cat && (
+                                                                            <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
+                                                                                {cat.name}
+                                                                            </span>
+                                                                        )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {!isReadOnly && (
+                                                                    <div className="flex gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
+                                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

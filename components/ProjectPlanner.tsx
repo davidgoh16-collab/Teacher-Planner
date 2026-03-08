@@ -15,7 +15,10 @@ import {
   Briefcase,
   X,
   Lightbulb,
-  RotateCw
+  RotateCw,
+  Edit2,
+  CheckCircle2,
+  Circle
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
@@ -23,6 +26,8 @@ import AIInsightsPanel from './AIInsightsPanel';
 import TaskEditModal from './TaskEditModal';
 import RoutineTasksView from './RoutineTasksView';
 import { Idea } from '../types';
+import { getContrastTextColor } from '../utils/colorUtils';
+import { handleTaskRecurrence } from '../utils/taskUtils';
 
 interface ProjectPlannerProps {
   isReadOnly: boolean;
@@ -54,6 +59,73 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   const [newProjectCategory, setNewProjectCategory] = useState('');
   const [addingGeneralTaskCategory, setAddingGeneralTaskCategory] = useState<string | null>(null);
 
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const openEditModal = (task: Task, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditingTask(task);
+      setIsTaskModalOpen(true);
+  };
+
+  const handleToggleTaskStatus = async (task: Task) => {
+    if (isReadOnly) return;
+    const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted' : task.status === 'Uncompleted' ? 'In Progress' : 'Completed';
+    let updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+
+    if (nextStatus === 'Completed' && updated.recurrenceType) {
+        // Reset and schedule next occurrence
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        let nextDate = new Date(now);
+
+        if (updated.recurrenceType === 'daily') {
+            nextDate.setDate(nextDate.getDate() + 1);
+        } else if (updated.recurrenceType === 'weekly' && updated.recurrenceDays && updated.recurrenceDays.length > 0) {
+            let minDays = 7;
+            const todayDay = now.getDay();
+            for (const day of updated.recurrenceDays) {
+                let diff = day - todayDay;
+                if (diff <= 0) diff += 7; // Ensure it's in the future
+                if (diff < minDays) minDays = diff;
+            }
+            nextDate.setDate(nextDate.getDate() + minDays);
+        }
+
+        const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const newDateStr = formatDate(nextDate);
+
+        // If it had a scheduled date and deadline date, maintain the gap
+        let newScheduled = updated.scheduledDateStr;
+        let newDeadline = updated.deadlineDateStr;
+
+        if (updated.scheduledDateStr && updated.deadlineDateStr) {
+            const gap = new Date(updated.deadlineDateStr).getTime() - new Date(updated.scheduledDateStr).getTime();
+            newScheduled = newDateStr;
+            newDeadline = formatDate(new Date(nextDate.getTime() + gap));
+        } else if (updated.scheduledDateStr) {
+            newScheduled = newDateStr;
+        } else if (updated.deadlineDateStr) {
+            newDeadline = newDateStr;
+        }
+
+        updated = {
+            ...updated,
+            status: 'Uncompleted',
+            completedAt: undefined,
+            scheduledDateStr: newScheduled,
+            deadlineDateStr: newDeadline,
+        };
+    }
+
+    setAllTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    try {
+        await saveTask(updated);
+    } catch (e) {
+        console.error(e);
+        setAllTasks(prev => prev.map(t => t.id === task.id ? task : t)); // revert
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -67,9 +139,82 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
         fetchTasks(),
         fetchIdeas()
       ]);
-      setProjects(fetchedProjects);
+
+      // Auto-create missing "General Tasks" projects for existing categories
+      if (!isReadOnly) {
+        let hasNewProjects = false;
+        const projectCategories = fetchedCategories.filter(c => c.type === 'project');
+        for (const cat of projectCategories) {
+          const expectedName = `${cat.name} General Tasks`;
+          const hasGeneralProject = fetchedProjects.some(p => p.categoryId === cat.id && p.name === expectedName);
+          if (!hasGeneralProject) {
+            const newGeneralProject: Project = {
+              id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name: expectedName,
+              description: `General tasks for the ${cat.name} category.`,
+              categoryId: cat.id,
+              colorClass: cat.colorClass,
+              links: [],
+              tasks: [],
+              createdAt: Date.now()
+            };
+            await saveProject(newGeneralProject);
+            fetchedProjects.push(newGeneralProject);
+            hasNewProjects = true;
+          }
+        }
+
+        // Also ensure existing general task projects have the correct color sync with their category
+        let hasUpdatedProjects = false;
+        for (const p of fetchedProjects) {
+          if (p.name.endsWith('General Tasks') && p.categoryId) {
+            const cat = fetchedCategories.find(c => c.id === p.categoryId);
+            if (cat && p.colorClass !== cat.colorClass) {
+              const updatedProject = { ...p, colorClass: cat.colorClass };
+              await saveProject(updatedProject);
+              Object.assign(p, updatedProject);
+              hasUpdatedProjects = true;
+            }
+          }
+        }
+
+        // Migrate any orphaned general tasks (tasks with categoryId but no projectId) to the actual General Tasks project
+        let hasMigratedTasks = false;
+        const updatedTasks = [...fetchedTasks];
+        for (let i = 0; i < updatedTasks.length; i++) {
+          const task = updatedTasks[i];
+          if (task.categoryId && (!task.projectId || task.projectId === '')) {
+            const cat = fetchedCategories.find(c => c.id === task.categoryId);
+            if (cat && cat.type === 'project') {
+              const expectedName = `${cat.name} General Tasks`;
+              const generalProject = fetchedProjects.find(p => p.categoryId === cat.id && p.name === expectedName);
+              if (generalProject) {
+                const updatedTask = { ...task, projectId: generalProject.id };
+                await saveTask(updatedTask);
+                updatedTasks[i] = updatedTask;
+                hasMigratedTasks = true;
+              }
+            }
+          }
+        }
+
+        if (hasNewProjects || hasUpdatedProjects) {
+          setProjects([...fetchedProjects]);
+        } else {
+          setProjects(fetchedProjects);
+        }
+
+        if (hasMigratedTasks) {
+          setAllTasks([...updatedTasks]);
+        } else {
+          setAllTasks(fetchedTasks);
+        }
+      } else {
+        setProjects(fetchedProjects);
+        setAllTasks(fetchedTasks);
+      }
+
       setCategories(fetchedCategories);
-      setAllTasks(fetchedTasks);
       setIdeas(fetchedIdeas);
     } catch (e) {
       console.error(e);
@@ -94,18 +239,24 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       setIsTaskModalOpen(true);
   };
 
-  const handleSaveConvertedTask = async (task: Task) => { if (isReadOnly) return; if (!convertingIdea && !addingGeneralTaskCategory) return;
+  const handleSaveConvertedTask = async (task: Task) => {
+      if (isReadOnly) return;
       try {
           await saveTask(task);
-          if (convertingIdea) await deleteIdea(convertingIdea.id);
-
-          setAllTasks(prev => [task, ...prev]);
-          if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+          if (editingTask) {
+              setAllTasks(prev => prev.map(t => t.id === task.id ? task : t));
+          } else {
+              if (convertingIdea) await deleteIdea(convertingIdea.id);
+              setAllTasks(prev => [task, ...prev]);
+              if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+          }
       } catch (e) {
-          console.error("Failed to convert idea to task", e);
+          console.error("Failed to save task", e);
       } finally {
           setIsTaskModalOpen(false);
-          setConvertingIdea(null); setAddingGeneralTaskCategory(null);
+          setConvertingIdea(null);
+          setAddingGeneralTaskCategory(null);
+          setEditingTask(null);
       }
   };
 
@@ -175,6 +326,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   // If a specific project is selected, render its detail view
   if (selectedProjectId) {
     const project = projects.find(p => p.id === selectedProjectId);
+
     if (project) {
         return (
             <ProjectView
@@ -405,39 +557,20 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
 
-                                            {/* General Tasks Card */}
-                                            {catId !== 'uncategorized' && (
-                                                <div className="group flex flex-col bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 overflow-hidden">
-                                                    <div className="p-5 pb-4 border-b border-slate-200 dark:border-slate-700/50">
-                                                        <div className="flex justify-between items-start gap-2 mb-2">
-                                                            <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300 line-clamp-2 leading-tight flex items-center gap-2">
-                                                                <Filter size={18} className="text-slate-400" /> General Tasks
-                                                            </h3>
-                                                        </div>
-                                                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                                            Unassigned
-                                                        </span>
-                                                    </div>
-                                                    <div className="p-4 flex-1 flex flex-col">
-                                                        <ul className="space-y-2 mb-4 flex-1">
-                                                            {allTasks.filter(t => t.categoryId === catId && (!t.projectId || t.projectId === '')).slice(0, 3).map(task => (
-                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 truncate flex items-center gap-2">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                                                    {task.title}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                        <button onClick={(e) => { e.stopPropagation(); setAddingGeneralTaskCategory(catId); setIsTaskModalOpen(true); }} className="mt-auto w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                                            <Plus size={16} /> Add Task
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
                                             {catProjects.map(project => {
                                                 const projectTasks = allTasks.filter(t => t.projectId === project.id);
                                                 const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
                                                 const totalTasks = projectTasks.length;
                                                 const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+                                                const topTasks = projectTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
+                                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
+                                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+                                                    if (pDiff !== 0) return pDiff;
+                                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+                                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+                                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
+                                                }).slice(0, 5);
 
                                                 return (
                                                 <div
@@ -451,7 +584,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                     {/* Card Header with optional background color */}
                                                     <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
                                                         <div className="flex justify-between items-start gap-2 mb-2">
-                                                            <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-2 leading-tight">
+                                                            <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
                                                                 {project.name}
                                                             </h3>
                                                             {!isReadOnly && (
@@ -463,16 +596,32 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)}`}>
+                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)} ${getContrastTextColor(getCategoryClass(project.categoryId))}`}>
                                                             {getCategoryName(project.categoryId)}
                                                         </span>
                                                     </div>
 
                                                     {/* Card Body */}
-                                                    <div className="p-5 pt-4 flex-1 flex flex-col justify-between">
-                                                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-6 min-h-[60px]">
-                                                            {project.description || <span className="italic opacity-50">No description provided.</span>}
-                                                        </p>
+                                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                                        <ul className="space-y-2 mb-4 flex-1">
+                                                            {topTasks.length === 0 ? (
+                                                                <li className="text-xs text-slate-400 italic mt-2">No active tasks.</li>
+                                                            ) : topTasks.map(task => (
+                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                                                    <div className="flex items-start gap-2">
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
+                                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600" />}
+                                                                        </button>
+                                                                        <span className="flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight">{task.title}</span>
+                                                                        {!isReadOnly && (
+                                                                            <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
+                                                                                <Edit2 size={12} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
 
                                                         {/* Progress Bar & Stats */}
                                                         <div className="space-y-3 mt-auto">
@@ -600,12 +749,13 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
         isOpen={isManageCategoriesOpen}
         onClose={() => setIsManageCategoriesOpen(false)}
         isReadOnly={isReadOnly}
+        onCategoriesUpdated={() => loadData()}
       />
 
       <TaskEditModal
           isOpen={isTaskModalOpen}
-          onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); }}
-          task={convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
+          onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); setEditingTask(null); }}
+          task={editingTask ? editingTask : convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
           categories={categories}
           onSave={handleSaveConvertedTask}
       />

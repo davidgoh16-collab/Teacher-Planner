@@ -19,6 +19,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
     const [projectId, setProjectId] = useState('');
     const [scheduledDateStr, setScheduledDateStr] = useState('');
     const [deadlineDateStr, setDeadlineDateStr] = useState('');
+    const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'weekly'>('none');
+    const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
 
     useEffect(() => {
         if (task) {
@@ -29,6 +31,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
             setProjectId(task.projectId || '');
             setScheduledDateStr(task.scheduledDateStr || '');
             setDeadlineDateStr(task.deadlineDateStr || '');
+            setRecurrenceType(task.recurrenceType || 'none');
+            setRecurrenceDays(task.recurrenceDays || []);
         }
     }, [task]);
 
@@ -50,6 +54,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
             categoryId: categoryId || undefined,
             scheduledDateStr: scheduledDateStr || undefined,
             deadlineDateStr: deadlineDateStr || undefined,
+            recurrenceType: recurrenceType !== 'none' ? recurrenceType : undefined,
+            recurrenceDays: recurrenceType === 'weekly' ? recurrenceDays : undefined,
         };
 
         onSave(updatedTask);
@@ -143,7 +149,47 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                     className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 />
                             </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Recurrence</label>
+                                <select
+                                    value={recurrenceType}
+                                    onChange={(e) => {
+                                        setRecurrenceType(e.target.value as any);
+                                        if (e.target.value !== 'weekly') setRecurrenceDays([]);
+                                    }}
+                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                >
+                                    <option value="none">Does not repeat</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                </select>
+                            </div>
                         </div>
+
+                        {recurrenceType === 'weekly' && (
+                            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Select Days</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                                        <button
+                                            key={day}
+                                            type="button"
+                                            onClick={() => {
+                                                if (recurrenceDays.includes(idx)) {
+                                                    setRecurrenceDays(recurrenceDays.filter(d => d !== idx));
+                                                } else {
+                                                    setRecurrenceDays([...recurrenceDays, idx]);
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${recurrenceDays.includes(idx) ? 'bg-green-500 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                        >
+                                            {day}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </form>
                 </div>
 

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Category } from '../types';
-import { fetchCategories, saveCategory, deleteCategory } from '../services/projectService';
+import { fetchCategories, saveCategory, deleteCategory, fetchProjects, saveProject, deleteProject } from '../services/projectService';
+import { Project } from '../types';
 import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { getContrastTextColor } from '../utils/colorUtils';
 
 interface ManageCategoriesModalProps {
   isOpen: boolean;
   onClose: () => void;
   isReadOnly: boolean;
+  onCategoriesUpdated?: () => void;
 }
 
 const CATEGORY_COLORS = [
@@ -30,7 +33,7 @@ const CATEGORY_COLORS = [
   { label: 'Rose', class: 'bg-rose-100 text-rose-800 border-rose-300' }
 ];
 
-const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, onClose, isReadOnly }) => {
+const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, onClose, isReadOnly, onCategoriesUpdated }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +75,23 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
       setCategories([...categories, newCategory]);
       setNewCatName('');
       setNewCatColor(CATEGORY_COLORS[0].class);
+
+      if (newCatType === 'project') {
+        const generalProject: Project = {
+          id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: `${newCategory.name} General Tasks`,
+          description: `General tasks for the ${newCategory.name} category.`,
+          categoryId: newCategory.id,
+          colorClass: newCategory.colorClass,
+          links: [],
+          tasks: [],
+          createdAt: Date.now()
+        };
+        await saveProject(generalProject);
+        if (onCategoriesUpdated) onCategoriesUpdated();
+      } else {
+        if (onCategoriesUpdated) onCategoriesUpdated();
+      }
     } catch (e) {
       console.error(e);
       alert("Failed to save category.");
@@ -81,10 +101,23 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
   const handleDeleteCategory = async (id: string) => {
     if (isReadOnly) return;
 
-    if (window.confirm("Are you sure you want to delete this category? (Existing items will keep the ID but lose the display name/color)")) {
+    if (window.confirm("Are you sure you want to delete this category? This will also delete its General Tasks project. (Other existing items will keep the ID but lose the display name/color)")) {
       try {
+        const cats = categories.find(c => c.id === id);
+
+        // Delete the category
         await deleteCategory(id);
         setCategories(categories.filter(c => c.id !== id));
+
+        // If it was a project category, find and delete the associated "General Tasks" project
+        if (cats && cats.type === 'project') {
+          const allProjects = await fetchProjects();
+          const generalProject = allProjects.find(p => p.categoryId === id && p.name === `${cats.name} General Tasks`);
+          if (generalProject) {
+            await deleteProject(generalProject.id);
+          }
+        }
+        if (onCategoriesUpdated) onCategoriesUpdated();
       } catch (e) {
         console.error(e);
         alert("Failed to delete category.");
@@ -186,7 +219,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                     <ul className="space-y-2">
                       {projectCats.map(cat => (
                         <li key={cat.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${cat.colorClass}`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                             {cat.name}
                           </span>
                           {!isReadOnly && (

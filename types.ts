@@ -82,6 +82,10 @@ export interface Task {
   assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
   subtasks?: Task[]; // Nested subtasks
   aiGeneratedContent?: string;
+  createdAt?: number;
+  completedAt?: number;
+  recurrenceType?: 'daily' | 'weekly';
+  recurrenceDays?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
 }
 
 export interface Idea {
