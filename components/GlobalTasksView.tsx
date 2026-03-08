@@ -14,7 +14,9 @@ import {
     ChevronDown,
     ChevronRight
 } from 'lucide-react';
+import { getContrastTextColor } from '../utils/colorUtils';
 import { saveTask, deleteTask } from '../services/projectService';
+import { handleTaskRecurrence } from '../utils/taskUtils';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
@@ -127,7 +129,51 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                          : task.status === 'Uncompleted' ? 'In Progress'
                          : 'Completed';
 
-        const updated = { ...task, status: nextStatus };
+        let updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+
+        if (nextStatus === 'Completed' && updated.recurrenceType) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            let nextDate = new Date(now);
+
+            if (updated.recurrenceType === 'daily') {
+                nextDate.setDate(nextDate.getDate() + 1);
+            } else if (updated.recurrenceType === 'weekly' && updated.recurrenceDays && updated.recurrenceDays.length > 0) {
+                let minDays = 7;
+                const todayDay = now.getDay();
+                for (const day of updated.recurrenceDays) {
+                    let diff = day - todayDay;
+                    if (diff <= 0) diff += 7;
+                    if (diff < minDays) minDays = diff;
+                }
+                nextDate.setDate(nextDate.getDate() + minDays);
+            }
+
+            const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const newDateStr = formatDate(nextDate);
+
+            let newScheduled = updated.scheduledDateStr;
+            let newDeadline = updated.deadlineDateStr;
+
+            if (updated.scheduledDateStr && updated.deadlineDateStr) {
+                const gap = new Date(updated.deadlineDateStr).getTime() - new Date(updated.scheduledDateStr).getTime();
+                newScheduled = newDateStr;
+                newDeadline = formatDate(new Date(nextDate.getTime() + gap));
+            } else if (updated.scheduledDateStr) {
+                newScheduled = newDateStr;
+            } else if (updated.deadlineDateStr) {
+                newDeadline = newDateStr;
+            }
+
+            updated = {
+                ...updated,
+                status: 'Uncompleted',
+                completedAt: undefined,
+                scheduledDateStr: newScheduled,
+                deadlineDateStr: newDeadline,
+            };
+        }
+
         try {
             await saveTask(updated);
             if (onTaskUpdated) onTaskUpdated(updated);
@@ -277,7 +323,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             {getProjectName(task.projectId)}
                         </span>
                         {cat && (
-                            <span className={`px-1.5 py-0.5 rounded border ${cat.colorClass}`}>
+                            <span className={`px-1.5 py-0.5 rounded border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                                 {cat.name}
                             </span>
                         )}
@@ -493,7 +539,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                 {getProjectName(task.projectId)}
                                                             </span>
                                                             {cat && (
-                                                                <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass}`}>
+                                                                <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                                                                     {cat.name}
                                                                 </span>
                                                             )}
@@ -607,7 +653,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                             {getProjectName(task.projectId)}
                                                                         </span>
                                                                         {cat && (
-                                                                            <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass}`}>
+                                                                            <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                                                                                 {cat.name}
                                                                             </span>
                                                                         )}

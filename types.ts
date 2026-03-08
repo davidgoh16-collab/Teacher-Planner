@@ -84,6 +84,8 @@ export interface Task {
   aiGeneratedContent?: string;
   createdAt?: number;
   completedAt?: number;
+  recurrenceType?: 'daily' | 'weekly';
+  recurrenceDays?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
 }
 
 export interface Idea {

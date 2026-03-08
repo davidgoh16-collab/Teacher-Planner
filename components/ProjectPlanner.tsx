@@ -26,6 +26,8 @@ import AIInsightsPanel from './AIInsightsPanel';
 import TaskEditModal from './TaskEditModal';
 import RoutineTasksView from './RoutineTasksView';
 import { Idea } from '../types';
+import { getContrastTextColor } from '../utils/colorUtils';
+import { handleTaskRecurrence } from '../utils/taskUtils';
 
 interface ProjectPlannerProps {
   isReadOnly: boolean;
@@ -68,7 +70,52 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   const handleToggleTaskStatus = async (task: Task) => {
     if (isReadOnly) return;
     const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted' : task.status === 'Uncompleted' ? 'In Progress' : 'Completed';
-    const updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+    let updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+
+    if (nextStatus === 'Completed' && updated.recurrenceType) {
+        // Reset and schedule next occurrence
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        let nextDate = new Date(now);
+
+        if (updated.recurrenceType === 'daily') {
+            nextDate.setDate(nextDate.getDate() + 1);
+        } else if (updated.recurrenceType === 'weekly' && updated.recurrenceDays && updated.recurrenceDays.length > 0) {
+            let minDays = 7;
+            const todayDay = now.getDay();
+            for (const day of updated.recurrenceDays) {
+                let diff = day - todayDay;
+                if (diff <= 0) diff += 7; // Ensure it's in the future
+                if (diff < minDays) minDays = diff;
+            }
+            nextDate.setDate(nextDate.getDate() + minDays);
+        }
+
+        const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const newDateStr = formatDate(nextDate);
+
+        // If it had a scheduled date and deadline date, maintain the gap
+        let newScheduled = updated.scheduledDateStr;
+        let newDeadline = updated.deadlineDateStr;
+
+        if (updated.scheduledDateStr && updated.deadlineDateStr) {
+            const gap = new Date(updated.deadlineDateStr).getTime() - new Date(updated.scheduledDateStr).getTime();
+            newScheduled = newDateStr;
+            newDeadline = formatDate(new Date(nextDate.getTime() + gap));
+        } else if (updated.scheduledDateStr) {
+            newScheduled = newDateStr;
+        } else if (updated.deadlineDateStr) {
+            newDeadline = newDateStr;
+        }
+
+        updated = {
+            ...updated,
+            status: 'Uncompleted',
+            completedAt: undefined,
+            scheduledDateStr: newScheduled,
+            deadlineDateStr: newDeadline,
+        };
+    }
 
     setAllTasks(prev => prev.map(t => t.id === task.id ? updated : t));
     try {
@@ -537,7 +584,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                     {/* Card Header with optional background color */}
                                                     <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
                                                         <div className="flex justify-between items-start gap-2 mb-2">
-                                                            <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-2 leading-tight">
+                                                            <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
                                                                 {project.name}
                                                             </h3>
                                                             {!isReadOnly && (
@@ -549,7 +596,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)}`}>
+                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)} ${getContrastTextColor(getCategoryClass(project.categoryId))}`}>
                                                             {getCategoryName(project.categoryId)}
                                                         </span>
                                                     </div>
