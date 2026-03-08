@@ -15,7 +15,10 @@ import {
   Briefcase,
   X,
   Lightbulb,
-  RotateCw
+  RotateCw,
+  Edit2,
+  CheckCircle2,
+  Circle
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
@@ -53,6 +56,28 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
   const [newProjectDesc, setNewProjectDesc] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState('');
   const [addingGeneralTaskCategory, setAddingGeneralTaskCategory] = useState<string | null>(null);
+
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const openEditModal = (task: Task, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditingTask(task);
+      setIsTaskModalOpen(true);
+  };
+
+  const handleToggleTaskStatus = async (task: Task) => {
+    if (isReadOnly) return;
+    const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted' : task.status === 'Uncompleted' ? 'In Progress' : 'Completed';
+    const updated = { ...task, status: nextStatus, completedAt: nextStatus === 'Completed' ? Date.now() : undefined };
+
+    setAllTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    try {
+        await saveTask(updated);
+    } catch (e) {
+        console.error(e);
+        setAllTasks(prev => prev.map(t => t.id === task.id ? task : t)); // revert
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -94,18 +119,24 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
       setIsTaskModalOpen(true);
   };
 
-  const handleSaveConvertedTask = async (task: Task) => { if (isReadOnly) return; if (!convertingIdea && !addingGeneralTaskCategory) return;
+  const handleSaveConvertedTask = async (task: Task) => {
+      if (isReadOnly) return;
       try {
           await saveTask(task);
-          if (convertingIdea) await deleteIdea(convertingIdea.id);
-
-          setAllTasks(prev => [task, ...prev]);
-          if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+          if (editingTask) {
+              setAllTasks(prev => prev.map(t => t.id === task.id ? task : t));
+          } else {
+              if (convertingIdea) await deleteIdea(convertingIdea.id);
+              setAllTasks(prev => [task, ...prev]);
+              if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
+          }
       } catch (e) {
-          console.error("Failed to convert idea to task", e);
+          console.error("Failed to save task", e);
       } finally {
           setIsTaskModalOpen(false);
-          setConvertingIdea(null); setAddingGeneralTaskCategory(null);
+          setConvertingIdea(null);
+          setAddingGeneralTaskCategory(null);
+          setEditingTask(null);
       }
   };
 
@@ -174,13 +205,22 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
   // If a specific project is selected, render its detail view
   if (selectedProjectId) {
-    const project = projects.find(p => p.id === selectedProjectId);
+    const isGeneral = selectedProjectId.startsWith('__general_');
+    const project = isGeneral ? {
+        id: selectedProjectId,
+        name: `${getCategoryName(selectedProjectId.replace('__general_', ''))} General Tasks`,
+        categoryId: selectedProjectId.replace('__general_', ''),
+        links: [],
+        tasks: [],
+        createdAt: Date.now()
+    } as Project : projects.find(p => p.id === selectedProjectId);
+
     if (project) {
         return (
             <ProjectView
                 project={project}
                 allCategories={categories}
-                allTasks={allTasks.filter(t => t.projectId === project.id)}
+                allTasks={allTasks.filter(t => isGeneral ? (t.categoryId === project.categoryId && (!t.projectId || t.projectId === '')) : t.projectId === project.id)}
                 isReadOnly={isReadOnly}
                 onBack={() => {
                     setSelectedProjectId(null);
@@ -406,38 +446,91 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
 
                                             {/* General Tasks Card */}
-                                            {catId !== 'uncategorized' && (
-                                                <div className="group flex flex-col bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 overflow-hidden">
-                                                    <div className="p-5 pb-4 border-b border-slate-200 dark:border-slate-700/50">
-                                                        <div className="flex justify-between items-start gap-2 mb-2">
-                                                            <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300 line-clamp-2 leading-tight flex items-center gap-2">
-                                                                <Filter size={18} className="text-slate-400" /> General Tasks
-                                                            </h3>
+                                            {catId !== 'uncategorized' && (() => {
+                                                const generalTasks = allTasks.filter(t => t.categoryId === catId && (!t.projectId || t.projectId === ''));
+                                                const completedTasks = generalTasks.filter(t => t.status === 'Completed').length;
+                                                const totalTasks = generalTasks.length;
+                                                if (totalTasks === 0) return null;
+                                                const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+                                                const topTasks = generalTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
+                                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
+                                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+                                                    if (pDiff !== 0) return pDiff;
+                                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+                                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+                                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
+                                                }).slice(0, 5);
+
+                                                return (
+                                                    <div
+                                                        onClick={() => {
+                                                            setSelectedProjectId('__general_' + catId);
+                                                            window.scrollTo(0, 0);
+                                                        }}
+                                                        className="group flex flex-col bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1 hover:shadow-lg"
+                                                    >
+                                                        <div className="p-5 pb-4 border-b border-slate-200 dark:border-slate-700/50">
+                                                            <div className="flex justify-between items-start gap-2 mb-2">
+                                                                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300 line-clamp-2 leading-tight flex items-center gap-2">
+                                                                    <Filter size={18} className="text-slate-400" /> {category ? category.name : ''} General Tasks
+                                                                </h3>
+                                                            </div>
+                                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                                Unassigned
+                                                            </span>
                                                         </div>
-                                                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                                            Unassigned
-                                                        </span>
+                                                        <div className="p-4 flex-1 flex flex-col">
+                                                            <ul className="space-y-2 mb-4 flex-1">
+                                                                {topTasks.length === 0 ? (
+                                                                    <li className="text-xs text-slate-400 italic">No active tasks.</li>
+                                                                ) : topTasks.map(task => (
+                                                                    <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-white dark:bg-slate-900 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                                                        <div className="flex items-start gap-2">
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
+                                                                                {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600" />}
+                                                                            </button>
+                                                                            <span className="flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight">{task.title}</span>
+                                                                            {!isReadOnly && (
+                                                                                <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
+                                                                                    <Edit2 size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                            <div className="space-y-3 mt-auto">
+                                                                <div className="flex justify-between items-end text-sm">
+                                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
+                                                                    <span className="font-bold text-slate-900 dark:text-white">{progress}%</span>
+                                                                </div>
+                                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                                                                    <div
+                                                                        className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
+                                                                        style={{ width: `${progress}%` }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="p-4 flex-1 flex flex-col">
-                                                        <ul className="space-y-2 mb-4 flex-1">
-                                                            {allTasks.filter(t => t.categoryId === catId && (!t.projectId || t.projectId === '')).slice(0, 3).map(task => (
-                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 truncate flex items-center gap-2">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                                                    {task.title}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                        <button onClick={(e) => { e.stopPropagation(); setAddingGeneralTaskCategory(catId); setIsTaskModalOpen(true); }} className="mt-auto w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                                            <Plus size={16} /> Add Task
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                                );
+                                            })()}
+
                                             {catProjects.map(project => {
                                                 const projectTasks = allTasks.filter(t => t.projectId === project.id);
                                                 const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
                                                 const totalTasks = projectTasks.length;
                                                 const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+                                                const topTasks = projectTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
+                                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
+                                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+                                                    if (pDiff !== 0) return pDiff;
+                                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+                                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+                                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
+                                                }).slice(0, 5);
 
                                                 return (
                                                 <div
@@ -469,10 +562,26 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                     </div>
 
                                                     {/* Card Body */}
-                                                    <div className="p-5 pt-4 flex-1 flex flex-col justify-between">
-                                                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 mb-6 min-h-[60px]">
-                                                            {project.description || <span className="italic opacity-50">No description provided.</span>}
-                                                        </p>
+                                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                                        <ul className="space-y-2 mb-4 flex-1">
+                                                            {topTasks.length === 0 ? (
+                                                                <li className="text-xs text-slate-400 italic mt-2">No active tasks.</li>
+                                                            ) : topTasks.map(task => (
+                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                                                    <div className="flex items-start gap-2">
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
+                                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600" />}
+                                                                        </button>
+                                                                        <span className="flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight">{task.title}</span>
+                                                                        {!isReadOnly && (
+                                                                            <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
+                                                                                <Edit2 size={12} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
 
                                                         {/* Progress Bar & Stats */}
                                                         <div className="space-y-3 mt-auto">
@@ -604,8 +713,8 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
       <TaskEditModal
           isOpen={isTaskModalOpen}
-          onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); }}
-          task={convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
+          onClose={() => { setIsTaskModalOpen(false); setConvertingIdea(null); setEditingTask(null); }}
+          task={editingTask ? editingTask : convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
           categories={categories}
           onSave={handleSaveConvertedTask}
       />
