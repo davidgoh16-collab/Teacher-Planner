@@ -82,6 +82,8 @@ export interface Task {
   assignedPeriodLabel?: string; // Optional: e.g. "Period 2" for timetable integration
   subtasks?: Task[]; // Nested subtasks
   aiGeneratedContent?: string;
+  createdAt?: number;
+  completedAt?: number;
 }
 
 export interface Idea {
