@@ -23,6 +23,8 @@ import {
     Bot,
     Lightbulb
 } from 'lucide-react';
+import { getContrastTextColor } from '../utils/colorUtils';
+import { handleTaskRecurrence } from '../utils/taskUtils';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
@@ -370,11 +372,15 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                          : task.status === 'Uncompleted' ? 'In Progress'
                          : 'Completed';
 
-        const updated = { ...task, status: nextStatus };
+        let updated: Task = { ...task, status: nextStatus };
         if (nextStatus === 'Completed') {
             updated.completedAt = Date.now();
         } else {
             updated.completedAt = undefined;
+        }
+
+        if (nextStatus === 'Completed' && updated.recurrenceType) {
+            updated = handleTaskRecurrence(updated);
         }
 
         // Optimistic UI
@@ -1000,15 +1006,15 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
-                        className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                        className={`p-2 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors shadow-sm ${project.colorClass ? getContrastTextColor(project.colorClass) : 'hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                     >
                         <ChevronLeft size={20} />
                     </button>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{project.name}</h1>
+                            <h1 className={`text-2xl font-bold ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-800 dark:text-white'}`}>{project.name}</h1>
                             {projectCategory && (
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${projectCategory.colorClass}`}>
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${projectCategory.colorClass} ${getContrastTextColor(projectCategory.colorClass)}`}>
                                     {projectCategory.name}
                                 </span>
                             )}

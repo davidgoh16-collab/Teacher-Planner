@@ -3,6 +3,7 @@ import { Category } from '../types';
 import { fetchCategories, saveCategory, deleteCategory, fetchProjects, saveProject, deleteProject } from '../services/projectService';
 import { Project } from '../types';
 import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { getContrastTextColor } from '../utils/colorUtils';
 
 interface ManageCategoriesModalProps {
   isOpen: boolean;
@@ -218,7 +219,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                     <ul className="space-y-2">
                       {projectCats.map(cat => (
                         <li key={cat.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${cat.colorClass}`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${cat.colorClass} ${getContrastTextColor(cat.colorClass)}`}>
                             {cat.name}
                           </span>
                           {!isReadOnly && (
