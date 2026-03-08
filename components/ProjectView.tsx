@@ -1417,7 +1417,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         if (uncompletedSortBy === 'alphabetical') return a.title.localeCompare(b.title);
                                         if (uncompletedSortBy === 'priority') {
                                             const pMap = { High: 3, Medium: 2, Low: 1 };
-                                            return pMap[b.priority] - pMap[a.priority];
+                                            return (pMap[b.priority || 'Medium'] || 0) - (pMap[a.priority || 'Medium'] || 0);
                                         }
                                         return 0;
                                     });
@@ -1674,7 +1674,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                     if (completedSortBy === 'alphabetical') return a.title.localeCompare(b.title);
                                     if (completedSortBy === 'priority') {
                                         const pMap = { High: 3, Medium: 2, Low: 1 };
-                                        return pMap[b.priority] - pMap[a.priority];
+                                        return (pMap[b.priority || 'Medium'] || 0) - (pMap[a.priority || 'Medium'] || 0);
                                     }
                                     return 0;
                                 });
