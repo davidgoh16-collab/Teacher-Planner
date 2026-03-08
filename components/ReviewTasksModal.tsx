@@ -11,7 +11,7 @@ interface ReviewTasksModalProps {
     tasks: Task[];
     actionType?: 'delete_tasks' | 'group_tasks' | 'review_tasks' | 'update_tasks' | 'generic';
     initialPrompt?: string;
-    onTasksUpdated: () => void;
+    onTasksUpdated?: () => void;
     isReadOnly: boolean;
 }
 
@@ -81,7 +81,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
                 }
                 setLocalTasks(prev => prev.filter(t => !selectedTaskIds.has(t.id)));
                 setSelectedTaskIds(new Set());
-                onTasksUpdated();
+                if (onTasksUpdated) onTasksUpdated();
             } else if (actionType === 'review_tasks') {
                 // For review, "actioning" usually means marking them as complete
                 for (const id of selectedTaskIds) {
@@ -91,7 +91,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
                     }
                 }
                 setLocalTasks(prev => prev.map(t => selectedTaskIds.has(t.id) ? { ...t, status: 'Completed' } : t));
-                onTasksUpdated();
+                if (onTasksUpdated) onTasksUpdated();
             } else if (actionType === 'group_tasks' || actionType === 'update_tasks' || actionType === 'generic') {
                  // For complex AI actions, fallback to asking the AI to perform the action based on the prompt
                  if (initialPrompt) {
@@ -262,7 +262,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
                 }
 
                 if (dataChanged) {
-                    onTasksUpdated();
+                    if (onTasksUpdated) onTasksUpdated();
                 }
             }
 
