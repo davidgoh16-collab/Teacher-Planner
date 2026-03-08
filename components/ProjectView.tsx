@@ -155,6 +155,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 try {
                     const updatedTask = { ...task, status: 'Completed' as const, completedAt: Date.now() };
                     await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
                     if (onTaskUpdated) onTaskUpdated(updatedTask);
                 } catch (e) { console.error("Failed to complete task in bulk", id, e); }
             }
@@ -330,14 +331,15 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         e.preventDefault();
         if (isReadOnly || !newTaskTitle.trim()) return;
 
+        const isGeneral = project.id.startsWith('__general_');
         const newTask: Task = {
             id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            projectId: project.id,
+            projectId: isGeneral ? '' : project.id,
+            categoryId: isGeneral ? project.categoryId : (newTaskCategory || undefined),
             title: newTaskTitle.trim(),
             description: newTaskDescription.trim() || undefined,
             status: 'Uncompleted',
             priority: newTaskPriority,
-            categoryId: newTaskCategory || undefined,
             scheduledDateStr: newTaskScheduled || undefined,
             deadlineDateStr: newTaskDeadline || undefined,
             subtasks: [],
@@ -394,6 +396,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             try {
                 await deleteTask(taskId);
                 if (onTaskDeleted) onTaskDeleted(taskId);
+                if (onTaskDeleted) onTaskDeleted(taskId);
                 setTasks(tasks.filter(t => t.id !== taskId));
             } catch (e) {
                 console.error(e);
@@ -408,7 +411,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
         const subtask: Task = {
             id: `subtask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            projectId: parentTask.projectId,
+            projectId: parentTask.projectId.startsWith('__general_') ? '' : parentTask.projectId,
             title: newSubtaskTitle.trim(),
             description: newSubtaskDescription.trim() || undefined,
             status: 'Uncompleted',
@@ -504,6 +507,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             } else {
                 // We are editing a top-level task
                 await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
             if (onTaskUpdated) onTaskUpdated(updatedTask);
                 setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
             }
@@ -1823,6 +1827,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         try {
                             const updatedTask = { ...task, aiGeneratedContent: newContent };
                             await saveTask(updatedTask);
+            if (onTaskUpdated) onTaskUpdated(updatedTask);
             if (onTaskUpdated) onTaskUpdated(updatedTask);
                             setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
                             setSelectedAiContent(newContent);
