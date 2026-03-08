@@ -10,7 +10,9 @@ import {
     Filter,
     Edit2,
     Trash2,
-    Bot
+    Bot,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
 import { saveTask, deleteTask } from '../services/projectService';
 import TaskEditModal from './TaskEditModal';
@@ -91,6 +93,10 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     const [selectedAiContent, setSelectedAiContent] = useState<string | null>(null);
     const [selectedAiTaskTitle, setSelectedAiTaskTitle] = useState('');
     const [selectedAiTaskId, setSelectedAiTaskId] = useState<string | null>(null);
+
+    // Collapsible states
+    const [isCompletedMatrixExpanded, setIsCompletedMatrixExpanded] = useState(true);
+    const [isCompletedTimelineExpanded, setIsCompletedTimelineExpanded] = useState(true);
 
     const projectCategories = categories.filter(c => c.type === 'project');
     const taskCategories = categories.filter(c => c.type === 'task');
@@ -335,13 +341,21 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 {/* Completed Tasks (Full Width) */}
                 {completed.length > 0 && (
                     <div className="md:col-span-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex flex-col mt-4">
-                        <h3 className="font-bold text-slate-600 dark:text-slate-400 mb-4 flex items-center justify-between">
-                            <span>Completed</span>
+                        <div
+                            className="flex items-center justify-between cursor-pointer group"
+                            onClick={() => setIsCompletedMatrixExpanded(!isCompletedMatrixExpanded)}
+                        >
+                            <h3 className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
+                                {isCompletedMatrixExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                <span>Completed</span>
+                            </h3>
                             <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">{completed.length}</span>
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 opacity-60 hover:opacity-100 transition-opacity">
-                            {completed.map(t => <TaskCard key={t.id} task={t} />)}
                         </div>
+                        {isCompletedMatrixExpanded && (
+                            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 opacity-60 hover:opacity-100 transition-opacity mt-4">
+                                {completed.map(t => <TaskCard key={t.id} task={t} />)}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -508,9 +522,17 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
                         {Object.keys(completedGroups).length > 0 && (
                             <div className="mt-16 pt-8 border-t-2 border-dashed border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100 transition-opacity">
-                                <h2 className="text-xl font-bold text-slate-600 dark:text-slate-400 mb-8 flex items-center gap-2">
-                                    <CheckCircle2 size={24} /> Completed Timeline
-                                </h2>
+                                <div
+                                    className="flex items-center cursor-pointer group mb-8"
+                                    onClick={() => setIsCompletedTimelineExpanded(!isCompletedTimelineExpanded)}
+                                >
+                                    <h2 className="text-xl font-bold text-slate-600 dark:text-slate-400 flex items-center gap-2 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
+                                        {isCompletedTimelineExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
+                                        <CheckCircle2 size={24} /> Completed Timeline
+                                    </h2>
+                                </div>
+
+                                {isCompletedTimelineExpanded && (
                                 <div className="space-y-12">
                                     {Object.entries(completedGroups).map(([month, monthTasks]) => (
                                         <div key={month} className="relative">
@@ -609,6 +631,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                         </div>
                                     ))}
                                 </div>
+                                )}
                             </div>
                         )}
                     </div>
