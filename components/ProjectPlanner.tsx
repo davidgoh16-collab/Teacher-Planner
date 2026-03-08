@@ -92,9 +92,82 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
         fetchTasks(),
         fetchIdeas()
       ]);
-      setProjects(fetchedProjects);
+
+      // Auto-create missing "General Tasks" projects for existing categories
+      if (!isReadOnly) {
+        let hasNewProjects = false;
+        const projectCategories = fetchedCategories.filter(c => c.type === 'project');
+        for (const cat of projectCategories) {
+          const expectedName = `${cat.name} General Tasks`;
+          const hasGeneralProject = fetchedProjects.some(p => p.categoryId === cat.id && p.name === expectedName);
+          if (!hasGeneralProject) {
+            const newGeneralProject: Project = {
+              id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name: expectedName,
+              description: `General tasks for the ${cat.name} category.`,
+              categoryId: cat.id,
+              colorClass: cat.colorClass,
+              links: [],
+              tasks: [],
+              createdAt: Date.now()
+            };
+            await saveProject(newGeneralProject);
+            fetchedProjects.push(newGeneralProject);
+            hasNewProjects = true;
+          }
+        }
+
+        // Also ensure existing general task projects have the correct color sync with their category
+        let hasUpdatedProjects = false;
+        for (const p of fetchedProjects) {
+          if (p.name.endsWith('General Tasks') && p.categoryId) {
+            const cat = fetchedCategories.find(c => c.id === p.categoryId);
+            if (cat && p.colorClass !== cat.colorClass) {
+              const updatedProject = { ...p, colorClass: cat.colorClass };
+              await saveProject(updatedProject);
+              Object.assign(p, updatedProject);
+              hasUpdatedProjects = true;
+            }
+          }
+        }
+
+        // Migrate any orphaned general tasks (tasks with categoryId but no projectId) to the actual General Tasks project
+        let hasMigratedTasks = false;
+        const updatedTasks = [...fetchedTasks];
+        for (let i = 0; i < updatedTasks.length; i++) {
+          const task = updatedTasks[i];
+          if (task.categoryId && (!task.projectId || task.projectId === '')) {
+            const cat = fetchedCategories.find(c => c.id === task.categoryId);
+            if (cat && cat.type === 'project') {
+              const expectedName = `${cat.name} General Tasks`;
+              const generalProject = fetchedProjects.find(p => p.categoryId === cat.id && p.name === expectedName);
+              if (generalProject) {
+                const updatedTask = { ...task, projectId: generalProject.id };
+                await saveTask(updatedTask);
+                updatedTasks[i] = updatedTask;
+                hasMigratedTasks = true;
+              }
+            }
+          }
+        }
+
+        if (hasNewProjects || hasUpdatedProjects) {
+          setProjects([...fetchedProjects]);
+        } else {
+          setProjects(fetchedProjects);
+        }
+
+        if (hasMigratedTasks) {
+          setAllTasks([...updatedTasks]);
+        } else {
+          setAllTasks(fetchedTasks);
+        }
+      } else {
+        setProjects(fetchedProjects);
+        setAllTasks(fetchedTasks);
+      }
+
       setCategories(fetchedCategories);
-      setAllTasks(fetchedTasks);
       setIdeas(fetchedIdeas);
     } catch (e) {
       console.error(e);
@@ -205,22 +278,14 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
   // If a specific project is selected, render its detail view
   if (selectedProjectId) {
-    const isGeneral = selectedProjectId.startsWith('__general_');
-    const project = isGeneral ? {
-        id: selectedProjectId,
-        name: `${getCategoryName(selectedProjectId.replace('__general_', ''))} General Tasks`,
-        categoryId: selectedProjectId.replace('__general_', ''),
-        links: [],
-        tasks: [],
-        createdAt: Date.now()
-    } as Project : projects.find(p => p.id === selectedProjectId);
+    const project = projects.find(p => p.id === selectedProjectId);
 
     if (project) {
         return (
             <ProjectView
                 project={project}
                 allCategories={categories}
-                allTasks={allTasks.filter(t => isGeneral ? (t.categoryId === project.categoryId && (!t.projectId || t.projectId === '')) : t.projectId === project.id)}
+                allTasks={allTasks.filter(t => t.projectId === project.id)}
                 isReadOnly={isReadOnly}
                 onBack={() => {
                     setSelectedProjectId(null);
@@ -445,78 +510,6 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
 
-                                            {/* General Tasks Card */}
-                                            {catId !== 'uncategorized' && (() => {
-                                                const generalTasks = allTasks.filter(t => t.categoryId === catId && (!t.projectId || t.projectId === ''));
-                                                const completedTasks = generalTasks.filter(t => t.status === 'Completed').length;
-                                                const totalTasks = generalTasks.length;
-                                                if (totalTasks === 0) return null;
-                                                const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-                                                const topTasks = generalTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
-                                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
-                                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
-                                                    if (pDiff !== 0) return pDiff;
-                                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
-                                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
-                                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
-                                                }).slice(0, 5);
-
-                                                return (
-                                                    <div
-                                                        onClick={() => {
-                                                            setSelectedProjectId('__general_' + catId);
-                                                            window.scrollTo(0, 0);
-                                                        }}
-                                                        className="group flex flex-col bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1 hover:shadow-lg"
-                                                    >
-                                                        <div className="p-5 pb-4 border-b border-slate-200 dark:border-slate-700/50">
-                                                            <div className="flex justify-between items-start gap-2 mb-2">
-                                                                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300 line-clamp-2 leading-tight flex items-center gap-2">
-                                                                    <Filter size={18} className="text-slate-400" /> {category ? category.name : ''} General Tasks
-                                                                </h3>
-                                                            </div>
-                                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                                                Unassigned
-                                                            </span>
-                                                        </div>
-                                                        <div className="p-4 flex-1 flex flex-col">
-                                                            <ul className="space-y-2 mb-4 flex-1">
-                                                                {topTasks.length === 0 ? (
-                                                                    <li className="text-xs text-slate-400 italic">No active tasks.</li>
-                                                                ) : topTasks.map(task => (
-                                                                    <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-white dark:bg-slate-900 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
-                                                                        <div className="flex items-start gap-2">
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
-                                                                                {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600" />}
-                                                                            </button>
-                                                                            <span className="flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight">{task.title}</span>
-                                                                            {!isReadOnly && (
-                                                                                <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
-                                                                                    <Edit2 size={12} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                            <div className="space-y-3 mt-auto">
-                                                                <div className="flex justify-between items-end text-sm">
-                                                                    <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
-                                                                    <span className="font-bold text-slate-900 dark:text-white">{progress}%</span>
-                                                                </div>
-                                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
-                                                                    <div
-                                                                        className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
-                                                                        style={{ width: `${progress}%` }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-
                                             {catProjects.map(project => {
                                                 const projectTasks = allTasks.filter(t => t.projectId === project.id);
                                                 const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
@@ -709,6 +702,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
         isOpen={isManageCategoriesOpen}
         onClose={() => setIsManageCategoriesOpen(false)}
         isReadOnly={isReadOnly}
+        onCategoriesUpdated={() => loadData()}
       />
 
       <TaskEditModal
