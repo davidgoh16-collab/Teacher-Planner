@@ -153,7 +153,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             const task = flatTasks.find(t => t.id === id);
             if (task && task.status !== 'Completed') {
                 try {
-                    const updatedTask = { ...task, status: 'Completed' as const };
+                    const updatedTask = { ...task, status: 'Completed' as const, completedAt: Date.now() };
                     await saveTask(updatedTask);
                     if (onTaskUpdated) onTaskUpdated(updatedTask);
                 } catch (e) { console.error("Failed to complete task in bulk", id, e); }
@@ -187,6 +187,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // Project Ask AI Modal State
     const [isAskAiModalOpen, setIsAskAiModalOpen] = useState(false);
+
+    // Sorting & Visibility State
+    const [uncompletedSortBy, setUncompletedSortBy] = useState<'createdAt' | 'deadlineDateStr' | 'alphabetical' | 'priority'>('createdAt');
+    const [completedSortBy, setCompletedSortBy] = useState<'completedAt' | 'createdAt' | 'deadlineDateStr' | 'alphabetical' | 'priority'>('completedAt');
+    const [isCompletedSectionOpen, setIsCompletedSectionOpen] = useState(false);
 
     const taskCategories = allCategories.filter(c => c.type === 'task');
     const projectCategory = allCategories.find(c => c.id === project.categoryId);
@@ -335,7 +340,8 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             categoryId: newTaskCategory || undefined,
             scheduledDateStr: newTaskScheduled || undefined,
             deadlineDateStr: newTaskDeadline || undefined,
-            subtasks: []
+            subtasks: [],
+            createdAt: Date.now()
         };
 
         try {
@@ -363,6 +369,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                          : 'Completed';
 
         const updated = { ...task, status: nextStatus };
+        if (nextStatus === 'Completed') {
+            updated.completedAt = Date.now();
+        } else {
+            updated.completedAt = undefined;
+        }
 
         // Optimistic UI
         setTasks(tasks.map(t => t.id === task.id ? updated : t));
@@ -405,6 +416,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             categoryId: newSubtaskCategory || undefined,
             scheduledDateStr: newSubtaskScheduled || undefined,
             deadlineDateStr: newSubtaskDeadline || undefined,
+            createdAt: Date.now()
         };
 
         const currentSubtasks = parentTask.subtasks || [];
@@ -436,7 +448,13 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         const updatedSubtasks = currentSubtasks.map(st => {
             if (st.id === subtaskId) {
                 const nextStatus: Task['status'] = st.status === 'Completed' ? 'Uncompleted' : 'Completed';
-                return { ...st, status: nextStatus };
+                const stUpdated = { ...st, status: nextStatus };
+                if (nextStatus === 'Completed') {
+                    stUpdated.completedAt = Date.now();
+                } else {
+                    stUpdated.completedAt = undefined;
+                }
+                return stUpdated;
             }
             return st;
         });
@@ -562,6 +580,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         const q2 = tasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
         const q3 = tasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
         const q4 = tasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+        const completed = tasks.filter(t => t.status === 'Completed');
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = allCategories.find(c => c.id === task.categoryId);
@@ -686,13 +705,29 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         {q4.length === 0 ? <p className="text-sm italic text-slate-400/60 text-center mt-10">No background tasks.</p> : q4.map(t => <TaskCard key={t.id} task={t} />)}
                     </div>
                 </div>
+
+                {/* Completed Tasks (Full Width) */}
+                {completed.length > 0 && (
+                    <div className="md:col-span-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex flex-col">
+                        <h3 className="font-bold text-slate-600 dark:text-slate-400 mb-4 flex items-center justify-between">
+                            <span>Completed</span>
+                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">{completed.length}</span>
+                        </h3>
+                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 opacity-60 hover:opacity-100 transition-opacity">
+                            {completed.map(t => <TaskCard key={t.id} task={t} />)}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
 
     // Timeline View
     const renderTimelineView = () => {
-        const sortedTasks = [...tasks].sort((a, b) => {
+        const uncompletedTasks = tasks.filter(t => t.status !== 'Completed');
+        const completedTasks = tasks.filter(t => t.status === 'Completed');
+
+        const sortedTasks = [...uncompletedTasks].sort((a, b) => {
             const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
             const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
             return new Date(dateA).getTime() - new Date(dateB).getTime();
@@ -706,9 +741,23 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             groups[groupKey].push(task);
         });
 
+        const sortedCompletedTasks = [...completedTasks].sort((a, b) => {
+            const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+            const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+
+        const completedGroups: Record<string, Task[]> = {};
+        sortedCompletedTasks.forEach(task => {
+            const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+            const groupKey = dateStr ? new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unscheduled';
+            if (!completedGroups[groupKey]) completedGroups[groupKey] = [];
+            completedGroups[groupKey].push(task);
+        });
+
         return (
             <div className="max-w-4xl mx-auto py-8">
-                {Object.keys(groups).length === 0 ? (
+                {Object.keys(groups).length === 0 && Object.keys(completedGroups).length === 0 ? (
                     <p className="text-center text-slate-500 py-12">No tasks found.</p>
                 ) : (
                     <div className="space-y-12">
@@ -819,6 +868,120 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 </div>
                             </div>
                         ))}
+
+                        {Object.keys(completedGroups).length > 0 && (
+                            <div className="mt-16 pt-8 border-t-2 border-dashed border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100 transition-opacity">
+                                <h2 className="text-xl font-bold text-slate-600 dark:text-slate-400 mb-8 flex items-center gap-2">
+                                    <CheckCircle2 size={24} /> Completed Timeline
+                                </h2>
+                                <div className="space-y-12">
+                                    {Object.entries(completedGroups).map(([month, monthTasks]) => (
+                                        <div key={month} className="relative">
+                                            <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
+
+                                            <h3 className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm py-2 text-lg font-bold text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                                                <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-900 rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+                                                    <CalendarDays size={20} />
+                                                </div>
+                                                {month}
+                                            </h3>
+
+                                            <div className="mt-6 space-y-6 ml-16">
+                                                {monthTasks.map(task => {
+                                                    const cat = allCategories.find(c => c.id === task.categoryId);
+                                                    const isCompleted = task.status === 'Completed';
+                                                    const dateStr = task.deadlineDateStr || task.scheduledDateStr;
+                                                    const subtasks = task.subtasks || [];
+                                                    const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+                                                    const hasSubtasks = subtasks.length > 0;
+                                                    const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
+
+                                                    return (
+                                                        <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                                            <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
+                                                                {dateStr ? (
+                                                                    <>
+                                                                        <span className="text-2xl font-bold text-slate-800 dark:text-white leading-none">
+                                                                            {new Date(dateStr).getDate()}
+                                                                        </span>
+                                                                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                                                                            {new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })}
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-sm font-semibold text-slate-400 italic">None</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex-1 flex items-start justify-between gap-3 group/task">
+                                                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedTaskIds.has(task.id)}
+                                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                    />
+                                                                    <button onClick={() => handleToggleTaskStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                                        {getStatusIcon(task.status)}
+                                                                    </button>
+
+                                                                    <div className="flex-1 min-w-0">
+                                                                    <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through text-slate-500' : ''}`}>
+                                                                        {task.title}
+                                                                    </h4>
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                        {hasSubtasks && (
+                                                                            <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                                <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
+                                                                            </span>
+                                                                        )}
+                                                                        {task.aiGeneratedContent && (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setSelectedAiContent(task.aiGeneratedContent || null);
+                                                                                    setSelectedAiTaskTitle(task.title);
+                                                                                    setAiContentModalOpen(true);
+                                                                                }}
+                                                                                className="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                                                            >
+                                                                                <Bot size={10} /> View AI Content
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex flex-wrap items-center gap-2 text-xs grayscale">
+                                                                        <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getPriorityColor(task.priority)}`}>
+                                                                            {task.priority} Priority
+                                                                        </span>
+                                                                        {cat && (
+                                                                            <span className={`px-2 py-0.5 rounded-full border ${cat.colorClass}`}>
+                                                                                {cat.name}
+                                                                            </span>
+                                                                        )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {!isReadOnly && (
+                                                                    <div className="flex gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
+                                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -1067,6 +1230,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
+                                {viewMode === 'list' && (
+                                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                                        <span className="text-[10px] uppercase font-semibold text-slate-500 hidden md:inline">Sort Active:</span>
+                                        <select
+                                            value={uncompletedSortBy}
+                                            onChange={(e) => setUncompletedSortBy(e.target.value as any)}
+                                            className="bg-transparent text-xs font-medium text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                        >
+                                            <option value="createdAt">Date Created</option>
+                                            <option value="deadlineDateStr">Due Date</option>
+                                            <option value="priority">Priority</option>
+                                            <option value="alphabetical">Alphabetical</option>
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="sm:hidden flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg flex-wrap">
                                     <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
                                     <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
@@ -1225,8 +1403,30 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                 {renderTimelineView()}
                             </div>
                         ) : (
+                            <>
                             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {tasks.map(task => {
+                                {(() => {
+                                    const uncompletedTasks = tasks.filter(t => t.status !== 'Completed');
+                                    uncompletedTasks.sort((a, b) => {
+                                        if (uncompletedSortBy === 'createdAt') return (b.createdAt || 0) - (a.createdAt || 0);
+                                        if (uncompletedSortBy === 'deadlineDateStr') {
+                                            if (!a.deadlineDateStr) return 1;
+                                            if (!b.deadlineDateStr) return -1;
+                                            return new Date(a.deadlineDateStr).getTime() - new Date(b.deadlineDateStr).getTime();
+                                        }
+                                        if (uncompletedSortBy === 'alphabetical') return a.title.localeCompare(b.title);
+                                        if (uncompletedSortBy === 'priority') {
+                                            const pMap = { High: 3, Medium: 2, Low: 1 };
+                                            return (pMap[b.priority || 'Medium'] || 0) - (pMap[a.priority || 'Medium'] || 0);
+                                        }
+                                        return 0;
+                                    });
+
+                                    if (uncompletedTasks.length === 0) {
+                                        return <div className="p-8 text-center text-slate-500 italic">No active tasks.</div>;
+                                    }
+
+                                    return uncompletedTasks.map(task => {
                                     const cat = allCategories.find(c => c.id === task.categoryId);
                                     const isCompleted = task.status === 'Completed';
                                     const isExpanded = expandedTasks.has(task.id);
@@ -1455,8 +1655,147 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         )}
                                         </li>
                                     );
-                                })}
+                                    });
+                                })()}
                             </ul>
+
+                            {(() => {
+                                const completedTasks = tasks.filter(t => t.status === 'Completed');
+                                if (completedTasks.length === 0) return null;
+
+                                completedTasks.sort((a, b) => {
+                                    if (completedSortBy === 'completedAt') return (b.completedAt || 0) - (a.completedAt || 0);
+                                    if (completedSortBy === 'createdAt') return (b.createdAt || 0) - (a.createdAt || 0);
+                                    if (completedSortBy === 'deadlineDateStr') {
+                                        if (!a.deadlineDateStr) return 1;
+                                        if (!b.deadlineDateStr) return -1;
+                                        return new Date(a.deadlineDateStr).getTime() - new Date(b.deadlineDateStr).getTime();
+                                    }
+                                    if (completedSortBy === 'alphabetical') return a.title.localeCompare(b.title);
+                                    if (completedSortBy === 'priority') {
+                                        const pMap = { High: 3, Medium: 2, Low: 1 };
+                                        return (pMap[b.priority || 'Medium'] || 0) - (pMap[a.priority || 'Medium'] || 0);
+                                    }
+                                    return 0;
+                                });
+
+                                return (
+                                    <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+                                        <button
+                                            onClick={() => setIsCompletedSectionOpen(!isCompletedSectionOpen)}
+                                            className="w-full px-6 py-4 flex items-center justify-between text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 size={16} /> Completed Tasks ({completedTasks.length})
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {isCompletedSectionOpen && (
+                                                    <div className="flex items-center gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                                                        <span className="text-[10px] uppercase font-semibold text-slate-500 hidden md:inline">Sort:</span>
+                                                        <select
+                                                            value={completedSortBy}
+                                                            onChange={(e) => setCompletedSortBy(e.target.value as any)}
+                                                            className="bg-transparent text-xs font-medium text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                                                        >
+                                                            <option value="completedAt">Date Completed</option>
+                                                            <option value="createdAt">Date Created</option>
+                                                            <option value="deadlineDateStr">Due Date</option>
+                                                            <option value="priority">Priority</option>
+                                                            <option value="alphabetical">Alphabetical</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+                                                {isCompletedSectionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                            </div>
+                                        </button>
+
+                                        {isCompletedSectionOpen && (
+                                            <ul className="divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800">
+                                                {completedTasks.map(task => {
+                                                    const cat = allCategories.find(c => c.id === task.categoryId);
+                                                    const isCompleted = true;
+                                                    const isExpanded = expandedTasks.has(task.id);
+                                                    const subtasks = task.subtasks || [];
+                                                    const completedSubtasks = subtasks.filter(st => st.status === 'Completed').length;
+                                                    const hasSubtasks = subtasks.length > 0;
+
+                                                    return (
+                                                        <li key={task.id} className="group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
+                                                            <div className="flex items-start gap-4">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedTaskIds.has(task.id)}
+                                                                    onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="mt-2 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleToggleTaskStatus(task)}
+                                                                    disabled={isReadOnly}
+                                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                                >
+                                                                    {getStatusIcon(task.status)}
+                                                                </button>
+
+                                                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                                        <h4 className="font-semibold text-slate-500 dark:text-slate-400 text-sm md:text-base line-through">
+                                                                            {task.title}
+                                                                        </h4>
+                                                                        {hasSubtasks && (
+                                                                            <span className="text-[10px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                                <CheckCircle2 size={10} /> {completedSubtasks}/{subtasks.length}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getPriorityColor(task.priority)} grayscale`}>
+                                                                            {task.priority}
+                                                                        </span>
+                                                                        {cat && (
+                                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${cat.colorClass} grayscale`}>
+                                                                                {cat.name}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-400 dark:text-slate-500">
+                                                                        {task.completedAt && (
+                                                                            <span className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-green-600"/> Completed: {new Date(task.completedAt).toLocaleDateString()}</span>
+                                                                        )}
+                                                                        {task.deadlineDateStr && (
+                                                                            <span className="flex items-center gap-1.5"><Clock size={12}/> Due: {new Date(task.deadlineDateStr).toLocaleDateString()}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="shrink-0 flex items-center gap-1">
+                                                                    <button onClick={(e) => { e.stopPropagation(); toggleTaskExpansion(task.id); }} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                    </button>
+                                                                    {!isReadOnly && (
+                                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Delete Task">
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {isExpanded && (
+                                                                <div className="pl-10 pr-2 pb-2 mt-2 space-y-4 animate-in fade-in slide-in-from-top-2">
+                                                                    {task.description && (
+                                                                        <div className="text-sm text-slate-500 dark:text-slate-500 bg-white/30 dark:bg-slate-950/30 p-3 rounded-lg border border-slate-200/30 dark:border-slate-800/30 whitespace-pre-wrap">
+                                                                            {task.description}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            </>
                         )}
 
                     </div>
@@ -1512,7 +1851,8 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     title: convertingIdea.text.split('\n')[0].substring(0, 50),
                     description: convertingIdea.text,
                     status: 'Uncompleted',
-                    priority: 'Medium'
+                    priority: 'Medium',
+                    createdAt: Date.now()
                 } : null}
                 categories={allCategories}
                 onSave={handleSaveConvertedTask}
