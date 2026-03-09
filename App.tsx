@@ -354,7 +354,11 @@ const App: React.FC = () => {
     const task = globalTasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted' : 'Completed';
+    let nextStatus: Task['status'] = 'Uncompleted';
+    if (task.status === 'Uncompleted') nextStatus = 'In Progress';
+    else if (task.status === 'In Progress') nextStatus = 'Completed';
+    else nextStatus = 'Uncompleted';
+
     const updated = { ...task, status: nextStatus };
 
     // Optimistic Update
@@ -1031,12 +1035,12 @@ const App: React.FC = () => {
                                                  className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                 <button
                                                     onClick={(e) => toggleTaskCompletion(e, task.id)}
-                                                    className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                                                    className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
                                                 >
                                                     <CheckCircle2 size={12} />
                                                 </button>
                                                 <div className="flex-1 flex flex-col min-w-0">
-                                                    <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                    <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
                                                         {task.title}
                                                     </span>
                                                     <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
@@ -1159,7 +1163,19 @@ const App: React.FC = () => {
               />
             </div>
           ) : activeTab === 'projects' ? (
-            <ProjectPlanner isReadOnly={actualIsReadOnly} />
+            <ProjectPlanner
+                isReadOnly={actualIsReadOnly}
+                globalTasks={globalTasks}
+                onTaskUpdate={(updatedTask) => {
+                    setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+                }}
+                onTaskDelete={(taskId) => {
+                    setGlobalTasks(prev => prev.filter(t => t.id !== taskId));
+                }}
+                onTaskAdd={(newTask) => {
+                    setGlobalTasks(prev => [newTask, ...prev]);
+                }}
+            />
           ) : activeTab === 'communications' ? (
             <CommunicationsTab isReadOnly={actualIsReadOnly} />
           ) : (

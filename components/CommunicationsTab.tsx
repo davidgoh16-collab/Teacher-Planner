@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
     Mail, MessageSquare, FileText, Send, UserCircle, Users, Megaphone,
-    Copy, Check, Trash2, Clock, Loader2, Sparkles, User, RefreshCw
+    Copy, Check, Trash2, Clock, Loader2, Sparkles, User, RefreshCw, Paperclip, X
 } from 'lucide-react';
 import { generateContentFromAction } from '../services/aiService';
 import { fetchCommunicationMessages, saveCommunicationMessage, deleteCommunicationMessage } from '../services/projectService';
 import { CommunicationMessage } from '../types';
+import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface Props {
     isReadOnly: boolean;
@@ -24,6 +29,10 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
     const [generatedText, setGeneratedText] = useState('');
     const [copied, setCopied] = useState(false);
 
+    // File Upload State
+    const [attachedFiles, setAttachedFiles] = useState<{name: string, content: string}[]>([]);
+    const [isParsingFiles, setIsParsingFiles] = useState(false);
+
     // History State
     const [history, setHistory] = useState<CommunicationMessage[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -31,6 +40,54 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
     useEffect(() => {
         loadHistory();
     }, []);
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsParsingFiles(true);
+        const newFiles: {name: string, content: string}[] = [];
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileName = file.name.toLowerCase();
+
+                if (fileName.endsWith('.txt')) {
+                    const text = await file.text();
+                    newFiles.push({ name: file.name, content: text });
+                } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    newFiles.push({ name: file.name, content: result.value });
+                } else if (fileName.endsWith('.pdf')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let fullText = '';
+                    for (let j = 1; j <= pdf.numPages; j++) {
+                        const page = await pdf.getPage(j);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+                        fullText += pageText + '\n';
+                    }
+                    newFiles.push({ name: file.name, content: fullText });
+                }
+            }
+
+            setAttachedFiles(prev => [...prev, ...newFiles]);
+        } catch (error) {
+            console.error("Error parsing files:", error);
+            // Optionally could add a toast here
+        } finally {
+            setIsParsingFiles(false);
+            // Reset input so the same file can be selected again if needed
+            event.target.value = '';
+        }
+    };
+
+    const removeFile = (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    };
 
     const loadHistory = async () => {
         setIsLoadingHistory(true);
@@ -68,6 +125,15 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
 
             if (replyToText.trim()) {
                 prompt += `This is a reply to the following message:\n"""\n${replyToText}\n"""\n\n`;
+            }
+
+            if (attachedFiles.length > 0) {
+                prompt += `Here are some context files provided by the user. Use them as context to write the message:\n\n`;
+                attachedFiles.forEach(file => {
+                    prompt += `--- Start of file: ${file.name} ---\n`;
+                    prompt += `${file.content}\n`;
+                    prompt += `--- End of file: ${file.name} ---\n\n`;
+                });
             }
 
             prompt += `Instructions for what to say:\n${instructions}\n\n`;
@@ -124,6 +190,7 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
         setReplyToText(msg.replyToText || '');
         setInstructions(msg.instructions);
         setGeneratedText(msg.generatedContent);
+        setAttachedFiles([]); // Clear attached files when loading history
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -132,7 +199,7 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
         <div className="flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
             {/* Main Form Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center">
-                <div className="w-full max-w-4xl bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col lg:flex-row">
+                <div className="w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col lg:flex-row flex-1">
 
                     {/* Input Column */}
                     <div className="flex-1 p-6 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 space-y-6">
@@ -213,17 +280,52 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
                         </div>
 
                         {/* Instructions */}
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 flex-1 flex flex-col">
                             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                 Instructions / Main Points <span className="text-red-500">*</span>
                             </label>
-                            <textarea
-                                value={instructions}
-                                onChange={(e) => setInstructions(e.target.value)}
-                                placeholder="What do you want to say? e.g., 'Remind them about the parents evening next Tuesday and ask them to book a slot online.'"
-                                rows={4}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors text-sm resize-none"
-                            />
+                            <div className="flex-1 relative min-h-[120px]">
+                                <textarea
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                    placeholder="What do you want to say? e.g., 'Remind them about the parents evening next Tuesday and ask them to book a slot online.'"
+                                    className="absolute inset-0 w-full h-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors text-sm resize-none"
+                                />
+                            </div>
+
+                            {/* Attached Files List */}
+                            {attachedFiles.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {attachedFiles.map((file, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
+                                            <Paperclip size={12} className="text-slate-400" />
+                                            <span className="text-xs font-medium text-slate-700 dark:text-slate-300 max-w-[150px] truncate" title={file.name}>{file.name}</span>
+                                            <button
+                                                onClick={() => removeFile(i)}
+                                                className="text-slate-400 hover:text-red-500 transition-colors p-0.5"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Attach File Button */}
+                            <div className="mt-2 flex justify-start">
+                                <label className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md cursor-pointer transition-colors border ${isParsingFiles ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-white'}`}>
+                                    {isParsingFiles ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                                    {isParsingFiles ? 'Reading...' : 'Attach Context Files'}
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,.txt"
+                                        className="hidden"
+                                        onChange={handleFileUpload}
+                                        disabled={isParsingFiles}
+                                    />
+                                </label>
+                            </div>
                         </div>
 
                         <button
@@ -237,7 +339,7 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
                     </div>
 
                     {/* Output Column */}
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 p-6 flex flex-col min-h-[400px]">
+                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 p-6 flex flex-col min-h-[400px] lg:border-l border-slate-200 dark:border-slate-700">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <FileText className="text-slate-400" size={18} /> Generated Output
@@ -258,7 +360,7 @@ const CommunicationsTab: React.FC<Props> = ({ isReadOnly }) => {
                                 <textarea
                                     value={generatedText}
                                     onChange={(e) => setGeneratedText(e.target.value)}
-                                    className="absolute inset-0 w-full h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-slate-800 dark:text-slate-200 text-sm font-medium focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors resize-none shadow-inner"
+                                    className="absolute inset-0 w-full h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-slate-800 dark:text-slate-200 text-sm font-medium focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors resize-y shadow-inner"
                                 />
                             </div>
                         ) : (

@@ -280,10 +280,10 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 onClick={(e) => e.stopPropagation()}
                                 className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                             />
-                            <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                            <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                 {getStatusIcon(task.status)}
                             </button>
-                            <span className="font-semibold text-sm leading-tight text-slate-800 dark:text-slate-100 break-words">{task.title}</span>
+                            <span className={`font-semibold text-sm leading-tight break-words ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-800 dark:text-slate-100'}`}>{task.title}</span>
                         </div>
                         {!isReadOnly && (
                             <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-white/80 dark:bg-slate-800/80 p-1 rounded-md backdrop-blur-sm shadow-sm border border-slate-200 dark:border-slate-700">
@@ -500,12 +500,12 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 onClick={(e) => e.stopPropagation()}
                                 className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                             />
-                                                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                             {getStatusIcon(task.status)}
                                                         </button>
 
                                                         <div className="flex-1 min-w-0">
-                                                        <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through' : ''}`}>
+                                                        <h4 className={`font-semibold text-lg leading-tight mb-2 ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                             {task.title}
                                                         </h4>
                                                         <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -628,12 +628,12 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                         onClick={(e) => e.stopPropagation()}
                                                                         className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                                     />
-                                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                                         {getStatusIcon(task.status)}
                                                                     </button>
 
                                                                     <div className="flex-1 min-w-0">
-                                                                    <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through text-slate-500' : ''}`}>
+                                                                    <h4 className={`font-semibold text-lg leading-tight mb-2 ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                                         {task.title}
                                                                     </h4>
                                                                     <div className="flex flex-wrap items-center gap-2 mb-2">
