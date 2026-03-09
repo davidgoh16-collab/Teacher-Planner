@@ -163,6 +163,7 @@ const App: React.FC = () => {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
+  const [expandedActiveDays, setExpandedActiveDays] = useState<Record<string, boolean>>({});
 
   // --- Derived Data ---
   const currentTerm = TERMS.find(t => t.id === selectedTermId) || TERMS[0];
@@ -865,6 +866,11 @@ const App: React.FC = () => {
   const isTestBypass = !user && window.location.search.includes('bypass_login=true');
   if (isTestBypass) {
      // we'll pretend there is a user
+     if (!user) {
+         setUser({ uid: 'test-user', displayName: 'Test User' } as any);
+         setAuthLoading(false);
+         return null; // Force re-render with user set
+     }
   } else if (!user) {
     return <LoginPage />;
   }
@@ -1083,6 +1089,10 @@ const App: React.FC = () => {
                                 {(() => {
                                     const dailyTasks = globalTasks.filter(t => t.scheduledDateStr === dateStr || t.deadlineDateStr === dateStr);
 
+                                    // Split daily tasks into active and completed
+                                    const activeDailyTasks = dailyTasks.filter(t => t.status !== 'Completed');
+                                    const completedDailyTasks = dailyTasks.filter(t => t.status === 'Completed');
+
                                     // Routine tasks logic
                                     const targetDate = addDays(currentWeekData.startDate, dayIndex);
                                     const dayOfWeek = targetDate.getDay();
@@ -1095,11 +1105,47 @@ const App: React.FC = () => {
                                     const activeRoutines = applicableRoutines.filter(t => !isRoutineCompleted(t, dateStr));
                                     const completedRoutines = applicableRoutines.filter(t => isRoutineCompleted(t, dateStr));
 
-                                    if (dailyTasks.length === 0 && applicableRoutines.length === 0) return null;
+                                    const totalCompleted = completedRoutines.length + completedDailyTasks.length;
+                                    const totalActive = activeRoutines.length + activeDailyTasks.length;
+                                    const totalTasks = totalActive + totalCompleted;
+
+                                    if (totalTasks === 0) return null;
+
+                                    const progressPercentage = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+
+                                    // Default active tasks to be expanded, unless explicitly set to false
+                                    const isExpandedActive = expandedActiveDays[dateStr] !== false;
 
                                     return (
                                         <>
-                                        {activeRoutines.map(task => (
+                                        {/* Progress Bar Header */}
+                                        <div className="mb-2 w-full">
+                                            <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium mb-1">
+                                                <span>{totalCompleted}/{totalTasks} Completed</span>
+                                                <span>{progressPercentage}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+                                                    style={{ width: `${progressPercentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Active Tasks Dropdown */}
+                                        {totalActive > 0 && (
+                                            <div className="mb-2">
+                                                <button
+                                                    onClick={() => setExpandedActiveDays(prev => ({...prev, [dateStr]: !isExpandedActive}))}
+                                                    className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mb-1.5"
+                                                >
+                                                    <span>To Do ({totalActive})</span>
+                                                    {isExpandedActive ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                                </button>
+
+                                                {isExpandedActive && (
+                                                    <div className="space-y-1.5">
+                                                        {activeRoutines.map(task => (
                                             <div key={task.id}
                                                  className={`flex items-start gap-1.5 bg-green-50/50 dark:bg-green-900/10 p-1.5 rounded border border-green-200/50 dark:border-green-800/50 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                 <button
@@ -1116,7 +1162,7 @@ const App: React.FC = () => {
                                             </div>
                                         ))}
 
-                                        {dailyTasks.map(task => {
+                                        {activeDailyTasks.map(task => {
                                             const project = projects.find(p => p.id === task.projectId);
                                             const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
                                             const isScheduled = task.scheduledDateStr === dateStr;
@@ -1128,12 +1174,12 @@ const App: React.FC = () => {
                                                      className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                     <button
                                                         onClick={(e) => toggleTaskCompletion(e, task.id)}
-                                                        className={`mt-0.5 shrink-0 ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                                                        className={`mt-0.5 shrink-0 ${task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
                                                     >
                                                         <CheckCircle2 size={12} />
                                                     </button>
                                                     <div className="flex-1 flex flex-col min-w-0 pt-0.5">
-                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400 dark:text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
                                                             {task.title}
                                                         </span>
                                                         <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
@@ -1144,25 +1190,50 @@ const App: React.FC = () => {
                                                 </div>
                                             );
                                         })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
-                                        {completedRoutines.length > 0 && (
+                                        {totalCompleted > 0 && (
                                             <div className="mt-2 pt-2 border-t border-slate-300 dark:border-slate-700/50">
                                                 <button
                                                     onClick={() => setExpandedRoutineDays(prev => ({...prev, [dateStr]: !prev[dateStr]}))}
                                                     className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                                                 >
-                                                    <span>Completed ({completedRoutines.length})</span>
+                                                    <span>Completed ({totalCompleted})</span>
                                                     {expandedRoutineDays[dateStr] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                                                 </button>
 
                                                 {expandedRoutineDays[dateStr] && (
                                                     <div className="space-y-1.5 mt-2">
+                                                        {/* Render completed routines */}
                                                         {completedRoutines.map(task => (
                                                             <div key={task.id}
                                                                  className={`flex items-start gap-1.5 bg-slate-100/50 dark:bg-slate-800/30 p-1.5 rounded border border-slate-200/50 dark:border-slate-700/50 text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity`}
                                                                  onClick={(e) => handleToggleRoutineTask(e, task, dateStr)}
                                                             >
                                                                 <button
+                                                                    className={`mt-0.5 shrink-0 text-green-500`}
+                                                                >
+                                                                    <CheckCircle2 size={12} />
+                                                                </button>
+                                                                <div className="flex-1 flex flex-col min-w-0 pt-0.5">
+                                                                    <span className={`font-medium line-clamp-2 leading-tight line-through text-slate-500`}>
+                                                                        {task.title}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Render completed global daily tasks */}
+                                                        {completedDailyTasks.map(task => (
+                                                            <div key={task.id}
+                                                                 className={`flex items-start gap-1.5 bg-slate-100/50 dark:bg-slate-800/30 p-1.5 rounded border border-slate-200/50 dark:border-slate-700/50 text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity`}
+                                                                 onClick={() => openTaskModal(task)}
+                                                            >
+                                                                <button
+                                                                    onClick={(e) => toggleTaskCompletion(e, task.id)}
                                                                     className={`mt-0.5 shrink-0 text-green-500`}
                                                                 >
                                                                     <CheckCircle2 size={12} />
