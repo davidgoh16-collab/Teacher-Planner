@@ -31,15 +31,24 @@ import { handleTaskRecurrence } from '../utils/taskUtils';
 
 interface ProjectPlannerProps {
   isReadOnly: boolean;
+  globalTasks: Task[];
+  onTaskUpdate?: (task: Task) => void;
+  onTaskDelete?: (taskId: string) => void;
+  onTaskAdd?: (task: Task) => void;
 }
 
-const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
+const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, onTaskUpdate, onTaskDelete, onTaskAdd }) => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>(globalTasks);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sync with global state when it changes
+  useEffect(() => {
+    setAllTasks(globalTasks);
+  }, [globalTasks]);
 
   const [convertingIdea, setConvertingIdea] = useState<Idea | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -118,11 +127,13 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
     }
 
     setAllTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    if (onTaskUpdate) onTaskUpdate(updated);
     try {
         await saveTask(updated);
     } catch (e) {
         console.error(e);
         setAllTasks(prev => prev.map(t => t.id === task.id ? task : t)); // revert
+        if (onTaskUpdate) onTaskUpdate(task);
     }
   };
 
@@ -245,9 +256,11 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
           await saveTask(task);
           if (editingTask) {
               setAllTasks(prev => prev.map(t => t.id === task.id ? task : t));
+              if (onTaskUpdate) onTaskUpdate(task);
           } else {
               if (convertingIdea) await deleteIdea(convertingIdea.id);
               setAllTasks(prev => [task, ...prev]);
+              if (onTaskAdd) onTaskAdd(task);
               if (convertingIdea) setIdeas(prev => prev.filter(i => i.id !== convertingIdea.id));
           }
       } catch (e) {
@@ -340,9 +353,15 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                 }}
                 onTaskDeleted={(taskId) => {
                     setAllTasks(prev => prev.filter(t => t.id !== taskId));
+                    if (onTaskDelete) onTaskDelete(taskId);
                 }}
                 onTaskUpdated={(updatedTask) => {
                     setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+                    if (onTaskUpdate) onTaskUpdate(updatedTask);
+                }}
+                onTaskAdded={(newTask) => {
+                    setAllTasks(prev => [newTask, ...prev]);
+                    if (onTaskAdd) onTaskAdd(newTask);
                 }}
                 onUpdateProject={(updatedProj) => {
                     setProjects(prev => prev.map(p => p.id === updatedProj.id ? updatedProj : p));
@@ -610,9 +629,9 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
                                                                 <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
                                                                     <div className="flex items-start gap-2">
                                                                         <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
-                                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600" />}
+                                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600 hover:text-slate-500" />}
                                                                         </button>
-                                                                        <span className="flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight">{task.title}</span>
+                                                                        <span className={`flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{task.title}</span>
                                                                         {!isReadOnly && (
                                                                             <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
                                                                                 <Edit2 size={12} />
@@ -662,10 +681,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly }) => {
             isReadOnly={isReadOnly}
             onTaskDeleted={(taskId) => {
                 setAllTasks(prev => prev.filter(t => t.id !== taskId));
+                if (onTaskDelete) onTaskDelete(taskId);
             }}
             onTaskUpdated={(updatedTask) => {
                 setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-            }} // Reload everything if task changes
+                if (onTaskUpdate) onTaskUpdate(updatedTask);
+            }}
           />
       )}
 

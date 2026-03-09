@@ -42,6 +42,7 @@ interface ProjectViewProps {
     onTaskUpdate?: () => void;
     onTaskDeleted?: (taskId: string) => void;
     onTaskUpdated?: (task: Task) => void;
+    onTaskAdded?: (task: Task) => void;
 }
 
 const BACKGROUND_COLORS = [
@@ -73,7 +74,7 @@ const BACKGROUND_COLORS = [
 
 type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
-export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated }: ProjectViewProps) {
+export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated, onTaskAdded }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -351,6 +352,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         try {
             await saveTask(newTask);
             setTasks([newTask, ...tasks]);
+            if (onTaskAdded) onTaskAdded(newTask);
             setIsAddingTask(false);
             // Reset form
             setNewTaskTitle('');
@@ -1458,14 +1460,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                 <button
                                                     onClick={() => handleToggleTaskStatus(task)}
                                                     disabled={isReadOnly}
-                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
                                                 >
                                                     {getStatusIcon(task.status)}
                                                 </button>
 
                                                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                        <h4 className={`font-semibold text-slate-900 dark:text-white text-sm md:text-base ${isCompleted ? 'line-through text-slate-500 dark:text-slate-400' : ''}`}>
+                                                        <h4 className={`font-semibold text-sm md:text-base ${task.status === 'Completed' ? 'line-through text-slate-500 dark:text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                             {task.title}
                                                         </h4>
 
@@ -1742,14 +1744,14 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                                 <button
                                                                     onClick={() => handleToggleTaskStatus(task)}
                                                                     disabled={isReadOnly}
-                                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
                                                                 >
                                                                     {getStatusIcon(task.status)}
                                                                 </button>
 
                                                                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
                                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                                        <h4 className="font-semibold text-slate-500 dark:text-slate-400 text-sm md:text-base line-through">
+                                                                        <h4 className={`font-semibold text-sm md:text-base ${task.status === 'Completed' ? 'line-through text-slate-500 dark:text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                                             {task.title}
                                                                         </h4>
                                                                         {hasSubtasks && (
