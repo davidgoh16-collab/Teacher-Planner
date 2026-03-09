@@ -163,6 +163,7 @@ const App: React.FC = () => {
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
+  const [expandedActiveDays, setExpandedActiveDays] = useState<Record<string, boolean>>({});
 
   // --- Derived Data ---
   const currentTerm = TERMS.find(t => t.id === selectedTermId) || TERMS[0];
@@ -222,45 +223,7 @@ const App: React.FC = () => {
         setGlobalTasks(tasks);
         setProjects(projs);
         setCategories(cats);
-
-        // FORCE ADD MOCK ROUTINES & TASKS FOR VERIFICATION
-        const mockRoutines = [
-            {
-                id: 'mock_routine_1',
-                title: 'Check emails',
-                type: 'daily',
-                priority: 'High',
-                createdAt: Date.now()
-            },
-            {
-                id: 'mock_routine_2',
-                title: 'Drink water',
-                type: 'daily',
-                priority: 'Low',
-                createdAt: Date.now(),
-                lastCompletedDateStr: new Date().toISOString().split('T')[0]
-            }
-        ];
-
-        const mockTasks = [
-            {
-                id: 'mock_task_1',
-                title: 'Prepare presentation',
-                status: 'Not Started',
-                priority: 'High',
-                scheduledDateStr: new Date().toISOString().split('T')[0]
-            },
-            {
-                id: 'mock_task_2',
-                title: 'Grade homework',
-                status: 'Completed',
-                priority: 'Medium',
-                scheduledDateStr: new Date().toISOString().split('T')[0]
-            }
-        ];
-
-        setRoutineTasks(mockRoutines as RoutineTask[]);
-        setGlobalTasks(prev => [...prev, ...mockTasks] as Task[]);
+        setRoutineTasks(routines);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -1143,12 +1106,46 @@ const App: React.FC = () => {
                                     const completedRoutines = applicableRoutines.filter(t => isRoutineCompleted(t, dateStr));
 
                                     const totalCompleted = completedRoutines.length + completedDailyTasks.length;
+                                    const totalActive = activeRoutines.length + activeDailyTasks.length;
+                                    const totalTasks = totalActive + totalCompleted;
 
-                                    if (dailyTasks.length === 0 && applicableRoutines.length === 0) return null;
+                                    if (totalTasks === 0) return null;
+
+                                    const progressPercentage = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+
+                                    // Default active tasks to be expanded, unless explicitly set to false
+                                    const isExpandedActive = expandedActiveDays[dateStr] !== false;
 
                                     return (
                                         <>
-                                        {activeRoutines.map(task => (
+                                        {/* Progress Bar Header */}
+                                        <div className="mb-2 w-full">
+                                            <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium mb-1">
+                                                <span>{totalCompleted}/{totalTasks} Completed</span>
+                                                <span>{progressPercentage}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+                                                    style={{ width: `${progressPercentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Active Tasks Dropdown */}
+                                        {totalActive > 0 && (
+                                            <div className="mb-2">
+                                                <button
+                                                    onClick={() => setExpandedActiveDays(prev => ({...prev, [dateStr]: !isExpandedActive}))}
+                                                    className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mb-1.5"
+                                                >
+                                                    <span>To Do ({totalActive})</span>
+                                                    {isExpandedActive ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                                </button>
+
+                                                {isExpandedActive && (
+                                                    <div className="space-y-1.5">
+                                                        {activeRoutines.map(task => (
                                             <div key={task.id}
                                                  className={`flex items-start gap-1.5 bg-green-50/50 dark:bg-green-900/10 p-1.5 rounded border border-green-200/50 dark:border-green-800/50 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                 <button
@@ -1193,6 +1190,10 @@ const App: React.FC = () => {
                                                 </div>
                                             );
                                         })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {totalCompleted > 0 && (
                                             <div className="mt-2 pt-2 border-t border-slate-300 dark:border-slate-700/50">
