@@ -31,6 +31,7 @@ import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import CommunicationsTab from './components/CommunicationsTab';
+import GlobalSearch from './components/GlobalSearch';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchRoutineTasks, saveRoutineTask } from './services/projectService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask } from './types';
@@ -57,9 +58,7 @@ import {
   Loader2,
   Lock,
   Filter,
-  Clock,
-  Circle,
-  CheckCircle2
+  Clock
 } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -158,6 +157,9 @@ const App: React.FC = () => {
 
   // Quick Add Modal State
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+
+  // Global Search selection handler
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -920,9 +922,9 @@ const App: React.FC = () => {
       
       {/* Top Navigation Bar */}
       <header className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white shadow-lg z-50 sticky top-0 border-b border-gray-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="w-full px-4 py-3 flex flex-col xl:flex-row justify-between items-center gap-4">
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="bg-green-600 p-2 rounded-lg shadow-sm">
               <BookOpen size={24} className="text-white" />
             </div>
@@ -931,6 +933,34 @@ const App: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
             </div>
           </div>
+
+          <GlobalSearch
+            globalTasks={globalTasks}
+            projects={projects}
+            lessonPlans={lessonPlans}
+            onTaskSelect={(task) => {
+               if (task._isSubtaskDisplay && task._parentTaskId) {
+                  const parent = globalTasks.find(t => t.id === task._parentTaskId);
+                  if (parent) openTaskModal(parent);
+               } else {
+                  openTaskModal(task);
+               }
+            }}
+            onProjectSelect={(project) => {
+               setActiveTab('projects');
+               setSelectedProjectId(project.id);
+            }}
+            onLessonSelect={(lesson) => {
+               setActiveTab('timetable');
+               const d = new Date(lesson.dateStr);
+               const weekIdx = weeksInTerm.findIndex(w => {
+                  const end = addDays(w.startDate, 7);
+                  return d >= w.startDate && d < end;
+               });
+               if (weekIdx !== -1) setSelectedWeekIndex(weekIdx);
+               openLessonModal(lesson.dateStr, lesson.periodLabel, lesson.title || 'Lesson');
+            }}
+          />
 
           <div className="flex flex-wrap items-center gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm">
             {/* Term Selector */}
@@ -994,7 +1024,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button 
                 onClick={cycleTheme}
                 className="flex items-center gap-2 bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
@@ -1141,8 +1171,8 @@ const App: React.FC = () => {
                                     const dailyTasks = allTasksAndSubtasks.filter(t => t.scheduledDateStr === dateStr || t.deadlineDateStr === dateStr);
 
                                     // Split daily tasks into active and completed
-                                    const activeDailyTasks = allDailyTasksAndSubtasks.filter(t => t.status !== 'Completed');
-                                    const completedDailyTasks = allDailyTasksAndSubtasks.filter(t => t.status === 'Completed');
+                                    const activeDailyTasks = dailyTasks.filter(t => t.status !== 'Completed');
+                                    const completedDailyTasks = dailyTasks.filter(t => t.status === 'Completed');
 
                                     // Routine tasks logic
                                     const targetDate = addDays(currentWeekData.startDate, dayIndex);
@@ -1441,6 +1471,8 @@ const App: React.FC = () => {
             <ProjectPlanner
                 isReadOnly={actualIsReadOnly}
                 globalTasks={globalTasks}
+                externalSelectedProjectId={selectedProjectId}
+                onClearExternalProject={() => setSelectedProjectId(null)}
                 onTaskUpdate={(updatedTask) => {
                     setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
                 }}

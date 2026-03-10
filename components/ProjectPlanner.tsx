@@ -32,12 +32,14 @@ import { handleTaskRecurrence } from '../utils/taskUtils';
 interface ProjectPlannerProps {
   isReadOnly: boolean;
   globalTasks: Task[];
+  externalSelectedProjectId?: string | null;
+  onClearExternalProject?: () => void;
   onTaskUpdate?: (task: Task) => void;
   onTaskDelete?: (taskId: string) => void;
   onTaskAdd?: (task: Task) => void;
 }
 
-const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, onTaskUpdate, onTaskDelete, onTaskAdd }) => {
+const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd }) => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -61,6 +63,14 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+     if (externalSelectedProjectId) {
+         setSelectedProjectId(externalSelectedProjectId);
+         setActiveTab('projects');
+         if (onClearExternalProject) onClearExternalProject();
+     }
+  }, [externalSelectedProjectId, onClearExternalProject]);
 
   // New Project Form State
   const [newProjectName, setNewProjectName] = useState('');
