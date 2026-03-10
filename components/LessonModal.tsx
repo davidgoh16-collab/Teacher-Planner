@@ -338,30 +338,48 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   // Identify the last lesson
   const lastLessonInfo = useMemo(() => {
-    if (!isOpen || !initialData.dateStr || !subjectName || subjectName === 'Free Period') return null;
+    if (!isOpen || !initialData.dateStr || !subjectName || subjectName === 'Free Period' || weeksInTerm.length === 0) return null;
 
     const currentLessonDate = new Date(initialData.dateStr);
 
-    // Convert allLessonPlans to an array and sort by date descending
+    // We cannot rely on `availableSlots` because it only generates slots when `isDuplicating` is true.
+    // Instead, we dynamically recreate the timetable mapping for the term to find previous lessons.
+    const termSlots = new Map<string, string>(); // Map of id -> subject
+
+    for (let i = 0; i < weeksInTerm.length; i++) {
+        const week = weeksInTerm[i];
+        const timetable = week.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+
+        for (let d = 0; d < DAYS.length; d++) {
+            const dayName = DAYS[d];
+            const date = addDays(week.startDate, d);
+
+            // Only care about dates before the current lesson date to save processing
+            if (date >= currentLessonDate) continue;
+
+            const dateStr = toISODate(date);
+            const daySchedule = timetable[dayName];
+
+            for (const period of PERIOD_LABELS) {
+                const entry = daySchedule[period];
+                if (entry && entry.subject === subjectName) {
+                     const id = `${dateStr}_${period}`;
+                     termSlots.set(id, entry.subject);
+                }
+            }
+        }
+    }
+
+    // Filter all lesson plans to find matching previous ones
     const previousLessons = Object.values(allLessonPlans).filter(lesson => {
-      // Must be the same subject
-      // To check subject, we either need to look it up in the timetable again OR
-      // check if we passed down a mapping. However, `allLessonPlans` doesn't natively store subject.
-      // Wait, let's look at availableSlots which maps date/period to subject!
-      const slot = availableSlots.find(s => s.id === lesson.id);
-      const lessonSubject = slot?.subject || 'Free Period';
-
-      // But availableSlots might only be for this term!
-      // Let's rely on finding lessons with non-empty notes or titles for this subject
-      // To do this robustly, we need to generate all timetable slots across all terms, or at least the current term.
-
-      if (lessonSubject !== subjectName) return false;
+      // Check if this lesson ID was mapped to the current subject in our term mapping
+      if (!termSlots.has(lesson.id)) return false;
 
       const lessonDate = new Date(lesson.dateStr);
       // Lesson date must be strictly before current lesson date
       if (lessonDate >= currentLessonDate) return false;
 
-      // Must have some content
+      // Must have some content (notes or title)
       if (!lesson.title && !lesson.notes) return false;
 
       return true;
@@ -371,7 +389,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
       return previousLessons[0];
     }
     return null;
-  }, [isOpen, initialData.dateStr, subjectName, allLessonPlans, availableSlots]);
+  }, [isOpen, initialData.dateStr, subjectName, allLessonPlans, weeksInTerm]);
 
   // Determine modal title
   let modalTitle = subjectName;
