@@ -86,6 +86,11 @@ export interface Task {
   completedAt?: number;
   recurrenceType?: 'daily' | 'weekly';
   recurrenceDays?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
+
+  // Client-side only properties for displaying subtasks in flat lists
+  _isSubtaskDisplay?: boolean;
+  _parentTaskId?: string;
+  _parentTaskTitle?: string;
 }
 
 export interface Idea {
