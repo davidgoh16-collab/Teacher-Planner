@@ -962,9 +962,9 @@ const App: React.FC = () => {
             }}
           />
 
-          <div className="flex flex-wrap items-center gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm">
+          <div className="flex flex-nowrap items-center gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
             {/* Term Selector */}
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <select 
                 className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
                 value={selectedTermId}
@@ -978,12 +978,12 @@ const App: React.FC = () => {
             </div>
 
             {/* Class Filter */}
-            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-3 ml-1">
-               <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-2 lg:pl-3 ml-0.5 lg:ml-1 shrink-0">
+               <div className="absolute left-5 lg:left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
                   <Filter size={14} />
                </div>
                <select 
-                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-9 pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[150px] truncate shadow-sm"
+                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 lg:pl-9 pr-7 lg:pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[120px] lg:max-w-[150px] truncate shadow-sm"
                   value={viewFilter}
                   onChange={(e) => setViewFilter(e.target.value)}
                >
@@ -996,7 +996,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Week Navigator */}
-            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm">
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm shrink-0 ml-1">
               <button 
                 onClick={handlePrevWeek} 
                 disabled={selectedWeekIndex === 0}
