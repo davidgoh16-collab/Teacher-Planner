@@ -3,6 +3,10 @@ import { WeeklyTimetable } from "../types";
 
 export const getAiClient = () => {
   const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+      console.warn("API key must be set when using the Gemini API.");
+      throw new Error("API key must be set when using the Gemini API.");
+  }
   return new GoogleGenAI({ apiKey });
 };
 
