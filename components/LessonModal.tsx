@@ -199,6 +199,61 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   }, [isRecurringMode, recurrenceScope, recurrencePattern, initialData.dateStr, weeksInTerm]);
 
+  // Identify the last lesson
+  const lastLessonInfo = useMemo(() => {
+    if (!isOpen || !initialData.dateStr || !subjectName || subjectName === 'Free Period' || weeksInTerm.length === 0) return null;
+
+    const currentLessonDate = new Date(initialData.dateStr);
+
+    // We cannot rely on `availableSlots` because it only generates slots when `isDuplicating` is true.
+    // Instead, we dynamically recreate the timetable mapping for the term to find previous lessons.
+    const termSlots = new Map<string, string>(); // Map of id -> subject
+
+    for (let i = 0; i < weeksInTerm.length; i++) {
+        const week = weeksInTerm[i];
+        const timetable = week.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+
+        for (let d = 0; d < DAYS.length; d++) {
+            const dayName = DAYS[d];
+            const date = addDays(week.startDate, d);
+
+            // Only care about dates before the current lesson date to save processing
+            if (date >= currentLessonDate) continue;
+
+            const dateStr = toISODate(date);
+            const daySchedule = timetable[dayName];
+
+            for (const period of PERIOD_LABELS) {
+                const entry = daySchedule[period];
+                if (entry && entry.subject === subjectName) {
+                     const id = `${dateStr}_${period}`;
+                     termSlots.set(id, entry.subject);
+                }
+            }
+        }
+    }
+
+    // Filter all lesson plans to find matching previous ones
+    const previousLessons = Object.values(allLessonPlans).filter(lesson => {
+      // Check if this lesson ID was mapped to the current subject in our term mapping
+      if (!termSlots.has(lesson.id)) return false;
+
+      const lessonDate = new Date(lesson.dateStr);
+      // Lesson date must be strictly before current lesson date
+      if (lessonDate >= currentLessonDate) return false;
+
+      // Must have some content (notes or title)
+      if (!lesson.title && !lesson.notes) return false;
+
+      return true;
+    }).sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
+
+    if (previousLessons.length > 0) {
+      return previousLessons[0];
+    }
+    return null;
+  }, [isOpen, initialData.dateStr, subjectName, allLessonPlans, weeksInTerm]);
+
   useEffect(() => {
     if (isOpen) {
       setTitle(initialData.title);
