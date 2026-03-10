@@ -19,6 +19,7 @@ interface LessonModalProps {
   weeksInTerm?: WeekData[];
   currentWeekIndex?: number;
   isReadOnly?: boolean;
+  allLessonPlans?: Record<string, LessonPlan>;
 }
 
 const LessonModal: React.FC<LessonModalProps> = ({ 
@@ -31,7 +32,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
   subjectName,
   weeksInTerm = [],
   currentWeekIndex = 0,
-  isReadOnly = false
+  isReadOnly = false,
+  allLessonPlans = {}
 }) => {
   const [title, setTitle] = useState(initialData.title);
   const [links, setLinks] = useState<string[]>(initialData.links || []);
@@ -196,6 +198,61 @@ const LessonModal: React.FC<LessonModalProps> = ({
     return generatedSlots;
 
   }, [isRecurringMode, recurrenceScope, recurrencePattern, initialData.dateStr, weeksInTerm]);
+
+  // Identify the last lesson
+  const lastLessonInfo = useMemo(() => {
+    if (!isOpen || !initialData.dateStr || !subjectName || subjectName === 'Free Period' || weeksInTerm.length === 0) return null;
+
+    const currentLessonDate = new Date(initialData.dateStr);
+
+    // We cannot rely on `availableSlots` because it only generates slots when `isDuplicating` is true.
+    // Instead, we dynamically recreate the timetable mapping for the term to find previous lessons.
+    const termSlots = new Map<string, string>(); // Map of id -> subject
+
+    for (let i = 0; i < weeksInTerm.length; i++) {
+        const week = weeksInTerm[i];
+        const timetable = week.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+
+        for (let d = 0; d < DAYS.length; d++) {
+            const dayName = DAYS[d];
+            const date = addDays(week.startDate, d);
+
+            // Only care about dates before the current lesson date to save processing
+            if (date >= currentLessonDate) continue;
+
+            const dateStr = toISODate(date);
+            const daySchedule = timetable[dayName];
+
+            for (const period of PERIOD_LABELS) {
+                const entry = daySchedule[period];
+                if (entry && entry.subject === subjectName) {
+                     const id = `${dateStr}_${period}`;
+                     termSlots.set(id, entry.subject);
+                }
+            }
+        }
+    }
+
+    // Filter all lesson plans to find matching previous ones
+    const previousLessons = Object.values(allLessonPlans).filter(lesson => {
+      // Check if this lesson ID was mapped to the current subject in our term mapping
+      if (!termSlots.has(lesson.id)) return false;
+
+      const lessonDate = new Date(lesson.dateStr);
+      // Lesson date must be strictly before current lesson date
+      if (lessonDate >= currentLessonDate) return false;
+
+      // Must have some content (notes or title)
+      if (!lesson.title && !lesson.notes) return false;
+
+      return true;
+    }).sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
+
+    if (previousLessons.length > 0) {
+      return previousLessons[0];
+    }
+    return null;
+  }, [isOpen, initialData.dateStr, subjectName, allLessonPlans, weeksInTerm]);
 
   useEffect(() => {
     if (isOpen) {
@@ -658,9 +715,29 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
-                    {type === 'meeting' ? 'Meeting Notes' : 'Notes / Homework'}
-                    </label>
+                    <div className="flex justify-between items-end mb-1">
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
+                        {type === 'meeting' ? 'Meeting Notes' : 'Notes / Homework'}
+                        </label>
+                    </div>
+
+                    {/* Last Lesson Info Box */}
+                    {lastLessonInfo && !isReadOnly && (
+                        <div className="mb-3 p-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/50 rounded-lg text-sm">
+                            <div className="flex items-center gap-1.5 text-blue-800 dark:text-blue-300 font-medium mb-1.5 text-xs uppercase tracking-wide">
+                                <RotateCw size={12} /> Last {type === 'meeting' ? 'Meeting' : 'Lesson'} ({new Date(lastLessonInfo.dateStr).toLocaleDateString()})
+                            </div>
+                            <div className="text-slate-700 dark:text-slate-300">
+                                {lastLessonInfo.title && <div className="font-medium mb-1">{lastLessonInfo.title}</div>}
+                                {lastLessonInfo.notes ? (
+                                    <div className="whitespace-pre-wrap text-xs opacity-90 line-clamp-3">{lastLessonInfo.notes}</div>
+                                ) : (
+                                    <div className="text-xs italic opacity-70">No notes recorded.</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <textarea
                     className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-green-500 focus:border-green-500'}`}
                     placeholder={type === 'meeting' ? "Minutes, action items..." : "Don't forget to collect homework..."}
