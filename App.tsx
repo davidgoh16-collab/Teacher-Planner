@@ -57,7 +57,9 @@ import {
   Loader2,
   Lock,
   Filter,
-  Clock
+  Clock,
+  Circle,
+  CheckCircle2
 } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -1232,7 +1234,7 @@ const App: React.FC = () => {
                                                         onClick={(e) => toggleTaskCompletion(e, task.id, task._parentTaskId)}
                                                         className={`mt-0.5 shrink-0 ${task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
                                                     >
-                                                        <CheckCircle2 size={12} />
+                                                        {task.status === 'In Progress' ? <Clock size={12} /> : <Circle size={12} />}
                                                     </button>
                                                     <div className="flex-1 flex flex-col min-w-0 pt-0.5">
                                                         {task._isSubtaskDisplay && (
