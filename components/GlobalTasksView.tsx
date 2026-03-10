@@ -309,11 +309,28 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             return daysDiff <= 7; // Urgent if due within 7 days
         };
 
-        const q1 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
-        const q2 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
-        const q3 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
-        const q4 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
-        const completed = filteredTasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        filteredTasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent project/category info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        projectId: t.projectId,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const q1 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
+        const q2 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
+        const q3 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
+        const q4 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+        const completed = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = getCategoryDetails(task.categoryId);
@@ -480,8 +497,25 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     };
 
     const renderTimelineView = () => {
-        const uncompletedTasks = filteredTasks.filter(t => t.status !== 'Completed');
-        const completedTasks = filteredTasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        filteredTasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent project/category info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        projectId: t.projectId,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const uncompletedTasks = allFlattenedTasks.filter(t => t.status !== 'Completed');
+        const completedTasks = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         // Sort tasks by date (earliest first), put tasks without dates at the bottom
         const sortedTasks = [...uncompletedTasks].sort((a, b) => {
