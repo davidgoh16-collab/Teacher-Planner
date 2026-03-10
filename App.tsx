@@ -419,9 +419,32 @@ const App: React.FC = () => {
   const handleEditTaskSave = async (updatedTask: Task) => {
     if (isReadOnly) return;
 
-    // Optimistic update
-    setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
     setIsTaskModalOpen(false);
+
+    if (updatedTask._isSubtaskDisplay && updatedTask._parentTaskId) {
+        const parentTask = globalTasks.find(t => t.id === updatedTask._parentTaskId);
+        if (!parentTask) return;
+
+        const updatedSubtasks = parentTask.subtasks!.map(st =>
+            st.id === updatedTask.id ? updatedTask : st
+        );
+        const updatedParent = { ...parentTask, subtasks: updatedSubtasks };
+
+        // Optimistic update for subtask
+        setGlobalTasks(prev => prev.map(t => t.id === updatedParent.id ? updatedParent : t));
+
+        try {
+            await saveTask(updatedParent);
+        } catch (e) {
+            console.error("Failed to save edited subtask", e);
+            // Revert
+            setGlobalTasks(prev => prev.map(t => t.id === parentTask.id ? parentTask : t));
+        }
+        return;
+    }
+
+    // Optimistic update for regular task
+    setGlobalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
 
     try {
         await saveTask(updatedTask);
@@ -462,9 +485,15 @@ const App: React.FC = () => {
   };
 
   const isRoutineCompleted = (task: RoutineTask, targetDateStr: string) => {
+    // If we have history, check it directly
+    if (task.completedDatesStr && task.completedDatesStr.includes(targetDateStr)) {
+        return true;
+    }
+
     if (task.type === 'daily' || !task.type) {
          return task.lastCompletedDateStr === targetDateStr;
     } else {
+         // Weekly tasks: if no history matches, try the legacy logic for backwards compatibility
          if (!task.lastCompletedDateStr) return false;
 
          const [tYear, tMonth, tDay] = targetDateStr.split('-').map(Number);
@@ -492,7 +521,12 @@ const App: React.FC = () => {
          const lastCompletedDate = new Date(year, month - 1, day);
          lastCompletedDate.setHours(0,0,0,0);
 
-         return lastCompletedDate >= mostRecentScheduledDate;
+         // We only consider it completed for the target date if the legacy lastCompletedDate was completed exactly on or after the most recent scheduled date, AND the targetDate is exactly the most recent scheduled date.
+         // Otherwise, it bleeds into past dates.
+         if (targetDate.getTime() === mostRecentScheduledDate.getTime() && lastCompletedDate >= mostRecentScheduledDate) {
+             return true;
+         }
+         return false;
     }
   };
 
@@ -502,9 +536,25 @@ const App: React.FC = () => {
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
     const currentlyCompleted = isRoutineCompleted(task, targetDateStr);
+
+    // Manage completed history
+    let newCompletedDatesStr = task.completedDatesStr ? [...task.completedDatesStr] : [];
+
+    // Migrate legacy to history if it exists and isn't already there
+    if (task.lastCompletedDateStr && !newCompletedDatesStr.includes(task.lastCompletedDateStr)) {
+        newCompletedDatesStr.push(task.lastCompletedDateStr);
+    }
+
+    if (currentlyCompleted) {
+        newCompletedDatesStr = newCompletedDatesStr.filter(d => d !== targetDateStr);
+    } else {
+        newCompletedDatesStr.push(targetDateStr);
+    }
+
     const updated = {
         ...task,
-        lastCompletedDateStr: currentlyCompleted ? undefined : targetDateStr
+        completedDatesStr: newCompletedDatesStr,
+        lastCompletedDateStr: newCompletedDatesStr.length > 0 ? newCompletedDatesStr[newCompletedDatesStr.length - 1] : undefined
     };
 
     setRoutineTasks(prev => prev.map(t => t.id === task.id ? updated : t));
@@ -939,12 +989,7 @@ const App: React.FC = () => {
             projects={projects}
             lessonPlans={lessonPlans}
             onTaskSelect={(task) => {
-               if (task._isSubtaskDisplay && task._parentTaskId) {
-                  const parent = globalTasks.find(t => t.id === task._parentTaskId);
-                  if (parent) openTaskModal(parent);
-               } else {
-                  openTaskModal(task);
-               }
+               openTaskModal(task);
             }}
             onProjectSelect={(project) => {
                setActiveTab('projects');
@@ -962,9 +1007,9 @@ const App: React.FC = () => {
             }}
           />
 
-          <div className="flex flex-wrap items-center gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm">
+          <div className="flex flex-nowrap items-center gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
             {/* Term Selector */}
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <select 
                 className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
                 value={selectedTermId}
@@ -978,12 +1023,12 @@ const App: React.FC = () => {
             </div>
 
             {/* Class Filter */}
-            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-3 ml-1">
-               <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-2 lg:pl-3 ml-0.5 lg:ml-1 shrink-0">
+               <div className="absolute left-5 lg:left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
                   <Filter size={14} />
                </div>
                <select 
-                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-9 pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[150px] truncate shadow-sm"
+                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 lg:pl-9 pr-7 lg:pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[120px] lg:max-w-[150px] truncate shadow-sm"
                   value={viewFilter}
                   onChange={(e) => setViewFilter(e.target.value)}
                >
@@ -996,7 +1041,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Week Navigator */}
-            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm">
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm shrink-0 ml-1">
               <button 
                 onClick={handlePrevWeek} 
                 disabled={selectedWeekIndex === 0}
@@ -1252,12 +1297,7 @@ const App: React.FC = () => {
                                             return (
                                                 <div key={task.id}
                                                      onClick={() => {
-                                                        if (task._isSubtaskDisplay && task._parentTaskId) {
-                                                            const parent = globalTasks.find(t => t.id === task._parentTaskId);
-                                                            if (parent) openTaskModal(parent);
-                                                        } else {
-                                                            openTaskModal(task);
-                                                        }
+                                                        openTaskModal(task);
                                                      }}
                                                      className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                     <button
@@ -1324,12 +1364,7 @@ const App: React.FC = () => {
                                                             <div key={task.id}
                                                                  className={`flex items-start gap-1.5 bg-slate-100/50 dark:bg-slate-800/30 p-1.5 rounded border border-slate-200/50 dark:border-slate-700/50 text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity`}
                                                                  onClick={() => {
-                                                                    if (task._isSubtaskDisplay && task._parentTaskId) {
-                                                                        const parent = globalTasks.find(t => t.id === task._parentTaskId);
-                                                                        if (parent) openTaskModal(parent);
-                                                                    } else {
-                                                                        openTaskModal(task);
-                                                                    }
+                                                                    openTaskModal(task);
                                                                  }}
                                                             >
                                                                 <button

@@ -34,7 +34,18 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
 
     if (!isOpen) return null;
 
-    const taskCategories = categories.filter(c => c.type === 'task');
+    const taskCategories = categories.filter(c => c.type === 'project' || c.type === 'task');
+
+    // Filter projects based on the selected category.
+    // Ensure we don't accidentally filter out the General Tasks project if it exists.
+    const filteredProjects = taskCategoryId
+        ? projects.filter(p => p.categoryId === taskCategoryId)
+        : projects;
+
+    const selectedCategory = categories.find(c => c.id === taskCategoryId);
+    const generalTasksProject = selectedCategory
+        ? filteredProjects.find(p => p.name === `${selectedCategory.name} General Tasks`)
+        : null;
 
 
     const handleAiTaskExtract = async () => {
@@ -187,14 +198,45 @@ const handleSaveTask = (e: React.FormEvent) => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                                    <select
+                                        value={taskCategoryId}
+                                        onChange={(e) => {
+                                            const newCategoryId = e.target.value;
+                                            setTaskCategoryId(newCategoryId);
+
+                                            // Find the General Tasks project for the newly selected category
+                                            const newCategory = categories.find(c => c.id === newCategoryId);
+                                            const newGeneralTasksProject = newCategory
+                                                ? projects.find(p => p.categoryId === newCategoryId && p.name === `${newCategory.name} General Tasks`)
+                                                : null;
+
+                                            // If a General Tasks project exists, select it by default, otherwise reset
+                                            setTaskProjectId(newGeneralTasksProject ? newGeneralTasksProject.id : '');
+                                        }}
+                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    >
+                                        <option value="">None</option>
+                                        {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Project</label>
                                     <select
                                         value={taskProjectId}
                                         onChange={(e) => setTaskProjectId(e.target.value)}
                                         className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
-                                        <option value="">No Project (Global Task)</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        <option value="">
+                                            {selectedCategory ? 'No Specific Project' : 'No Project (Global Task)'}
+                                        </option>
+                                        {taskCategoryId && generalTasksProject && (
+                                            <option value={generalTasksProject.id}>{generalTasksProject.name}</option>
+                                        )}
+                                        {filteredProjects
+                                            .filter(p => !generalTasksProject || p.id !== generalTasksProject.id)
+                                            .map(p => <option key={p.id} value={p.id}>{p.name}</option>)
+                                        }
                                     </select>
                                 </div>
                                 <div>
@@ -207,17 +249,6 @@ const handleSaveTask = (e: React.FormEvent) => {
                                         <option value="High">High</option>
                                         <option value="Medium">Medium</option>
                                         <option value="Low">Low</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-                                    <select
-                                        value={taskCategoryId}
-                                        onChange={(e) => setTaskCategoryId(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
-                                    >
-                                        <option value="">None</option>
-                                        {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
