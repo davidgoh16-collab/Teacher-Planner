@@ -588,11 +588,27 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             return daysDiff <= 7;
         };
 
-        const q1 = tasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
-        const q2 = tasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
-        const q3 = tasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
-        const q4 = tasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
-        const completed = tasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        tasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const q1 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
+        const q2 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
+        const q3 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
+        const q4 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+        const completed = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = allCategories.find(c => c.id === task.categoryId);
@@ -736,8 +752,24 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // Timeline View
     const renderTimelineView = () => {
-        const uncompletedTasks = tasks.filter(t => t.status !== 'Completed');
-        const completedTasks = tasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        tasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const uncompletedTasks = allFlattenedTasks.filter(t => t.status !== 'Completed');
+        const completedTasks = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         const sortedTasks = [...uncompletedTasks].sort((a, b) => {
             const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
