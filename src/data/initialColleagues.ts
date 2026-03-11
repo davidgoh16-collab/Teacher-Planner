@@ -26,6 +26,7 @@ const DT_COLOR = 'bg-amber-100 text-amber-800';
 const CON_COLOR = 'bg-stone-200 text-stone-800';
 const ETH_COLOR = 'bg-violet-100 text-violet-800';
 const SP_COLOR = 'bg-red-100 text-red-800';
+const MUS_COLOR = 'bg-lime-100 text-lime-800';
 
 export const INITIAL_COLLEAGUES: Omit<Colleague, 'id'>[] = [
   {
@@ -1281,6 +1282,103 @@ export const INITIAL_COLLEAGUES: Omit<Colleague, 'id'>[] = [
         "Period 4": null,
         "Period 5": null,
         "Period 6": createEntry("12/Eng GOSE", "EVIS", ENG_COLOR),
+      },
+    },
+  },
+  {
+    name: "Miss S HARMAN",
+    week1: {
+      Monday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 2": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 3": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 4": null,
+        "Period 5": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 6": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+      },
+      Tuesday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S Mentoring", "D13", DUTY_COLOR),
+        "Period 2": createEntry("10S Mentoring", "D13", DUTY_COLOR),
+        "Period 3": null,
+        "Period 4": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("13/Mat GCSE", "EP4", MATH_COLOR),
+        "Period 6": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+      },
+      Wednesday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 3": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 4": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("7V/Mus", "MUS", MUS_COLOR),
+        "Period 6": createEntry("13/Mat GCSE", "EP4", MATH_COLOR),
+      },
+      Thursday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 3": createEntry("PPA", "", PPA_COLOR),
+        "Period 4": createEntry("8Y/Mat3", "EP4", MATH_COLOR),
+        "Period 5": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 6": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+      },
+      Friday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("PPA", "", PPA_COLOR),
+        "Period 3": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 4": createEntry("13/Mat GCSE", "EP4", MATH_COLOR),
+        "Period 5": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 6": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+      },
+    },
+    week2: {
+      Monday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 3": createEntry("PPA", "", PPA_COLOR),
+        "Period 4": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 6": createEntry("8Y/Mat3", "EP4", MATH_COLOR),
+      },
+      Tuesday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+        "Period 3": null,
+        "Period 4": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 6": createEntry("8Y/Mat3", "EP4", MATH_COLOR),
+      },
+      Wednesday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 3": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+        "Period 4": createEntry("8Y/Mat3", "EP4", MATH_COLOR),
+        "Period 5": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 6": createEntry("13/Mat GCSE", "EP4", MATH_COLOR),
+      },
+      Thursday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 3": createEntry("PPA", "", PPA_COLOR),
+        "Period 4": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("Meeting", "", ADMIN_COLOR),
+        "Period 6": createEntry("11Y/Mat2", "EP4", MATH_COLOR),
+      },
+      Friday: {
+        "Morning Mtg": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 1": createEntry("10S", "D13", ADMIN_COLOR),
+        "Period 2": createEntry("13/Mat GCSE", "EP4", MATH_COLOR),
+        "Period 3": createEntry("8X/Mat1", "EP4", MATH_COLOR),
+        "Period 4": createEntry("11X/Mat2", "EP4", MATH_COLOR),
+        "Period 5": createEntry("Mentoring", "", DUTY_COLOR),
+        "Period 6": createEntry("10Y/Mat2", "EP4", MATH_COLOR),
       },
     },
   },
