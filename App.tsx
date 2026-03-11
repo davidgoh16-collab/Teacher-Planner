@@ -22,6 +22,7 @@ import {
   addDays, 
   formatDate 
 } from './utils/dateUtils';
+import { getContrastTextColor } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
@@ -993,42 +994,71 @@ const App: React.FC = () => {
       
       {/* Top Navigation Bar */}
       <header className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white shadow-lg z-50 sticky top-0 border-b border-gray-200 dark:border-slate-800">
-        <div className="w-full px-4 py-3 flex flex-col xl:flex-row justify-between items-center gap-4">
+        <div className="w-full px-2 sm:px-4 py-2 sm:py-3 flex flex-col xl:flex-row justify-between items-center gap-3 sm:gap-4">
           
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="bg-green-600 p-2 rounded-lg shadow-sm">
-              <BookOpen size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Teacher Planner</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
-            </div>
+          <div className="flex items-center justify-between w-full xl:w-auto shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-600 p-2 rounded-lg shadow-sm">
+                  <BookOpen size={20} className="text-white sm:w-6 sm:h-6" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold tracking-tight">Teacher Planner</h1>
+                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
+                </div>
+              </div>
+
+              {/* User Profile / Logout for Mobile */}
+              <div className="flex items-center gap-2 xl:hidden">
+                  <button
+                      onClick={cycleTheme}
+                      className="flex items-center justify-center bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
+                      title={`Theme: ${theme}`}
+                  >
+                      {getThemeIcon()}
+                  </button>
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-gray-300 dark:border-slate-600 shadow-sm" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => signOut(auth)}
+                    className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors"
+                    title="Sign Out"
+                  >
+                    <LogOut size={16} />
+                  </button>
+              </div>
           </div>
 
-          <GlobalSearch
-            globalTasks={globalTasks}
-            projects={projects}
-            lessonPlans={lessonPlans}
-            onTaskSelect={(task) => {
-               openTaskModal(task);
-            }}
-            onProjectSelect={(project) => {
-               setActiveTab('projects');
-               setSelectedProjectId(project.id);
-            }}
-            onLessonSelect={(lesson) => {
-               setActiveTab('timetable');
-               const d = new Date(lesson.dateStr);
-               const weekIdx = weeksInTerm.findIndex(w => {
-                  const end = addDays(w.startDate, 7);
-                  return d >= w.startDate && d < end;
-               });
-               if (weekIdx !== -1) setSelectedWeekIndex(weekIdx);
-               openLessonModal(lesson.dateStr, lesson.periodLabel, lesson.title || 'Lesson');
-            }}
-          />
+          <div className="w-full xl:w-auto max-w-lg xl:max-w-none">
+              <GlobalSearch
+                globalTasks={globalTasks}
+                projects={projects}
+                lessonPlans={lessonPlans}
+                onTaskSelect={(task) => {
+                   openTaskModal(task);
+                }}
+                onProjectSelect={(project) => {
+                   setActiveTab('projects');
+                   setSelectedProjectId(project.id);
+                }}
+                onLessonSelect={(lesson) => {
+                   setActiveTab('timetable');
+                   const d = new Date(lesson.dateStr);
+                   const weekIdx = weeksInTerm.findIndex(w => {
+                      const end = addDays(w.startDate, 7);
+                      return d >= w.startDate && d < end;
+                   });
+                   if (weekIdx !== -1) setSelectedWeekIndex(weekIdx);
+                   openLessonModal(lesson.dateStr, lesson.periodLabel, lesson.title || 'Lesson');
+                }}
+              />
+          </div>
 
-          <div className="flex flex-nowrap items-center gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
+          <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto w-full xl:w-auto no-scrollbar justify-center xl:justify-start">
             {/* Term Selector */}
             <div className="relative group shrink-0">
               <select 
@@ -1090,7 +1120,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden xl:flex items-center gap-2 shrink-0">
             <button 
                 onClick={cycleTheme}
                 className="flex items-center gap-2 bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
@@ -1139,34 +1169,34 @@ const App: React.FC = () => {
       {/* Main Grid Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Tab Bar */}
-        <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2 flex gap-4 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-2 sm:px-4 py-2 flex gap-2 sm:gap-4 shrink-0 overflow-x-auto no-scrollbar scroll-smooth">
             <button 
               onClick={() => setActiveTab('timetable')}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'timetable' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'timetable' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               My Timetable
             </button>
             <button 
               onClick={() => setActiveTab('meetings')}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'meetings' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'meetings' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Meeting Planner
             </button>
             <button
               onClick={() => setActiveTab('projects')}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'projects' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'projects' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Project Planner
             </button>
             <button
               onClick={() => setActiveTab('apps')}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'apps' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'apps' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Apps
             </button>
             <button
               onClick={() => setActiveTab('communications')}
-              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'communications' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'communications' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Communications
             </button>
@@ -1312,6 +1342,7 @@ const App: React.FC = () => {
                                         {activeDailyTasks.map(task => {
                                             const project = projects.find(p => p.id === task.projectId);
                                             const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
+                                            const textColorClass = project?.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-700 dark:text-slate-200';
                                             const isScheduled = task.scheduledDateStr === dateStr;
                                             const isDue = task.deadlineDateStr === dateStr;
 
@@ -1338,12 +1369,12 @@ const App: React.FC = () => {
                                                                 ↳ {task._parentTaskTitle}
                                                             </span>
                                                         )}
-                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : textColorClass}`}>
                                                             {task.title}
                                                         </span>
-                                                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className="text-green-600 dark:text-green-400" /> Sch</span>}
-                                                            {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className="text-red-600 dark:text-red-400" /> Due</span>}
+                                                        <div className={`flex items-center gap-1.5 mt-1 text-[10px] ${project?.colorClass ? textColorClass + ' opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
+                                                            {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
                                                         </div>
                                                     </div>
                                                 </div>
