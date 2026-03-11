@@ -408,32 +408,32 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage long-term projects and tasks.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
             {/* View Toggle */}
-            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
+            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg shrink-0 w-full sm:w-auto overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                    <Briefcase size={16} /> Projects
+                    <Briefcase size={16} className="shrink-0" /> Projects
                 </button>
                 <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                    <Clock size={16} /> All Tasks
+                    <Clock size={16} className="shrink-0" /> Tasks
                 </button>
                 <button
                     onClick={() => setActiveTab('ideas')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                    <Lightbulb size={16} /> Ideas
+                    <Lightbulb size={16} className="shrink-0" /> Ideas
                 </button>
                 <button
                     onClick={() => setActiveTab('routines')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'routines' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'routines' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                    <RotateCw size={16} /> Routines
+                    <RotateCw size={16} className="shrink-0" /> Routines
                 </button>
             </div>
 

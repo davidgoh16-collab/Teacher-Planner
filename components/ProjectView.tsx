@@ -1059,7 +1059,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
         <div className={`flex flex-col h-full overflow-hidden transition-colors duration-300 ${project.colorClass || 'bg-gray-50 dark:bg-slate-950'}`}>
 
             {/* Header Area */}
-            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-800/50 p-4 md:px-8 shrink-0 flex items-center justify-between z-10 sticky top-0">
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-800/50 p-4 md:px-8 shrink-0 flex items-center justify-between z-10 sticky top-0 flex-wrap gap-4">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBack}
@@ -1067,11 +1067,11 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className={`text-2xl font-bold ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-800 dark:text-white'}`}>{project.name}</h1>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h1 className={`text-xl md:text-2xl font-bold truncate ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-800 dark:text-white'}`}>{project.name}</h1>
                             {projectCategory && (
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${projectCategory.colorClass} ${getContrastTextColor(projectCategory.colorClass)}`}>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-semibold border whitespace-nowrap ${projectCategory.colorClass} ${getContrastTextColor(projectCategory.colorClass)}`}>
                                     {projectCategory.name}
                                 </span>
                             )}
@@ -1079,7 +1079,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     {!isReadOnly && (
                         <button
                             onClick={() => setIsAskAiModalOpen(true)}
