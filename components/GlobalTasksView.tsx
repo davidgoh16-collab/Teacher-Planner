@@ -842,13 +842,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             {/* Filters Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 sticky top-0 z-20">
 
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
-                    <button onClick={() => setViewMode('matrix')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                    <button onClick={() => setViewMode('timeline')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start w-full sm:w-auto">
+                    <button onClick={() => setViewMode('matrix')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                    <button onClick={() => setViewMode('timeline')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                 </div>
 
                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64 min-w-[200px]">
+                    <div className="relative flex-1 w-full md:w-64 min-w-[150px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
@@ -859,23 +859,25 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                         />
                     </div>
 
-                    <select
-                        value={filterProject}
-                        onChange={(e) => setFilterProject(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 max-w-[150px]"
-                    >
-                        <option value="All">All Projects</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
+                        <select
+                            value={filterProject}
+                            onChange={(e) => setFilterProject(e.target.value)}
+                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-w-[120px] max-w-[150px]"
+                        >
+                            <option value="All">All Projects</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
 
-                    <select
-                        value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 max-w-[150px]"
-                    >
-                        <option value="All">All Categories</option>
-                        {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-w-[120px] max-w-[150px]"
+                        >
+                            <option value="All">All Categories</option>
+                            {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
                 </div>
             </div>
 
