@@ -22,6 +22,7 @@ import {
   addDays, 
   formatDate 
 } from './utils/dateUtils';
+import { getContrastTextColor } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
@@ -1341,6 +1342,7 @@ const App: React.FC = () => {
                                         {activeDailyTasks.map(task => {
                                             const project = projects.find(p => p.id === task.projectId);
                                             const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
+                                            const textColorClass = project?.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-700 dark:text-slate-200';
                                             const isScheduled = task.scheduledDateStr === dateStr;
                                             const isDue = task.deadlineDateStr === dateStr;
 
@@ -1367,12 +1369,12 @@ const App: React.FC = () => {
                                                                 ↳ {task._parentTaskTitle}
                                                             </span>
                                                         )}
-                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                        <span className={`font-medium line-clamp-2 leading-tight ${task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : textColorClass}`}>
                                                             {task.title}
                                                         </span>
-                                                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className="text-green-600 dark:text-green-400" /> Sch</span>}
-                                                            {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className="text-red-600 dark:text-red-400" /> Due</span>}
+                                                        <div className={`flex items-center gap-1.5 mt-1 text-[10px] ${project?.colorClass ? textColorClass + ' opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
+                                                            {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
                                                         </div>
                                                     </div>
                                                 </div>
