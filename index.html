@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#16a34a" />
+    <link rel="manifest" href="/manifest.json" />
     <title>EduPlan 2025</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -65,5 +67,16 @@
   <body class="bg-gray-50 dark:bg-slate-950 transition-colors duration-200">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+          console.log('SW registered: ', registration);
+        }).catch(registrationError => {
+          console.log('SW registration failed: ', registrationError);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
