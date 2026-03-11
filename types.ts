@@ -86,6 +86,11 @@ export interface Task {
   completedAt?: number;
   recurrenceType?: 'daily' | 'weekly';
   recurrenceDays?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
+
+  // Client-side only properties for displaying subtasks in flat lists
+  _isSubtaskDisplay?: boolean;
+  _parentTaskId?: string;
+  _parentTaskTitle?: string;
 }
 
 export interface Idea {
@@ -141,7 +146,8 @@ export interface RoutineTask {
   priority: 'High' | 'Medium' | 'Low';
   type: 'daily' | 'weekly';
   daysOfWeek?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday
-  lastCompletedDateStr?: string; // YYYY-MM-DD
+  lastCompletedDateStr?: string; // YYYY-MM-DD (legacy)
+  completedDatesStr?: string[]; // Array of YYYY-MM-DD for preserving history in UI
   createdAt: number;
 }
 

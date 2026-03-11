@@ -104,14 +104,31 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     const taskCategories = categories.filter(c => c.type === 'task');
 
     // Derived Data & Filtering
+    const allTasksAndSubtasks = useMemo(() => {
+        return allTasks.flatMap(task => [
+            task,
+            ...(task.subtasks || []).map(st => ({
+                ...st,
+                _isSubtaskDisplay: true,
+                _parentTaskId: task.id,
+                _parentTaskTitle: task.title,
+                projectId: task.projectId, // inherit project for color and grouping
+                categoryId: task.categoryId, // inherit category
+                scheduledDateStr: task.scheduledDateStr, // inherit dates
+                deadlineDateStr: task.deadlineDateStr,
+                priority: task.priority // inherit priority
+            } as Task))
+        ]);
+    }, [allTasks]);
+
     const filteredTasks = useMemo(() => {
-        return allTasks.filter(t => {
+        return allTasksAndSubtasks.filter(t => {
             const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesProj = filterProject === 'All' || t.projectId === filterProject;
             const matchesCat = filterCategory === 'All' || t.categoryId === filterCategory;
             return matchesSearch && matchesProj && matchesCat;
         });
-    }, [allTasks, searchQuery, filterProject, filterCategory]);
+    }, [allTasksAndSubtasks, searchQuery, filterProject, filterCategory]);
 
     // Helpers
     const getProjectName = (projectId: string) => {
@@ -125,6 +142,30 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
     const handleToggleStatus = async (task: Task) => {
         if (isReadOnly) return;
+
+        if (task._parentTaskId) {
+            const parent = allTasks.find(t => t.id === task._parentTaskId);
+            if (!parent) return;
+
+            const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted'
+                             : task.status === 'Uncompleted' ? 'In Progress'
+                             : 'Completed';
+
+            const updatedSubtasks = parent.subtasks?.map(st =>
+                st.id === task.id ? { ...st, status: nextStatus } : st
+            );
+            const updatedParent = { ...parent, subtasks: updatedSubtasks };
+
+            try {
+                await saveTask(updatedParent);
+                if (onTaskUpdated) onTaskUpdated(updatedParent);
+                if (onTaskUpdate) onTaskUpdate();
+            } catch (e) {
+                console.error("Failed to update subtask", e);
+            }
+            return;
+        }
+
         const nextStatus: Task['status'] = task.status === 'Completed' ? 'Uncompleted'
                          : task.status === 'Uncompleted' ? 'In Progress'
                          : 'Completed';
@@ -183,12 +224,27 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         }
     };
 
-    const handleDeleteTask = async (taskId: string) => {
+    const handleDeleteTask = async (task: Task) => {
         if (isReadOnly) return;
         if (window.confirm("Are you sure you want to delete this task?")) {
+            if (task._parentTaskId) {
+                const parent = allTasks.find(t => t.id === task._parentTaskId);
+                if (!parent) return;
+                const updatedSubtasks = parent.subtasks?.filter(st => st.id !== task.id);
+                const updatedParent = { ...parent, subtasks: updatedSubtasks };
+                try {
+                    await saveTask(updatedParent);
+                    if (onTaskUpdated) onTaskUpdated(updatedParent);
+                    if (onTaskUpdate) onTaskUpdate();
+                } catch (e) {
+                    console.error("Failed to delete subtask", e);
+                }
+                return;
+            }
+
             try {
-                await deleteTask(taskId);
-                if (onTaskDeleted) onTaskDeleted(taskId);
+                await deleteTask(task.id);
+                if (onTaskDeleted) onTaskDeleted(task.id);
             } catch (e) {
                 console.error(e);
                 alert("Failed to delete task.");
@@ -253,11 +309,28 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             return daysDiff <= 7; // Urgent if due within 7 days
         };
 
-        const q1 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
-        const q2 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
-        const q3 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
-        const q4 = filteredTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
-        const completed = filteredTasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        filteredTasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent project/category info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        projectId: t.projectId,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const q1 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && isUrgent(t));
+        const q2 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority === 'High' && !isUrgent(t));
+        const q3 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && isUrgent(t));
+        const q4 = allFlattenedTasks.filter(t => t.status !== 'Completed' && t.priority !== 'High' && !isUrgent(t));
+        const completed = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         const TaskCard = ({ task }: { task: Task }) => {
             const cat = getCategoryDetails(task.categoryId);
@@ -283,14 +356,29 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                 {getStatusIcon(task.status)}
                             </button>
-                            <span className={`font-semibold text-sm leading-tight break-words ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-800 dark:text-slate-100'}`}>{task.title}</span>
+                            <div className="flex flex-col">
+                                {task._isSubtaskDisplay && (
+                                    <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5 truncate">
+                                        ↳ {task._parentTaskTitle}
+                                    </span>
+                                )}
+                                <span className={`font-semibold text-sm leading-tight break-words ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-800 dark:text-slate-100'}`}>{task.title}</span>
+                            </div>
                         </div>
                         {!isReadOnly && (
                             <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 bg-white/80 dark:bg-slate-800/80 p-1 rounded-md backdrop-blur-sm shadow-sm border border-slate-200 dark:border-slate-700">
-                                <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-1 text-slate-400 hover:text-blue-500 rounded" title="Edit Task">
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (task._parentTaskId) {
+                                        const parent = allTasks.find(t => t.id === task._parentTaskId);
+                                        if (parent) openEditModal(parent);
+                                    } else {
+                                        openEditModal(task);
+                                    }
+                                }} className="p-1 text-slate-400 hover:text-blue-500 rounded" title="Edit Task">
                                     <Edit2 size={14} />
                                 </button>
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1 text-slate-400 hover:text-red-500 rounded" title="Delete Task">
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task); }} className="p-1 text-slate-400 hover:text-red-500 rounded" title="Delete Task">
                                     <Trash2 size={14} />
                                 </button>
                             </div>
@@ -409,8 +497,25 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     };
 
     const renderTimelineView = () => {
-        const uncompletedTasks = filteredTasks.filter(t => t.status !== 'Completed');
-        const completedTasks = filteredTasks.filter(t => t.status === 'Completed');
+        // Flatten tasks to include subtasks
+        const allFlattenedTasks: Task[] = [];
+        filteredTasks.forEach(t => {
+            allFlattenedTasks.push(t);
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    // Inject parent project/category info into subtask for display
+                    allFlattenedTasks.push({
+                        ...st,
+                        projectId: t.projectId,
+                        categoryId: t.categoryId,
+                        title: `↳ ${st.title} (Subtask of ${t.title})`
+                    });
+                });
+            }
+        });
+
+        const uncompletedTasks = allFlattenedTasks.filter(t => t.status !== 'Completed');
+        const completedTasks = allFlattenedTasks.filter(t => t.status === 'Completed');
 
         // Sort tasks by date (earliest first), put tasks without dates at the bottom
         const sortedTasks = [...uncompletedTasks].sort((a, b) => {
@@ -505,6 +610,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                         </button>
 
                                                         <div className="flex-1 min-w-0">
+                                                        {task._isSubtaskDisplay && (
+                                                            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">
+                                                                ↳ {task._parentTaskTitle}
+                                                            </div>
+                                                        )}
                                                         <h4 className={`font-semibold text-lg leading-tight mb-2 ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                             {task.title}
                                                         </h4>
@@ -549,10 +659,18 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
                                                     {!isReadOnly && (
                                                         <div className="flex gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
-                                                            <button onClick={(e) => { e.stopPropagation(); openEditModal(task); }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit Task">
+                                                            <button onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (task._parentTaskId) {
+                                                                    const parent = allTasks.find(t => t.id === task._parentTaskId);
+                                                                    if (parent) openEditModal(parent);
+                                                                } else {
+                                                                    openEditModal(task);
+                                                                }
+                                                            }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit Task">
                                                                 <Edit2 size={16} />
                                                             </button>
-                                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
                                                                 <Trash2 size={16} />
                                                             </button>
                                                         </div>
@@ -633,6 +751,11 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                     </button>
 
                                                                     <div className="flex-1 min-w-0">
+                                                                    {task._isSubtaskDisplay && (
+                                                                        <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">
+                                                                            ↳ {task._parentTaskTitle}
+                                                                        </div>
+                                                                    )}
                                                                     <h4 className={`font-semibold text-lg leading-tight mb-2 ${task.status === 'Completed' ? 'line-through text-slate-500' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                                         {task.title}
                                                                     </h4>
@@ -663,7 +786,18 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
                                                                 {!isReadOnly && (
                                                                     <div className="flex gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity shrink-0">
-                                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
+                                                                        <button onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (task._parentTaskId) {
+                                                                                const parent = allTasks.find(t => t.id === task._parentTaskId);
+                                                                                if (parent) openEditModal(parent);
+                                                                            } else {
+                                                                                openEditModal(task);
+                                                                            }
+                                                                        }} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit Task">
+                                                                            <Edit2 size={16} />
+                                                                        </button>
+                                                                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTask(task); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Task">
                                                                             <Trash2 size={16} />
                                                                         </button>
                                                                     </div>
