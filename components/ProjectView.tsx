@@ -646,16 +646,17 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 <div onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-3 ${bgColorClass} rounded-lg shadow-sm border flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
-                            <input
-                                type="checkbox"
-                                checked={selectedTaskIds.has(task.id)}
-                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
-                            />
-                            <button onClick={() => handleToggleTaskStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                                {getStatusIcon(task.status)}
-                            </button>
+                            <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedTaskIds.has(task.id)}
+                                    onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                    className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                />
+                                <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                    {getStatusIcon(task.status)}
+                                </button>
+                            </div>
                             <span className="font-semibold text-sm leading-tight text-slate-800 dark:text-slate-100 break-words">{task.title}</span>
                         </div>
                         {!isReadOnly && (
@@ -868,16 +869,17 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
                                                 <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                     <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <input
-                                type="checkbox"
-                                checked={selectedTaskIds.has(task.id)}
-                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
-                            />
-                                                        <button onClick={() => handleToggleTaskStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                                                            {getStatusIcon(task.status)}
-                                                        </button>
+                                                        <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedTaskIds.has(task.id)}
+                                                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                            />
+                                                            <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                                {getStatusIcon(task.status)}
+                                                            </button>
+                                                        </div>
 
                                                         <div className="flex-1 min-w-0">
                                                         <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through' : ''}`}>
@@ -982,16 +984,17 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
                                                             <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={selectedTaskIds.has(task.id)}
-                                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
-                                                                    />
-                                                                    <button onClick={() => handleToggleTaskStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                                                                        {getStatusIcon(task.status)}
-                                                                    </button>
+                                                                    <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={selectedTaskIds.has(task.id)}
+                                                                            onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                            className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                        />
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                                            {getStatusIcon(task.status)}
+                                                                        </button>
+                                                                    </div>
 
                                                                     <div className="flex-1 min-w-0">
                                                                     <h4 className={`font-semibold text-lg text-slate-900 dark:text-white leading-tight mb-2 ${isCompleted ? 'line-through text-slate-500' : ''}`}>
@@ -1505,20 +1508,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                     return (
                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start gap-4">
-                            <input
-                                type="checkbox"
-                                checked={selectedTaskIds.has(task.id)}
-                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="mt-2 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
-                            />
-                                                <button
-                                                    onClick={() => handleToggleTaskStatus(task)}
-                                                    disabled={isReadOnly}
-                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
-                                                >
-                                                    {getStatusIcon(task.status)}
-                                                </button>
+                                                <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedTaskIds.has(task.id)}
+                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                        className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                    />
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
+                                                        disabled={isReadOnly}
+                                                        className={`shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                    >
+                                                        {getStatusIcon(task.status)}
+                                                    </button>
+                                                </div>
 
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -1789,20 +1793,21 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                     return (
                                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
                                                             <div className="flex items-start gap-4">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedTaskIds.has(task.id)}
-                                                                    onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="mt-2 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
-                                                                />
-                                                                <button
-                                                                    onClick={() => handleToggleTaskStatus(task)}
-                                                                    disabled={isReadOnly}
-                                                                    className={`mt-1 shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
-                                                                >
-                                                                    {getStatusIcon(task.status)}
-                                                                </button>
+                                                                <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedTaskIds.has(task.id)}
+                                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
+                                                                        className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                    />
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
+                                                                        disabled={isReadOnly}
+                                                                        className={`shrink-0 ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 transition-transform'}`}
+                                                                    >
+                                                                        {getStatusIcon(task.status)}
+                                                                    </button>
+                                                                </div>
 
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
