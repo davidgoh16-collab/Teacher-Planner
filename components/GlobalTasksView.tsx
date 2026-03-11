@@ -21,6 +21,7 @@ import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
 import ReviewTasksModal from './ReviewTasksModal';
+import TaskCardModal from './TaskCardModal';
 
 interface GlobalTasksViewProps {
     allTasks: Task[];
@@ -86,6 +87,16 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+    // Task Card Modal State
+    const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+    const [cardTask, setCardTask] = useState<Task | null>(null);
+
+    const openCardModal = (task: Task, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setCardTask(task);
+        setIsCardModalOpen(true);
+    };
 
     // Review Tasks Modal State
     const [reviewTasksModalOpen, setReviewTasksModalOpen] = useState(false);
@@ -158,6 +169,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
             try {
                 await saveTask(updatedParent);
+                if (cardTask?.id === updatedParent.id || cardTask?.id === task.id) {
+                    setCardTask(updatedParent.subtasks?.find(st => st.id === task.id) || updatedParent);
+                }
                 if (onTaskUpdated) onTaskUpdated(updatedParent);
                 if (onTaskUpdate) onTaskUpdate();
             } catch (e) {
@@ -217,6 +231,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
         try {
             await saveTask(updated);
+            if (cardTask?.id === updated.id) {
+                setCardTask(updated);
+            }
             if (onTaskUpdated) onTaskUpdated(updated);
         } catch (e) {
             console.error(e);
@@ -343,7 +360,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
 
     return (
-                <div className={`group p-3 ${bgColorClass} rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
+                <div onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-3 ${bgColorClass} rounded-lg shadow-sm border ${getPriorityColor(task.priority)} flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
                             <input
@@ -577,7 +594,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                         const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
 
                                         return (
-                                            <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                            <div key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer ${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
 
                                                 {/* Left side: Date Badge */}
                                                 <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
@@ -721,7 +738,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                     const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
 
                                                     return (
-                                                        <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                                        <div key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer ${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
                                                             <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
                                                                 {dateStr ? (
                                                                     <>
@@ -917,6 +934,17 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 onTasksUpdated={() => {
                     if (onTaskUpdate) onTaskUpdate();
                 }}
+            />
+
+            <TaskCardModal
+                isOpen={isCardModalOpen}
+                onClose={() => { setIsCardModalOpen(false); setCardTask(null); }}
+                task={cardTask}
+                projects={projects}
+                categories={categories}
+                isReadOnly={isReadOnly}
+                onEdit={(t) => { setIsCardModalOpen(false); openEditModal(t); }}
+                onTaskStatusChange={handleToggleStatus}
             />
 
             {selectedTaskIds.size > 0 && !isReadOnly && (

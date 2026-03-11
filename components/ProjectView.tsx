@@ -30,6 +30,7 @@ import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
 import ProjectAskAIModal from './ProjectAskAIModal';
 import ReviewTasksModal from './ReviewTasksModal';
+import TaskCardModal from './TaskCardModal';
 import { Idea } from '../types';
 
 interface ProjectViewProps {
@@ -191,6 +192,16 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
     // Project Ask AI Modal State
     const [isAskAiModalOpen, setIsAskAiModalOpen] = useState(false);
+
+    // Task Card Modal State
+    const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+    const [cardTask, setCardTask] = useState<Task | null>(null);
+
+    const openCardModal = (task: Task, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        setCardTask(task);
+        setIsCardModalOpen(true);
+    };
 
     // Sorting & Visibility State
     const [uncompletedSortBy, setUncompletedSortBy] = useState<'createdAt' | 'deadlineDateStr' | 'alphabetical' | 'priority'>('createdAt');
@@ -387,6 +398,9 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
         // Optimistic UI
         setTasks(tasks.map(t => t.id === task.id ? updated : t));
+        if (cardTask?.id === task.id) {
+            setCardTask(updated);
+        }
 
         try {
             await saveTask(updated);
@@ -395,6 +409,9 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             console.error(e);
             // Revert
             setTasks(tasks.map(t => t.id === task.id ? task : t));
+            if (cardTask?.id === task.id) {
+                setCardTask(task);
+            }
         }
     };
 
@@ -472,12 +489,18 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
         const updatedParent = { ...parentTask, subtasks: updatedSubtasks };
         setTasks(tasks.map(t => t.id === parentTask.id ? updatedParent : t));
+        if (cardTask?.id === parentTask.id) {
+            setCardTask(updatedParent);
+        }
 
         try {
             await saveTask(updatedParent);
         } catch (e) {
             console.error(e);
             setTasks(tasks.map(t => t.id === parentTask.id ? parentTask : t)); // Revert
+            if (cardTask?.id === parentTask.id) {
+                setCardTask(parentTask);
+            }
         }
     };
 
@@ -620,7 +643,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
 
 
     return (
-                <div className={`group p-3 ${bgColorClass} rounded-lg shadow-sm border flex flex-col gap-2 relative`}>
+                <div onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-3 ${bgColorClass} rounded-lg shadow-sm border flex flex-col gap-2 relative`}>
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
                             <input
@@ -827,7 +850,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
 
                                         return (
-                                            <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                            <div key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer ${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
                                                 <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
                                                     {dateStr ? (
                                                         <>
@@ -941,7 +964,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                     const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-900';
 
                                                     return (
-                                                        <div key={task.id} className={`${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
+                                                        <div key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer ${bgColorClass} p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 transition-opacity ${isCompleted ? 'opacity-50' : ''}`}>
                                                             <div className="shrink-0 md:w-24 flex flex-row md:flex-col items-center md:items-start gap-2 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-3 md:pb-0 md:pr-4">
                                                                 {dateStr ? (
                                                                     <>
@@ -1480,7 +1503,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                     const hasSubtasks = subtasks.length > 0;
 
                                     return (
-                                        <li key={task.id} className={`group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
+                                        <li key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start gap-4">
                             <input
                                 type="checkbox"
@@ -1497,7 +1520,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                     {getStatusIcon(task.status)}
                                                 </button>
 
-                                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
+                                                <div className="flex-1 min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
                                                         <h4 className={`font-semibold text-sm md:text-base ${task.status === 'Completed' ? 'line-through text-slate-500 dark:text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                             {task.title}
@@ -1764,7 +1787,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                     const hasSubtasks = subtasks.length > 0;
 
                                                     return (
-                                                        <li key={task.id} className="group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
+                                                        <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
                                                             <div className="flex items-start gap-4">
                                                                 <input
                                                                     type="checkbox"
@@ -1781,7 +1804,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                                     {getStatusIcon(task.status)}
                                                                 </button>
 
-                                                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTaskExpansion(task.id)}>
+                                                                <div className="flex-1 min-w-0">
                                                                     <div className="flex flex-wrap items-center gap-2 mb-1">
                                                                         <h4 className={`font-semibold text-sm md:text-base ${task.status === 'Completed' ? 'line-through text-slate-500 dark:text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                                                             {task.title}
@@ -1915,6 +1938,18 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 onTasksUpdated={() => {
                     if (onTaskUpdate) onTaskUpdate();
                 }}
+            />
+
+            <TaskCardModal
+                isOpen={isCardModalOpen}
+                onClose={() => { setIsCardModalOpen(false); setCardTask(null); }}
+                task={cardTask}
+                projects={[project]}
+                categories={allCategories}
+                isReadOnly={isReadOnly}
+                onEdit={(t) => { setIsCardModalOpen(false); openEditModal(t); }}
+                onTaskStatusChange={handleToggleTaskStatus}
+                onSubtaskStatusChange={handleToggleSubtaskStatus}
             />
 
             {selectedTaskIds.size > 0 && !isReadOnly && (
