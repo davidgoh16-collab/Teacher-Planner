@@ -26,6 +26,7 @@ import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
 import LiveAssistant from './components/LiveAssistant';
+import TaskCardModal from './components/TaskCardModal';
 import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
@@ -147,10 +148,12 @@ const App: React.FC = () => {
   const [editingLessonKey, setEditingLessonKey] = useState<string | null>(null);
   const [editingSubjectName, setEditingSubjectName] = useState<string>('');
 
-  // Task Edit Modal State
+  // Task Edit/Card Modal State
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [cardTask, setCardTask] = useState<Task | null>(null);
   
   // Calendar Modal State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -384,11 +387,18 @@ const App: React.FC = () => {
         const updatedParent = { ...parentTask, subtasks: updatedSubtasks };
 
         setGlobalTasks(prev => prev.map(t => t.id === parentTaskId ? updatedParent : t));
+        if (cardTask?.id === parentTaskId || cardTask?.id === taskId) {
+            setCardTask(updatedParent.subtasks!.find(st => st.id === taskId) || updatedParent);
+        }
+
         try {
             await saveTask(updatedParent);
         } catch (e) {
             console.error(e);
             setGlobalTasks(prev => prev.map(t => t.id === parentTaskId ? parentTask : t));
+            if (cardTask?.id === parentTaskId || cardTask?.id === taskId) {
+                setCardTask(parentTask);
+            }
         }
         return;
     }
@@ -406,6 +416,9 @@ const App: React.FC = () => {
 
     // Optimistic Update
     setGlobalTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+    if (cardTask?.id === taskId) {
+        setCardTask(updated);
+    }
 
     try {
         await saveTask(updated);
@@ -413,6 +426,9 @@ const App: React.FC = () => {
         console.error(e);
         // Revert
         setGlobalTasks(prev => prev.map(t => t.id === taskId ? task : t));
+        if (cardTask?.id === taskId) {
+            setCardTask(task);
+        }
     }
   };
 
@@ -459,6 +475,11 @@ const App: React.FC = () => {
   const openTaskModal = (task: Task) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
+  };
+
+  const openCardModal = (task: Task) => {
+      setCardTask(task);
+      setIsCardModalOpen(true);
   };
 
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
@@ -1296,8 +1317,13 @@ const App: React.FC = () => {
 
                                             return (
                                                 <div key={task.id}
-                                                     onClick={() => {
-                                                        openTaskModal(task);
+                                                     onClick={(e) => {
+                                                        if (task._parentTaskId) {
+                                                            const parent = globalTasks.find(t => t.id === task._parentTaskId);
+                                                            if (parent) openCardModal(parent);
+                                                        } else {
+                                                            openCardModal(task);
+                                                        }
                                                      }}
                                                      className={`flex items-start gap-1.5 ${bgColorClass} p-1.5 rounded border border-slate-200 dark:border-slate-700 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                     <button
@@ -1363,8 +1389,13 @@ const App: React.FC = () => {
                                                         {completedDailyTasks.map(task => (
                                                             <div key={task.id}
                                                                  className={`flex items-start gap-1.5 bg-slate-100/50 dark:bg-slate-800/30 p-1.5 rounded border border-slate-200/50 dark:border-slate-700/50 text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity`}
-                                                                 onClick={() => {
-                                                                    openTaskModal(task);
+                                                                 onClick={(e) => {
+                                                                    if (task._parentTaskId) {
+                                                                        const parent = globalTasks.find(t => t.id === task._parentTaskId);
+                                                                        if (parent) openCardModal(parent);
+                                                                    } else {
+                                                                        openCardModal(task);
+                                                                    }
                                                                  }}
                                                             >
                                                                 <button
@@ -1532,6 +1563,18 @@ const App: React.FC = () => {
         task={editingTask}
         categories={categories}
         onSave={handleEditTaskSave}
+      />
+
+      <TaskCardModal
+        isOpen={isCardModalOpen}
+        onClose={() => { setIsCardModalOpen(false); setCardTask(null); }}
+        task={cardTask}
+        projects={projects}
+        categories={categories}
+        isReadOnly={actualIsReadOnly}
+        onEdit={(t) => { setIsCardModalOpen(false); openTaskModal(t); }}
+        onTaskStatusChange={(t) => toggleTaskCompletion({ stopPropagation: () => {} } as any, t.id, t._parentTaskId)}
+        onSubtaskStatusChange={(parentTask, subtaskId) => toggleTaskCompletion({ stopPropagation: () => {} } as any, subtaskId, parentTask.id)}
       />
 
       <LessonModal 

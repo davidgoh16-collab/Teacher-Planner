@@ -24,6 +24,7 @@ import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
 import AIInsightsPanel from './AIInsightsPanel';
 import TaskEditModal from './TaskEditModal';
+import TaskCardModal from './TaskCardModal';
 import RoutineTasksView from './RoutineTasksView';
 import { Idea } from '../types';
 import { getContrastTextColor } from '../utils/colorUtils';
@@ -79,9 +80,16 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
   const [addingGeneralTaskCategory, setAddingGeneralTaskCategory] = useState<string | null>(null);
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [cardTask, setCardTask] = useState<Task | null>(null);
 
-  const openEditModal = (task: Task, e: React.MouseEvent) => {
+  const openCardModal = (task: Task, e: React.MouseEvent) => {
       e.stopPropagation();
+      setCardTask(task);
+      setIsCardModalOpen(true);
+  };
+
+  const openEditModal = (task: Task) => {
       setEditingTask(task);
       setIsTaskModalOpen(true);
   };
@@ -137,12 +145,18 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
     }
 
     setAllTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+    if (cardTask?.id === task.id) {
+        setCardTask(updated);
+    }
     if (onTaskUpdate) onTaskUpdate(updated);
     try {
         await saveTask(updated);
     } catch (e) {
         console.error(e);
         setAllTasks(prev => prev.map(t => t.id === task.id ? task : t)); // revert
+        if (cardTask?.id === task.id) {
+            setCardTask(task);
+        }
         if (onTaskUpdate) onTaskUpdate(task);
     }
   };
@@ -636,17 +650,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                                             {topTasks.length === 0 ? (
                                                                 <li className="text-xs text-slate-400 italic mt-2">No active tasks.</li>
                                                             ) : topTasks.map(task => (
-                                                                <li key={task.id} className="text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                                                <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
                                                                     <div className="flex items-start gap-2">
                                                                         <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
                                                                             {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600 hover:text-slate-500" />}
                                                                         </button>
                                                                         <span className={`flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{task.title}</span>
-                                                                        {!isReadOnly && (
-                                                                            <button onClick={(e) => openEditModal(task, e)} className="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/task:opacity-100 transition-opacity rounded">
-                                                                                <Edit2 size={12} />
-                                                                            </button>
-                                                                        )}
                                                                     </div>
                                                                 </li>
                                                             ))}
@@ -789,6 +798,17 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
           task={editingTask ? editingTask : convertingIdea ? { id: `task_${Date.now()}`, projectId: convertingIdea.projectId || '', title: convertingIdea.text.split('\n')[0].substring(0, 50), description: convertingIdea.text, status: 'Uncompleted', priority: 'Medium' } : addingGeneralTaskCategory ? { id: `task_${Date.now()}`, projectId: '', categoryId: addingGeneralTaskCategory, title: '', status: 'Uncompleted', priority: 'Medium' } as Task : null} projects={projects}
           categories={categories}
           onSave={handleSaveConvertedTask}
+      />
+
+      <TaskCardModal
+          isOpen={isCardModalOpen}
+          onClose={() => { setIsCardModalOpen(false); setCardTask(null); }}
+          task={cardTask}
+          projects={projects}
+          categories={categories}
+          isReadOnly={isReadOnly}
+          onEdit={openEditModal}
+          onTaskStatusChange={handleToggleTaskStatus}
       />
 
     </div>
