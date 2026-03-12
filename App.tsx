@@ -1527,6 +1527,12 @@ const App: React.FC = () => {
                                                         ))}
                                                     </div>
                                                 )}
+
+                                                {plan.notes && (
+                                                    <div className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
+                                                        {plan.notes}
+                                                    </div>
+                                                )}
                                             </div>
                                             {!isReadOnly && (
                                                 <div className="flex justify-end mt-2 pt-2 border-t border-black/5 dark:border-white/10">
