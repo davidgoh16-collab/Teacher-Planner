@@ -168,7 +168,7 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
 
                             <div className="space-y-2">
                                 {subtasks.map(st => (
-                                    <div key={st.id} className={`flex items-start gap-3 p-3 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors ${st.status === 'Completed' ? 'opacity-60 bg-slate-50 dark:bg-slate-900/50' : ''}`}>
+                                    <div key={st.id} onClick={(e) => e.stopPropagation()} className={`flex items-start gap-3 p-3 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors ${st.status === 'Completed' ? 'opacity-60 bg-slate-50 dark:bg-slate-900/50' : ''}`}>
                                         <button
                                             onClick={() => onSubtaskStatusChange && onSubtaskStatusChange(task, st.id)}
                                             disabled={isReadOnly || !onSubtaskStatusChange}

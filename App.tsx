@@ -1258,9 +1258,9 @@ const App: React.FC = () => {
                                             _parentTaskId: task.id,
                                             _parentTaskTitle: task.title,
                                             projectId: task.projectId, // inherit project for color
-                                            scheduledDateStr: task.scheduledDateStr, // inherit dates
-                                            deadlineDateStr: task.deadlineDateStr,
-                                            priority: task.priority // inherit priority
+                                            scheduledDateStr: st.scheduledDateStr || task.scheduledDateStr, // inherit dates
+                                            deadlineDateStr: st.deadlineDateStr || task.deadlineDateStr,
+                                            priority: st.priority || task.priority // inherit priority
                                         } as Task))
                                     ]);
 
@@ -1349,6 +1349,7 @@ const App: React.FC = () => {
                                             return (
                                                 <div key={task.id}
                                                      onClick={(e) => {
+                                                        e.stopPropagation();
                                                         if (task._parentTaskId) {
                                                             const parent = globalTasks.find(t => t.id === task._parentTaskId);
                                                             if (parent) openCardModal(parent);
@@ -1421,7 +1422,8 @@ const App: React.FC = () => {
                                                             <div key={task.id}
                                                                  className={`flex items-start gap-1.5 bg-slate-100/50 dark:bg-slate-800/30 p-1.5 rounded border border-slate-200/50 dark:border-slate-700/50 text-xs cursor-pointer opacity-70 hover:opacity-100 transition-opacity`}
                                                                  onClick={(e) => {
-                                                                    if (task._parentTaskId) {
+                                                        e.stopPropagation();
+                                                        if (task._parentTaskId) {
                                                                         const parent = globalTasks.find(t => t.id === task._parentTaskId);
                                                                         if (parent) openCardModal(parent);
                                                                     } else {

@@ -368,6 +368,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
         return (
             <ProjectView
                 project={project}
+                allProjects={projects}
                 allCategories={categories}
                 allTasks={allTasks.filter(t => t.projectId === project.id)}
                 isReadOnly={isReadOnly}
@@ -470,6 +471,42 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                 <p className="text-sm text-slate-500 mt-1">Quick thoughts not yet assigned to projects or converted to tasks.</p>
             </div>
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+
+                {!isReadOnly && (
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const input = (e.target as any).ideaInput;
+                        const text = input.value.trim();
+                        if (!text) return;
+
+                        const newIdea = {
+                            id: `idea_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            text: text,
+                            projectId: undefined,
+                            createdAt: Date.now()
+                        };
+
+                        try {
+                            const { saveIdea } = await import('../services/projectService');
+                            await saveIdea(newIdea);
+                            setIdeas(prev => [newIdea, ...prev]);
+                            input.value = '';
+                        } catch(err) {
+                            console.error("Failed to add idea", err);
+                        }
+                    }} className="mb-6 flex gap-2 max-w-2xl mx-auto">
+                        <input
+                            name="ideaInput"
+                            type="text"
+                            placeholder="Jot down a global idea..."
+                            className="flex-1 bg-white dark:bg-slate-950 border border-amber-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-amber-500"
+                            autoComplete="off"
+                        />
+                        <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shadow-sm">
+                            Add Idea
+                        </button>
+                    </form>
+                )}
                 {ideas.filter(i => !i.projectId).length === 0 ? (
                     <div className="text-center text-slate-400 dark:text-slate-500 mt-10">
                         <Lightbulb size={40} className="mx-auto mb-3 opacity-20" />
@@ -565,128 +602,160 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                 ) : (
                     <div className="space-y-8">
                         {(() => {
-                            // Group projects by category
-                            const groups = new Map<string, typeof filteredProjects>();
-                            groups.set('uncategorized', []);
-                            projectCategories.forEach(c => groups.set(c.id, []));
 
-                            filteredProjects.forEach(project => {
-                                if (project.categoryId && groups.has(project.categoryId)) {
-                                    groups.get(project.categoryId)!.push(project);
-                                } else {
-                                    groups.get('uncategorized')!.push(project);
-                                }
+                            // Calculate progress for all filtered projects first
+                            const projectsWithProgress = filteredProjects.map(project => {
+                                const projectTasks = allTasks.filter(t => t.projectId === project.id);
+                                const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
+                                const totalTasks = projectTasks.length;
+                                const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+                                return { ...project, _progress: progress, _totalTasks: totalTasks, _completedTasks: completedTasks, _projectTasks: projectTasks };
                             });
 
-                            return Array.from(groups.entries()).map(([catId, catProjects]) => {
-                                if (catProjects.length === 0) return null;
-                                const category = projectCategories.find(c => c.id === catId);
+                            // Sort by progress ascending (least completed first, most completed last)
+                            projectsWithProgress.sort((a, b) => a._progress - b._progress);
+
+                            const activeProjects = projectsWithProgress.filter(p => !(p._progress === 100 && p._totalTasks > 0));
+                            const completedProjects = projectsWithProgress.filter(p => p._progress === 100 && p._totalTasks > 0);
+
+                            const renderProjectCard = (project: any) => {
+                                const topTasks = project._projectTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
+                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
+                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+                                    if (pDiff !== 0) return pDiff;
+                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
+                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
+                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
+                                }).slice(0, 5);
 
                                 return (
-                                    <div key={catId} className="space-y-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            {category ? (
-                                                <>
-                                                    <span className={`w-3 h-3 rounded-full border ${category.colorClass.split(' ')[0]} ${category.colorClass.split(' ')[2] || ''}`}></span>
-                                                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{category.name}</h2>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="w-3 h-3 rounded-full border bg-slate-200 border-slate-300"></span>
-                                                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Other Projects</h2>
-                                                </>
+                                <div
+                                    key={project.id}
+                                    onClick={() => {
+                                        setSelectedProjectId(project.id);
+                                        window.scrollTo(0, 0);
+                                    }}
+                                    className={`group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border ${project.colorClass || 'border-slate-200 dark:border-slate-800'} shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1`}
+                                >
+                                    {/* Card Header with optional background color */}
+                                    <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
+                                        <div className="flex justify-between items-start gap-2 mb-2">
+                                            <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
+                                                {project.name}
+                                            </h3>
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={(e) => handleDeleteProject(project.id, e)}
+                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all shrink-0"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
                                             )}
                                         </div>
+                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)} ${getContrastTextColor(getCategoryClass(project.categoryId))}`}>
+                                            {getCategoryName(project.categoryId)}
+                                        </span>
+                                    </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                                    {/* Card Body */}
+                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                        <ul className="space-y-2 mb-4 flex-1">
+                                            {topTasks.length === 0 ? (
+                                                <li className="text-xs text-slate-400 italic mt-2">No active tasks.</li>
+                                            ) : topTasks.map(task => (
+                                                <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                                    <div className="flex items-start gap-2">
+                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
+                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600 hover:text-slate-500" />}
+                                                        </button>
+                                                        <span className={`flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{task.title}</span>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
 
-                                            {catProjects.map(project => {
-                                                const projectTasks = allTasks.filter(t => t.projectId === project.id);
-                                                const completedTasks = projectTasks.filter(t => t.status === 'Completed').length;
-                                                const totalTasks = projectTasks.length;
-                                                const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-                                                const topTasks = projectTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
-                                                    const pMap: any = { High: 3, Medium: 2, Low: 1 };
-                                                    const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
-                                                    if (pDiff !== 0) return pDiff;
-                                                    const dateA = a.deadlineDateStr || a.scheduledDateStr || '9999-12-31';
-                                                    const dateB = b.deadlineDateStr || b.scheduledDateStr || '9999-12-31';
-                                                    return new Date(dateA).getTime() - new Date(dateB).getTime();
-                                                }).slice(0, 5);
-
-                                                return (
+                                        {/* Progress Bar & Stats */}
+                                        <div className="space-y-3 mt-auto">
+                                            <div className="flex justify-between items-end text-sm">
+                                                <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
+                                                <span className="font-bold text-slate-900 dark:text-white">{project._progress}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                                                 <div
-                                                    key={project.id}
-                                                    onClick={() => {
-                                                        setSelectedProjectId(project.id);
-                                                        window.scrollTo(0, 0);
-                                                    }}
-                                                    className={`group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border ${project.colorClass || 'border-slate-200 dark:border-slate-800'} shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1`}
-                                                >
-                                                    {/* Card Header with optional background color */}
-                                                    <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
-                                                        <div className="flex justify-between items-start gap-2 mb-2">
-                                                            <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
-                                                                {project.name}
-                                                            </h3>
-                                                            {!isReadOnly && (
-                                                                <button
-                                                                    onClick={(e) => handleDeleteProject(project.id, e)}
-                                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all shrink-0"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)} ${getContrastTextColor(getCategoryClass(project.categoryId))}`}>
-                                                            {getCategoryName(project.categoryId)}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Card Body */}
-                                                    <div className="p-4 flex-1 flex flex-col justify-between">
-                                                        <ul className="space-y-2 mb-4 flex-1">
-                                                            {topTasks.length === 0 ? (
-                                                                <li className="text-xs text-slate-400 italic mt-2">No active tasks.</li>
-                                                            ) : topTasks.map(task => (
-                                                                <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1 border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50 group/task hover:border-green-300 dark:hover:border-green-700 transition-colors">
-                                                                    <div className="flex items-start gap-2">
-                                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className="mt-0.5 shrink-0 hover:scale-110">
-                                                                            {task.status === 'Completed' ? <CheckCircle2 size={14} className="text-green-500" /> : task.status === 'In Progress' ? <Clock size={14} className="text-amber-500" /> : <Circle size={14} className="text-slate-300 dark:text-slate-600 hover:text-slate-500" />}
-                                                                        </button>
-                                                                        <span className={`flex-1 truncate line-clamp-2 whitespace-normal break-words leading-tight ${task.status === 'Completed' ? 'line-through text-slate-400' : task.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{task.title}</span>
-                                                                    </div>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-
-                                                        {/* Progress Bar & Stats */}
-                                                        <div className="space-y-3 mt-auto">
-                                                            <div className="flex justify-between items-end text-sm">
-                                                                <span className="font-medium text-slate-700 dark:text-slate-300">Progress</span>
-                                                                <span className="font-bold text-slate-900 dark:text-white">{progress}%</span>
-                                                            </div>
-                                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                                                <div
-                                                                    className={`h-2 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
-                                                                    style={{ width: `${progress}%` }}
-                                                                />
-                                                            </div>
-                                                            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 pt-1">
-                                                                <span>{totalTasks} Tasks Total</span>
-                                                                <span>{completedTasks} Completed</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                );
-                                            })}
+                                                    className={`h-2 rounded-full transition-all duration-500 ${project._progress === 100 ? 'bg-green-500' : 'bg-green-400'}`}
+                                                    style={{ width: `${project._progress}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-500 pt-1">
+                                                <span>{project._totalTasks} Tasks Total</span>
+                                                <span>{project._completedTasks} Completed</span>
+                                            </div>
                                         </div>
                                     </div>
+                                </div>
                                 );
-                            });
-                        })()}
+                            };
+
+                            const renderGroups = (projectsToRender: typeof projectsWithProgress) => {
+                                const groups = new Map<string, typeof projectsToRender>();
+                                groups.set('uncategorized', []);
+                                projectCategories.forEach(c => groups.set(c.id, []));
+
+                                projectsToRender.forEach(project => {
+                                    if (project.categoryId && groups.has(project.categoryId)) {
+                                        groups.get(project.categoryId)!.push(project);
+                                    } else {
+                                        groups.get('uncategorized')!.push(project);
+                                    }
+                                });
+
+                                return Array.from(groups.entries()).map(([catId, catProjects]) => {
+                                    if (catProjects.length === 0) return null;
+                                    const category = projectCategories.find(c => c.id === catId);
+
+                                    return (
+                                        <div key={catId} className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                {category ? (
+                                                    <>
+                                                        <span className={`w-3 h-3 rounded-full border ${category.colorClass.split(' ')[0]} ${category.colorClass.split(' ')[2] || ''}`}></span>
+                                                        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{category.name}</h2>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="w-3 h-3 rounded-full border bg-slate-200 border-slate-300"></span>
+                                                        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Other Projects</h2>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                                                {catProjects.map(project => renderProjectCard(project))}
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            };
+
+                            return (
+                                <>
+                                    {renderGroups(activeProjects)}
+                                    {completedProjects.length > 0 && (
+                                        <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+                                            <details className="group">
+                                                <summary className="flex items-center gap-2 font-semibold text-slate-500 cursor-pointer list-none hover:text-slate-700 transition-colors">
+                                                    <span className="flex-1 text-lg flex items-center gap-2"><CheckCircle2 size={20} className="text-green-500" /> Completed Projects ({completedProjects.length})</span>
+                                                    <span className="transform group-open:rotate-180 transition-transform"><MoreVertical size={16} className="rotate-90"/></span>
+                                                </summary>
+                                                <div className="mt-6 opacity-60 hover:opacity-100 transition-opacity">
+                                                    {renderGroups(completedProjects)}
+                                                </div>
+                                            </details>
+                                        </div>
+                                    )}
+                                </>
+                            );
+})()}
                     </div>
                 )}
             </div>
