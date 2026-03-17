@@ -125,9 +125,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 _parentTaskTitle: task.title,
                 projectId: task.projectId, // inherit project for color and grouping
                 categoryId: task.categoryId, // inherit category
-                scheduledDateStr: task.scheduledDateStr, // inherit dates
-                deadlineDateStr: task.deadlineDateStr,
-                priority: task.priority // inherit priority
+                scheduledDateStr: st.scheduledDateStr || task.scheduledDateStr, // inherit dates
+                deadlineDateStr: st.deadlineDateStr || task.deadlineDateStr,
+                priority: st.priority || task.priority // inherit priority
             } as Task))
         ]);
     }, [allTasks]);
@@ -370,7 +370,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 onClick={(e) => e.stopPropagation()}
                                 className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                             />
-                            <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                            <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                 {getStatusIcon(task.status)}
                             </button>
                             <div className="flex flex-col">
@@ -622,7 +622,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 onClick={(e) => e.stopPropagation()}
                                 className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                             />
-                                                        <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                             {getStatusIcon(task.status)}
                                                         </button>
 
@@ -763,7 +763,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                         onClick={(e) => e.stopPropagation()}
                                                                         className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                                     />
-                                                                    <button onClick={() => handleToggleStatus(task)} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                                         {getStatusIcon(task.status)}
                                                                     </button>
 

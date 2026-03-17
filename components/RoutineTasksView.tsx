@@ -259,7 +259,7 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                     return (
                                         <li key={task.id} className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${completed ? 'bg-slate-50 border-slate-200 dark:bg-slate-800/30 dark:border-slate-800 opacity-60' : (isDueToday ? 'bg-white border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700' : 'bg-slate-50/50 border-slate-200/50 dark:bg-slate-800/20 dark:border-slate-700/50 opacity-80')}`}>
                                             <div className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleComplete(task)}>
-                                                <button className={`shrink-0 transition-transform ${isReadOnly ? '' : 'hover:scale-110'}`}>
+                                                <button onClick={(e) => { e.stopPropagation(); handleToggleComplete(task); }} className={`shrink-0 transition-transform ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                     {completed ? <CheckCircle2 className="text-green-500" size={24} /> : <Circle className="text-slate-300 dark:text-slate-600" size={24} />}
                                                 </button>
                                                 <div className="flex flex-col">
