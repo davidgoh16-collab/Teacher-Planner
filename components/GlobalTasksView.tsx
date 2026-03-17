@@ -125,9 +125,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 _parentTaskTitle: task.title,
                 projectId: task.projectId, // inherit project for color and grouping
                 categoryId: task.categoryId, // inherit category
-                scheduledDateStr: task.scheduledDateStr, // inherit dates
-                deadlineDateStr: task.deadlineDateStr,
-                priority: task.priority // inherit priority
+                scheduledDateStr: st.scheduledDateStr || task.scheduledDateStr, // inherit dates
+                deadlineDateStr: st.deadlineDateStr || task.deadlineDateStr,
+                priority: st.priority || task.priority // inherit priority
             } as Task))
         ]);
     }, [allTasks]);

@@ -34,6 +34,7 @@ import TaskCardModal from './TaskCardModal';
 import { Idea } from '../types';
 
 interface ProjectViewProps {
+    allProjects: Project[];
     project: Project;
     allCategories: Category[];
     allTasks: Task[];
@@ -75,7 +76,7 @@ const BACKGROUND_COLORS = [
 
 type ViewMode = 'list' | 'timeline' | 'matrix' | 'ideas';
 
-export default function ProjectView({ project, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated, onTaskAdded }: ProjectViewProps) {
+export default function ProjectView({ project, allProjects, allCategories, allTasks, isReadOnly, onBack, onUpdateProject, onTaskUpdate, onTaskDeleted, onTaskUpdated, onTaskAdded }: ProjectViewProps) {
     const [tasks, setTasks] = useState<Task[]>(allTasks);
     const [ideas, setIdeas] = useState<Idea[]>([]);
     const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -537,10 +538,16 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 setTasks(tasks.map(t => t.id === updatedParent.id ? updatedParent : t));
             } else {
                 // We are editing a top-level task
+
                 await saveTask(updatedTask);
-            if (onTaskUpdated) onTaskUpdated(updatedTask);
-            if (onTaskUpdated) onTaskUpdated(updatedTask);
-                setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+                if (onTaskUpdated) onTaskUpdated(updatedTask);
+                if (updatedTask.projectId !== project.id && !updatedTask.projectId.startsWith('__general_')) {
+                    // It was moved to a different project
+                    setTasks(tasks.filter(t => t.id !== updatedTask.id));
+                    if (onTaskDeleted) onTaskDeleted(updatedTask.id); // Triggers parent to remove from local allTasks or refresh
+                } else {
+                    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+                }
             }
         } catch (e) {
             console.error("Failed to save edited task", e);
@@ -647,11 +654,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
                             <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedTaskIds.has(task.id)}
-                                    onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                    className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                 />
                                 <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                     {getStatusIcon(task.status)}
@@ -870,11 +873,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                 <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                     <div className="flex items-start gap-3 flex-1 min-w-0">
                                                         <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedTaskIds.has(task.id)}
-                                                                onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                                className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                            <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                             />
                                                             <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                                 {getStatusIcon(task.status)}
@@ -985,11 +984,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                             <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                                 <div className="flex items-start gap-3 flex-1 min-w-0">
                                                                     <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={selectedTaskIds.has(task.id)}
-                                                                            onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                                            className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                        <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                                         />
                                                                         <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                                             {getStatusIcon(task.status)}
@@ -1425,6 +1420,42 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                         {/* Task List / Views */}
                         {viewMode === 'ideas' ? (
                             <div className="p-4 md:p-6 bg-slate-50 dark:bg-slate-900/50 min-h-[400px]">
+
+                                {!isReadOnly && (
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const input = (e.target as any).ideaInput;
+                                        const text = input.value.trim();
+                                        if (!text) return;
+
+                                        const newIdea = {
+                                            id: `idea_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                            text: text,
+                                            projectId: project.id,
+                                            createdAt: Date.now()
+                                        };
+
+                                        try {
+                                            const { saveIdea } = await import('../services/projectService');
+                                            await saveIdea(newIdea);
+                                            setIdeas(prev => [newIdea, ...prev]);
+                                            input.value = '';
+                                        } catch(err) {
+                                            console.error("Failed to add idea", err);
+                                        }
+                                    }} className="mb-6 flex gap-2">
+                                        <input
+                                            name="ideaInput"
+                                            type="text"
+                                            placeholder="Jot down a new idea for this project..."
+                                            className="flex-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                                            autoComplete="off"
+                                        />
+                                        <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                                            Add Idea
+                                        </button>
+                                    </form>
+                                )}
                                 {ideas.length === 0 ? (
                                     <div className="text-center text-slate-400 dark:text-slate-500 mt-10">
                                         <Lightbulb size={40} className="mx-auto mb-3 opacity-20" />
@@ -1509,11 +1540,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start gap-4">
                                                 <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedTaskIds.has(task.id)}
-                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                        className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                     />
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
@@ -1600,7 +1627,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                     {subtasks.map(st => {
                                                         const stCat = allCategories.find(c => c.id === st.categoryId);
                                                         return (
-                                                            <div key={st.id} className={`flex items-start gap-3 p-2 hover:bg-white dark:hover:bg-slate-900 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-colors group/subtask ${st.status === 'Completed' ? 'opacity-60' : ''}`}>
+                                                            <div key={st.id} onClick={(e) => e.stopPropagation()} className={`flex items-start gap-3 p-2 hover:bg-white dark:hover:bg-slate-900 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-colors group/subtask ${st.status === 'Completed' ? 'opacity-60' : ''}`}>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(task, st.id); }}
                                                                     disabled={isReadOnly}
@@ -1794,11 +1821,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
                                                             <div className="flex items-start gap-4">
                                                                 <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={selectedTaskIds.has(task.id)}
-                                                                        onChange={(e) => toggleTaskSelection(task.id, e as any)}
-                                                                        className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
                                                                     />
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
@@ -1876,6 +1899,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
             </div>
 
             <TaskEditModal
+                projects={allProjects}
                 isOpen={isEditModalOpen}
                 onClose={() => { setIsEditModalOpen(false); setEditingTask(null); setEditingParentTask(null); }}
                 task={editingTask}
@@ -1949,7 +1973,7 @@ export default function ProjectView({ project, allCategories, allTasks, isReadOn
                 isOpen={isCardModalOpen}
                 onClose={() => { setIsCardModalOpen(false); setCardTask(null); }}
                 task={cardTask}
-                projects={[project]}
+                projects={allProjects}
                 categories={allCategories}
                 isReadOnly={isReadOnly}
                 onEdit={(t) => { setIsCardModalOpen(false); openEditModal(t); }}
