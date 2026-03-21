@@ -1,0 +1,4 @@
+## 2024-05-18 - [Hardcoded Firebase API Key]
+**Vulnerability:** A hardcoded Firebase API key was found in the `firebase.ts` source file.
+**Learning:** In static/single-page applications, especially when deployed to environments like Docker or Nginx, runtime environment variables must be injected dynamically since `process.env` or `import.meta.env` are evaluated at build time, not runtime. The pattern of generating a `window.ENV` object via a startup script (like `start-nginx.sh`) is essential for securely passing configuration without hardcoding secrets in the client-side code.
+**Prevention:** Always use environment variable lookups (e.g., `window.ENV?.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY`) for sensitive values instead of committing them to source control. Ensure startup scripts handle the injection for runtime environments.
