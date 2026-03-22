@@ -47,7 +47,6 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
         const updatedTask: Task = {
             ...task,
             projectId: projectId || '',
-            ...task,
             title: title.trim(),
             description: description.trim() || undefined,
             priority,
