@@ -3,6 +3,7 @@ declare global {
     ENV?: {
       VITE_GEMINI_API_KEY?: string;
       GEMINI_API_KEY?: string;
+      VITE_FIREBASE_API_KEY?: string;
     };
   }
 }

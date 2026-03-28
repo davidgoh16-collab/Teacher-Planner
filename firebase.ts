@@ -17,7 +17,8 @@ import { getAuth, OAuthProvider } from 'firebase/auth';
  */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg",
+  // Security Enhancement: Removed hardcoded API key to prevent credential exposure
+  apiKey: window.ENV?.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "school-apps-52c7d.firebaseapp.com",
   projectId: "school-apps-52c7d",
   storageBucket: "school-apps-52c7d.firebasestorage.app",

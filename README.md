@@ -16,5 +16,6 @@ View your app in AI Studio: https://ai.studio/apps/4e1723e3-fa18-4dc5-9735-f314b
 1. Install dependencies:
    `npm install`
 2. Set the `VITE_GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+3. Set the `VITE_FIREBASE_API_KEY` in [.env.local](.env.local) to your Firebase API key
+4. Run the app:
    `npm run dev`
