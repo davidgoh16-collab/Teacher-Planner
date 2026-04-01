@@ -1,38 +1,11 @@
 import { Term, WeeklyTimetable } from './types';
 
-export const TERMS: Term[] = [
-  {
-    id: 'autumn',
-    name: 'Autumn Term 2025',
-    startDate: new Date('2025-09-02'),
-    endDate: new Date('2025-12-19'),
-    halfTermStart: new Date('2025-10-20'),
-    halfTermEnd: new Date('2025-10-31'),
-  },
-  {
-    id: 'spring',
-    name: 'Spring Term 2026',
-    startDate: new Date('2026-01-05'),
-    endDate: new Date('2026-04-02'),
-    halfTermStart: new Date('2026-02-16'),
-    halfTermEnd: new Date('2026-02-20'),
-  },
-  {
-    id: 'summer',
-    name: 'Summer Term 2026',
-    startDate: new Date('2026-04-20'),
-    endDate: new Date('2026-07-22'),
-    halfTermStart: new Date('2026-05-25'),
-    halfTermEnd: new Date('2026-05-29'),
-  },
-];
-
 export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 // Color palette mapping based on image analysis
 // Added dark: classes for dark mode support
-const COLORS = {
+export const COLORS = {
   Y13_TT: 'bg-red-100 text-red-900 border-red-200 dark:bg-red-900/30 dark:text-red-100 dark:border-red-800',
   Y13_GEO: 'bg-green-100 text-green-900 border-green-200 dark:bg-green-900/30 dark:text-green-100 dark:border-green-800',
   Y12_TTE: 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-100 dark:border-yellow-800',
@@ -46,7 +19,37 @@ const COLORS = {
   REG: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:border-emerald-800',
 };
 
-// Timetable definition extracted from user's images
+// INITIAL MIGRATION DATA
+export const TERMS: Term[] = [
+  {
+    id: 'autumn',
+    academicYearId: 'academic_year_2025_2026',
+    name: 'Autumn Term 2025',
+    startDate: new Date('2025-09-02'),
+    endDate: new Date('2025-12-19'),
+    halfTermStart: new Date('2025-10-20'),
+    halfTermEnd: new Date('2025-10-31'),
+  },
+  {
+    id: 'spring',
+    academicYearId: 'academic_year_2025_2026',
+    name: 'Spring Term 2026',
+    startDate: new Date('2026-01-05'),
+    endDate: new Date('2026-04-02'),
+    halfTermStart: new Date('2026-02-16'),
+    halfTermEnd: new Date('2026-02-20'),
+  },
+  {
+    id: 'summer',
+    academicYearId: 'academic_year_2025_2026',
+    name: 'Summer Term 2026',
+    startDate: new Date('2026-04-20'),
+    endDate: new Date('2026-07-22'),
+    halfTermStart: new Date('2026-05-25'),
+    halfTermEnd: new Date('2026-05-29'),
+  },
+];
+
 export const TIMETABLE_WEEK_1: WeeklyTimetable = {
   Monday: {
     'Morning Mtg': { subject: 'Staff Briefing', colorClass: COLORS.MEETING },
