@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Plus, Trash2, Upload, FileText, Loader2, CheckCircle2 } from 'lucide-react';
 import { usePlannerData } from '../src/context/PlannerContext';
-import { saveTerm, deleteTerm, saveTimetable } from '../services/plannerDataService';
-import { Term, WeeklyTimetable, TimetableEntry } from '../types';
+import { saveAcademicYear, deleteAcademicYear, saveTerm, deleteTerm, saveTimetable } from '../services/plannerDataService';
+import { AcademicYear, Term, WeeklyTimetable, TimetableEntry } from '../types';
 import { toISODate } from '../utils/dateUtils';
-import { PERIOD_LABELS, DAYS, COLORS } from '../constants';
+import { getContrastTextColor, getEntryStyle, getEntryClassName } from '../utils/colorUtils';
+import { parseMasterTimetableAndTerms } from '../services/aiService';
+import { PERIOD_LABELS, DAYS } from '../constants';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,17 +14,22 @@ interface SettingsModalProps {
   isReadOnly?: boolean;
 }
 
-const colorOptions = [
-  { label: 'None', class: '' },
-  ...Object.entries(COLORS).map(([key, val]) => ({ label: key, class: val }))
-];
-
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOnly }) => {
-  const { terms, timetableWeek1, timetableWeek2, refreshPlannerData } = usePlannerData();
-  const [activeTab, setActiveTab] = useState<'terms' | 'timetables'>('terms');
+  const { academicYears, selectedAcademicYearId, terms, timetableWeek1, timetableWeek2, refreshPlannerData, setSelectedAcademicYearId } = usePlannerData();
+  const [activeTab, setActiveTab] = useState<'years' | 'terms' | 'timetables'>('years');
+
+  // Academic Years state
+  const [localYears, setLocalYears] = useState<AcademicYear[]>([]);
 
   // Terms state
   const [localTerms, setLocalTerms] = useState<Term[]>([]);
+
+  // Import State
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<boolean>(false);
+  const [importMode, setImportMode] = useState<'file' | 'text'>('file');
+  const [importText, setImportText] = useState('');
 
   // Timetables state
   const [localTimetableW1, setLocalTimetableW1] = useState<WeeklyTimetable>(timetableWeek1);
@@ -31,6 +38,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   useEffect(() => {
     if (isOpen) {
+      setLocalYears(JSON.parse(JSON.stringify(academicYears)));
       setLocalTerms(JSON.parse(JSON.stringify(terms)).map((t: any) => ({
         ...t,
         startDate: new Date(t.startDate),
@@ -40,25 +48,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
       })));
       setLocalTimetableW1(JSON.parse(JSON.stringify(timetableWeek1)));
       setLocalTimetableW2(JSON.parse(JSON.stringify(timetableWeek2)));
+      setImportSuccess(false);
+      setImportError(null);
     }
-  }, [isOpen, terms, timetableWeek1, timetableWeek2]);
+  }, [isOpen, academicYears, terms, timetableWeek1, timetableWeek2]);
 
   if (!isOpen) return null;
 
-  const handleSaveTerms = async () => {
+  const handleSaveYears = async () => {
     if (isReadOnly) return;
     try {
-      // First, delete any terms that were removed locally
+      // Find deleted
+      const localIds = localYears.map(y => y.id);
+      for (const y of academicYears) {
+        if (!localIds.includes(y.id)) {
+          await deleteAcademicYear(y.id);
+        }
+      }
+      // Save all
+      for (const y of localYears) {
+        await saveAcademicYear(y);
+      }
+      await refreshPlannerData();
+    } catch (e) {
+      console.error("Failed to save academic years:", e);
+    }
+  };
+
+  const handleSaveTerms = async () => {
+    if (isReadOnly || !selectedAcademicYearId) return;
+    try {
       const localIds = localTerms.map(t => t.id);
       for (const t of terms) {
         if (!localIds.includes(t.id)) {
-          await deleteTerm(t.id);
+          await deleteTerm(selectedAcademicYearId, t.id);
         }
       }
 
-      // Then save all local terms
       for (const t of localTerms) {
-        await saveTerm(t);
+        await saveTerm({ ...t, academicYearId: selectedAcademicYearId });
       }
 
       await refreshPlannerData();
@@ -68,19 +96,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
   };
 
   const handleSaveTimetables = async () => {
-    if (isReadOnly) return;
+    if (isReadOnly || !selectedAcademicYearId) return;
     try {
-      await saveTimetable('week1', localTimetableW1);
-      await saveTimetable('week2', localTimetableW2);
+      await saveTimetable(selectedAcademicYearId, 'week1', localTimetableW1);
+      await saveTimetable(selectedAcademicYearId, 'week2', localTimetableW2);
       await refreshPlannerData();
     } catch (e) {
       console.error("Failed to save timetables:", e);
     }
   };
 
+  const addYear = () => {
+    const id = `academic_year_${Date.now()}`;
+    const newYear: AcademicYear = {
+      id,
+      name: 'New Year',
+      isDefault: localYears.length === 0
+    };
+    setLocalYears([newYear, ...localYears]);
+  };
+
+  const updateYear = (id: string, field: keyof AcademicYear, value: any) => {
+    setLocalYears(prev => prev.map(y => {
+       if (y.id === id) {
+           if (field === 'isDefault' && value === true) {
+               // Ensure only one default
+               prev.forEach(otherY => { if(otherY.id !== id) otherY.isDefault = false; });
+           }
+           return { ...y, [field]: value };
+       }
+       return y;
+    }));
+  };
+
   const addTerm = () => {
+    if (!selectedAcademicYearId) return;
     setLocalTerms([...localTerms, {
       id: `term_${Date.now()}`,
+      academicYearId: selectedAcademicYearId,
       name: 'New Term',
       startDate: new Date(),
       endDate: new Date(),
@@ -112,6 +165,110 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   const activeTimetable = selectedWeek === 'week1' ? localTimetableW1 : localTimetableW2;
 
+  const handleAIImport = async (base64Content?: string, mimeType?: string, textContent?: string) => {
+     if (!selectedAcademicYearId) return;
+     setIsImporting(true);
+     setImportError(null);
+     setImportSuccess(false);
+
+     try {
+        const result = await parseMasterTimetableAndTerms(
+            base64Content || undefined,
+            mimeType || undefined,
+            textContent || undefined
+        );
+
+        if (result.terms && result.terms.length > 0) {
+            // Assign academicYearId to incoming terms and assign new IDs to prevent collisions
+            const processedTerms: Term[] = result.terms.map(t => ({
+                id: `term_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                academicYearId: selectedAcademicYearId,
+                name: t.name || 'New Term',
+                startDate: t.startDate ? new Date(t.startDate) : new Date(),
+                endDate: t.endDate ? new Date(t.endDate) : new Date(),
+                halfTermStart: t.halfTermStart ? new Date(t.halfTermStart) : undefined,
+                halfTermEnd: t.halfTermEnd ? new Date(t.halfTermEnd) : undefined
+            }));
+            setLocalTerms(processedTerms);
+        }
+
+        if (result.timetables) {
+            if (result.timetables.week1) setLocalTimetableW1(result.timetables.week1);
+            if (result.timetables.week2) setLocalTimetableW2(result.timetables.week2);
+        }
+
+        setImportSuccess(true);
+     } catch (e) {
+        console.error("AI Import Failed:", e);
+        setImportError("Failed to parse timetable/terms. Please try again with a clearer file or structured text.");
+     } finally {
+        setIsImporting(false);
+     }
+  };
+
+  const compressImage = (base64Str: string, mimeType: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!mimeType.startsWith('image/')) {
+        resolve(base64Str);
+        return;
+      }
+
+      const img = new Image();
+      img.src = `data:${mimeType};base64,${base64Str}`;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1024;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = (height * MAX_WIDTH) / width;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(base64Str);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(compressedDataUrl.split(',')[1]);
+      };
+      img.onerror = (err) => reject(err);
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        let base64Content = base64String.split(',')[1];
+        let mimeType = file.type;
+
+        if (mimeType.startsWith('image/')) {
+          try {
+             base64Content = await compressImage(base64Content, mimeType);
+             mimeType = 'image/jpeg';
+          } catch (err) {
+            console.warn("Image compression failed, using original", err);
+          }
+        }
+        await handleAIImport(base64Content, mimeType, undefined);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      setImportError("Error reading file.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
@@ -125,24 +282,91 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
         <div className="flex border-b border-gray-200 dark:border-slate-800 shrink-0">
           <button
-            onClick={() => setActiveTab('terms')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'terms' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            onClick={() => setActiveTab('years')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'years' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
-            Academic Terms
+            Academic Years
+          </button>
+          <button
+            onClick={() => setActiveTab('terms')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'terms' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!selectedAcademicYearId}
+          >
+            Terms {selectedAcademicYearId ? '' : '(Select Year First)'}
           </button>
           <button
             onClick={() => setActiveTab('timetables')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'timetables' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'timetables' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!selectedAcademicYearId}
           >
-            My Timetables
+            Timetables {selectedAcademicYearId ? '' : '(Select Year First)'}
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {activeTab === 'terms' && (
+          {activeTab === 'years' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Manage Terms</h3>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Manage Academic Years</h3>
+                {!isReadOnly && (
+                  <button onClick={addYear} className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
+                    <Plus size={16} /> Add Year
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {localYears.map((year) => (
+                  <div key={year.id} className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <div className="flex-1">
+                       <input
+                         type="text"
+                         value={year.name}
+                         onChange={(e) => updateYear(year.id, 'name', e.target.value)}
+                         className="font-bold text-lg bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-green-500 outline-none w-full max-w-xs text-slate-800 dark:text-white"
+                         placeholder="e.g. 2026/2027"
+                         disabled={isReadOnly}
+                       />
+                       <div className="mt-2 flex items-center gap-2">
+                           <input
+                             type="radio"
+                             name="defaultYear"
+                             checked={year.isDefault}
+                             onChange={() => updateYear(year.id, 'isDefault', true)}
+                             disabled={isReadOnly}
+                             id={`default_${year.id}`}
+                           />
+                           <label htmlFor={`default_${year.id}`} className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer">Set as active/default year</label>
+                       </div>
+                    </div>
+                    {!isReadOnly && (
+                      <button onClick={() => setLocalYears(prev => prev.filter(y => y.id !== year.id))} className="text-red-500 hover:text-red-700 p-2">
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {localYears.length === 0 && <p className="text-slate-500">No academic years found.</p>}
+              </div>
+
+              {!isReadOnly && (
+                <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-slate-800">
+                  <button onClick={handleSaveYears} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                    <Save size={18} /> Save Years
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'terms' && selectedAcademicYearId && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center flex-wrap gap-4">
+                <div>
+                   <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Manage Terms</h3>
+                   <p className="text-sm text-slate-500">For Academic Year: {academicYears.find(y => y.id === selectedAcademicYearId)?.name}</p>
+                </div>
+
                 {!isReadOnly && (
                   <button onClick={addTerm} className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
                     <Plus size={16} /> Add Term
@@ -223,10 +447,60 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
             </div>
           )}
 
-          {activeTab === 'timetables' && (
+          {activeTab === 'timetables' && selectedAcademicYearId && (
              <div className="space-y-6">
-                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Master Timetables</h3>
+                 {!isReadOnly && (
+                 <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl">
+                    <h4 className="font-semibold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
+                       <Upload size={18} /> Auto-Import Timetable & Terms via AI
+                    </h4>
+                    <p className="text-sm text-indigo-700 dark:text-indigo-400 mb-4">
+                       Upload a PDF/Image of your school schedule, or paste it as text. The AI will extract the terms and both weeks of your timetable.
+                    </p>
+
+                    <div className="flex items-center gap-4 mb-4">
+                       <button onClick={() => setImportMode('file')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'file' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>File Upload</button>
+                       <button onClick={() => setImportMode('text')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'text' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>Paste Text</button>
+                    </div>
+
+                    {importMode === 'file' ? (
+                       <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-gray-300 cursor-not-allowed' : 'border-indigo-300 hover:bg-indigo-100/50'}`}>
+                           <input type="file" className="hidden" accept=".pdf,image/*" onChange={handleFileUpload} disabled={isImporting} />
+                           <span className="text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-2">
+                               {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                               {isImporting ? 'Analyzing document...' : 'Click to select PDF or Image'}
+                           </span>
+                       </label>
+                    ) : (
+                       <div className="flex flex-col gap-2">
+                           <textarea
+                              value={importText}
+                              onChange={e => setImportText(e.target.value)}
+                              placeholder="Paste CSV or plain text schedule here..."
+                              className="w-full h-24 p-2 text-sm rounded-lg border border-indigo-200 dark:bg-slate-800 dark:border-indigo-800"
+                              disabled={isImporting}
+                           />
+                           <button
+                              onClick={() => handleAIImport(undefined, undefined, importText)}
+                              disabled={isImporting || !importText.trim()}
+                              className="self-end flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                           >
+                              {isImporting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                              Analyze Text
+                           </button>
+                       </div>
+                    )}
+
+                    {importError && <p className="text-red-500 text-sm mt-2">{importError}</p>}
+                    {importSuccess && <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-1"><CheckCircle2 size={14}/> Successfully parsed and applied. Review below and save.</p>}
+                 </div>
+                 )}
+
+                 <div className="flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                       <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Master Timetables</h3>
+                       <p className="text-sm text-slate-500">For Academic Year: {academicYears.find(y => y.id === selectedAcademicYearId)?.name}</p>
+                    </div>
                     <select
                       value={selectedWeek}
                       onChange={(e) => setSelectedWeek(e.target.value as 'week1' | 'week2')}
@@ -257,7 +531,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                                  const entry = activeTimetable[day]?.[period];
                                  return (
                                    <td key={`${day}-${period}`} className="p-2 border-r border-gray-200 dark:border-slate-700 last:border-0">
-                                      <div className={`flex flex-col gap-2 p-2 rounded-lg border border-dashed transition-colors ${entry?.colorClass ? entry.colorClass : 'bg-gray-50 dark:bg-slate-800/50 border-gray-300 dark:border-slate-600'}`}>
+                                      <div
+                                        className={`flex flex-col gap-2 p-2 rounded-lg transition-colors ${getEntryClassName(entry)}`}
+                                        style={getEntryStyle(entry)}
+                                      >
                                          <input
                                            type="text"
                                            placeholder="Free / Admin"
@@ -266,16 +543,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                                            className="w-full text-sm font-bold bg-transparent outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder:font-normal"
                                            disabled={isReadOnly}
                                          />
-                                         <select
-                                           value={entry?.colorClass || ''}
+                                         <input
+                                            type="color"
+                                            value={entry?.colorClass?.startsWith('#') ? entry.colorClass.substring(0, 7) : '#e2e8f0'}
                                            onChange={(e) => updateTimetableEntry(day, period, 'colorClass', e.target.value)}
-                                           className="w-full text-xs bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded px-1 py-1 outline-none"
+                                            className="w-full h-8 cursor-pointer rounded-md outline-none bg-transparent border-0 p-0 m-0"
                                            disabled={isReadOnly}
-                                         >
-                                            {colorOptions.map(opt => (
-                                              <option key={opt.label} value={opt.class}>{opt.label}</option>
-                                            ))}
-                                         </select>
+                                           title="Select Custom Background Color"
+                                         />
                                          {!isReadOnly && entry && (
                                             <button
                                               onClick={() => updateTimetableEntry(day, period, 'clear', null)}

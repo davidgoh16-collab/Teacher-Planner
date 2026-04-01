@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { WeeklyTimetable } from "../types";
+import { Term, WeeklyTimetable } from "../types";
 
 export const getAiClient = () => {
   const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
@@ -116,6 +116,27 @@ const TIMETABLE_SCHEMA = {
       nullable: true
     },
   },
+};
+
+const MASTER_IMPORT_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+     terms: {
+        type: Type.ARRAY,
+        description: "List of academic terms extracted from the document",
+        items: {
+           type: Type.OBJECT,
+           properties: {
+              name: { type: Type.STRING, description: "e.g., Autumn Term 2025" },
+              startDate: { type: Type.STRING, description: "ISO Date String YYYY-MM-DD" },
+              endDate: { type: Type.STRING, description: "ISO Date String YYYY-MM-DD" },
+              halfTermStart: { type: Type.STRING, nullable: true, description: "ISO Date String YYYY-MM-DD" },
+              halfTermEnd: { type: Type.STRING, nullable: true, description: "ISO Date String YYYY-MM-DD" }
+           }
+        }
+     },
+     timetables: TIMETABLE_SCHEMA
+  }
 };
 
 export interface AIInsight {
@@ -400,6 +421,63 @@ export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyT
     throw new Error("No response text from Gemini");
   } catch (error) {
     console.error("Error parsing timetable from text:", error);
+    throw error;
+  }
+};
+
+export const parseMasterTimetableAndTerms = async (
+  base64Data?: string,
+  mimeType?: string,
+  textContent?: string
+): Promise<{ terms?: Partial<Term>[], timetables?: { week1: WeeklyTimetable, week2: WeeklyTimetable } }> => {
+  try {
+    const prompt = `
+      Analyze the provided document or text.
+      Your task is to extract TWO sets of information if present:
+
+      1. ACADEMIC TERMS: Look for term dates (e.g., Autumn Term, Spring Term, Summer Term) including Start Dates, End Dates, and Half-Term break dates. Convert all dates to YYYY-MM-DD format.
+
+      2. MASTER TIMETABLE: Look for a weekly schedule (Week 1 and Week 2).
+         - The timetable has rows for periods and columns for days (Mon-Fri).
+         - For each slot, extract the subject/activity. If a slot is empty, return null.
+         - Map periods to "Period 1", "Period 2", "Period 3", "Period 4", "Period 5", "Period 6", "Morning Mtg", "Afternoon Mtg".
+         - Assign a visually distinct HEX color code (e.g., #bbf7d0) to the 'colorClass' field based on the subject (e.g., all Geography classes get the same green hex, all Math classes get a blue hex). Do NOT use tailwind class names, ONLY hex codes like #a2f0b3.
+
+      Return a JSON object with 'terms' (array) and 'timetables' (object with week1 and week2).
+
+      If one of these datasets is missing (e.g., you only find term dates but no timetable), return what you find and leave the other empty or null.
+
+      ${textContent ? `TEXT CONTENT TO ANALYZE:\n${textContent}` : ''}
+    `;
+
+    const ai = getAiClient();
+
+    let parts: any[] = [{ text: prompt }];
+
+    if (base64Data && mimeType) {
+        parts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data,
+            },
+        });
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: { parts },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: MASTER_IMPORT_SCHEMA,
+      },
+    });
+
+    if (response.text) {
+      return extractAndParseJSON(response.text);
+    }
+    throw new Error("No response text from Gemini");
+  } catch (error) {
+    console.error("Error parsing master timetable and terms:", error);
     throw error;
   }
 };

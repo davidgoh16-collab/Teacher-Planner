@@ -22,7 +22,7 @@ import {
   addDays, 
   formatDate 
 } from './utils/dateUtils';
-import { getContrastTextColor } from './utils/colorUtils';
+import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
@@ -70,7 +70,7 @@ const ADMIN_UID = 'oleZncmmoyNerACQDErqtfMcNYS2';
 
 const App: React.FC = () => {
   // --- Planner Context ---
-  const { terms, timetableWeek1, timetableWeek2, isPlannerDataLoading } = usePlannerData();
+  const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId, terms, timetableWeek1, timetableWeek2, isPlannerDataLoading } = usePlannerData();
 
   // --- Auth State ---
   const [user, setUser] = useState<User | null>(null);
@@ -977,11 +977,11 @@ const App: React.FC = () => {
   }
 
   // Force bypass login for playwright tests.
-  const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+  const isTestBypass = window.location.search.includes('bypass_login=true');
   if (isTestBypass) {
-     // we'll pretend there is a user
-     if (!user) {
-         setUser({ uid: 'test-user', displayName: 'Test User' } as any);
+     // we'll pretend there is an admin user
+     if (!user || user.uid !== ADMIN_UID) {
+         setUser({ uid: ADMIN_UID, displayName: 'Test Admin' } as any);
          setAuthLoading(false);
          return null; // Force re-render with user set
      }
@@ -1006,7 +1006,19 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold tracking-tight">Teacher Planner</h1>
-                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
+                  <div className="flex items-center mt-0.5 relative group/year">
+                    <select
+                      value={selectedAcademicYearId || ''}
+                      onChange={(e) => setSelectedAcademicYearId(e.target.value)}
+                      className="appearance-none bg-transparent text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium cursor-pointer hover:text-green-600 dark:hover:text-green-400 pr-4 outline-none focus:ring-0"
+                    >
+                      {academicYears.map(y => (
+                        <option key={y.id} value={y.id}>{y.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={10} className="absolute right-0 text-slate-400 pointer-events-none group-hover/year:text-green-600" />
+                    {isReadOnly && <span className="text-orange-500 ml-2 font-semibold text-[10px]">(View Only)</span>}
+                  </div>
                 </div>
               </div>
 
@@ -1494,11 +1506,12 @@ const App: React.FC = () => {
                             <div 
                                 key={period} 
                                 className={`col-span-1 relative flex flex-col rounded-lg border shadow-sm transition-all duration-200 
-                                ${entry ? entry.colorClass : 'bg-white dark:bg-slate-800 border-dashed border-gray-300 dark:border-slate-700'} 
+                                ${getEntryClassName(entry)}
                                 ${!entry ? 'opacity-60' : 'hover:shadow-md hover:scale-[1.01] cursor-pointer'}
                                 ${isMeeting ? 'border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400/30' : ''}
                                 min-h-[140px]
                                 `}
+                                style={getEntryStyle(entry)}
                                 onClick={() => {
                                 // Allow viewing even if it's a free period
                                 openLessonModal(dateStr, period, entry ? entry.subject : 'Free Period');

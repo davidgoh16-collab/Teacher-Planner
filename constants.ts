@@ -23,6 +23,7 @@ export const COLORS = {
 export const TERMS: Term[] = [
   {
     id: 'autumn',
+    academicYearId: 'academic_year_2025_2026',
     name: 'Autumn Term 2025',
     startDate: new Date('2025-09-02'),
     endDate: new Date('2025-12-19'),
@@ -31,6 +32,7 @@ export const TERMS: Term[] = [
   },
   {
     id: 'spring',
+    academicYearId: 'academic_year_2025_2026',
     name: 'Spring Term 2026',
     startDate: new Date('2026-01-05'),
     endDate: new Date('2026-04-02'),
@@ -39,6 +41,7 @@ export const TERMS: Term[] = [
   },
   {
     id: 'summer',
+    academicYearId: 'academic_year_2025_2026',
     name: 'Summer Term 2026',
     startDate: new Date('2026-04-20'),
     endDate: new Date('2026-07-22'),
