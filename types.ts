@@ -23,7 +23,13 @@ export interface LessonPlan {
 export interface TimetableEntry {
   subject: string;
   room?: string;
-  colorClass: string; // Tailwind class
+  colorClass: string; // Tailwind class OR HEX color
+}
+
+export interface AcademicYear {
+  id: string;
+  name: string; // e.g. "2025/2026"
+  isDefault: boolean;
 }
 
 // Maps Day (Mon-Fri) -> Period Label -> Entry
@@ -35,6 +41,7 @@ export interface WeeklyTimetable {
 
 export interface Term {
   id: string;
+  academicYearId: string;
   name: string;
   startDate: Date;
   endDate: Date;

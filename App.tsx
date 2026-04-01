@@ -4,12 +4,12 @@ import { GoogleGenAI, Type, FunctionDeclaration, Chat } from "@google/genai";
 import { auth } from './firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { 
-  TERMS, 
-  TIMETABLE_WEEK_1, 
-  TIMETABLE_WEEK_2, 
   PERIOD_LABELS, 
   DAYS 
 } from './constants';
+import { usePlannerData } from './src/context/PlannerContext';
+import SettingsModal from './components/SettingsModal';
+import { Settings } from 'lucide-react';
 import { INITIAL_COLLEAGUES } from './src/data/initialColleagues';
 import { 
   LessonPlan, 
@@ -22,7 +22,7 @@ import {
   addDays, 
   formatDate 
 } from './utils/dateUtils';
-import { getContrastTextColor } from './utils/colorUtils';
+import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatWidget from './components/ChatWidget';
@@ -69,61 +69,18 @@ type Theme = 'light' | 'dark' | 'system';
 const ADMIN_UID = 'oleZncmmoyNerACQDErqtfMcNYS2';
 
 const App: React.FC = () => {
+  // --- Planner Context ---
+  const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId, terms, timetableWeek1, timetableWeek2, isPlannerDataLoading } = usePlannerData();
+
   // --- Auth State ---
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // --- State Initialization Logic ---
-  const [initialState] = useState(() => {
-    const now = new Date();
-    
-    // 1. Find the current or upcoming term
-    let term = TERMS.find(t => now >= t.startDate && now <= t.endDate);
-    
-    if (!term) {
-      // Look for the next upcoming term
-      term = TERMS.find(t => t.startDate > now);
-    }
-    
-    if (!term) {
-      // If we are past all terms, use the last one; otherwise (e.g. error), use first
-      if (TERMS.length > 0 && now > TERMS[TERMS.length - 1].endDate) {
-        term = TERMS[TERMS.length - 1];
-      } else {
-        term = TERMS[0];
-      }
-    }
-
-    // 2. Find the current or upcoming week within that term
-    const weeks = generateWeeksForTerm(term);
-    let weekIndex = 0;
-    
-    // Try to find the week containing 'now'
-    const foundIndex = weeks.findIndex(w => {
-      const weekStart = w.startDate;
-      const weekEnd = addDays(weekStart, 7);
-      return now >= weekStart && now < weekEnd;
-    });
-
-    if (foundIndex !== -1) {
-      weekIndex = foundIndex;
-    } else {
-      // If not currently in a week (e.g. holiday or before term), find next upcoming week
-      const nextIndex = weeks.findIndex(w => w.startDate > now);
-      if (nextIndex !== -1) {
-        weekIndex = nextIndex;
-      } else if (now > term.endDate) {
-        // If past end of term (should have been caught by term logic, but just in case)
-        weekIndex = weeks.length - 1;
-      }
-    }
-
-    return { termId: term.id, weekIndex };
-  });
-
   // --- State ---
-  const [selectedTermId, setSelectedTermId] = useState<string>(initialState.termId);
-  const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(initialState.weekIndex);
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(0);
+  const [hasInitializedState, setHasInitializedState] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('eduPlan_theme');
     return (saved as Theme) || 'system';
@@ -173,9 +130,55 @@ const App: React.FC = () => {
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
   const [expandedActiveDays, setExpandedActiveDays] = useState<Record<string, boolean>>({});
 
+  // --- Initialize state after context load ---
+  useEffect(() => {
+    if (!isPlannerDataLoading && terms.length > 0 && !hasInitializedState) {
+      const now = new Date();
+
+      // 1. Find the current or upcoming term
+      let term = terms.find(t => now >= t.startDate && now <= t.endDate);
+
+      if (!term) {
+        term = terms.find(t => t.startDate > now);
+      }
+
+      if (!term) {
+        if (terms.length > 0 && now > terms[terms.length - 1].endDate) {
+          term = terms[terms.length - 1];
+        } else {
+          term = terms[0];
+        }
+      }
+
+      const weeks = term ? generateWeeksForTerm(term) : [];
+      let weekIndex = 0;
+
+      const foundIndex = weeks.findIndex(w => {
+        const weekStart = w.startDate;
+        const weekEnd = addDays(weekStart, 7);
+        return now >= weekStart && now < weekEnd;
+      });
+
+      if (foundIndex !== -1) {
+        weekIndex = foundIndex;
+      } else {
+        const nextIndex = weeks.findIndex(w => w.startDate > now);
+        if (nextIndex !== -1) {
+          weekIndex = nextIndex;
+        } else if (term && now > term.endDate) {
+          weekIndex = Math.max(0, weeks.length - 1);
+        }
+      }
+
+      setSelectedTermId(term?.id || '');
+      setSelectedWeekIndex(weekIndex);
+      setHasInitializedState(true);
+    }
+  }, [isPlannerDataLoading, terms, hasInitializedState]);
+
   // --- Derived Data ---
-  const currentTerm = TERMS.find(t => t.id === selectedTermId) || TERMS[0];
-  const weeksInTerm = useMemo(() => generateWeeksForTerm(currentTerm), [currentTerm]);
+  const currentTerm = terms.find(t => t.id === selectedTermId) || terms[0];
+  const weeksInTerm = useMemo(() => currentTerm ? generateWeeksForTerm(currentTerm) : [], [currentTerm]);
   
   const isAdmin = user?.uid === ADMIN_UID;
   const isReadOnly = !isAdmin;
@@ -183,7 +186,7 @@ const App: React.FC = () => {
   // Extract all unique subjects for the filter dropdown
   const uniqueSubjects = useMemo(() => {
     const subjects = new Set<string>();
-    [TIMETABLE_WEEK_1, TIMETABLE_WEEK_2].forEach(tt => {
+    [timetableWeek1, timetableWeek2].forEach(tt => {
       Object.values(tt).forEach(daySchedule => {
         Object.values(daySchedule).forEach(entry => {
           if (entry?.subject) subjects.add(entry.subject);
@@ -191,7 +194,7 @@ const App: React.FC = () => {
       });
     });
     return Array.from(subjects).sort();
-  }, []);
+  }, [timetableWeek1, timetableWeek2]);
   
   // Ensure selected week index is valid when term changes
   useEffect(() => {
@@ -289,8 +292,8 @@ const App: React.FC = () => {
   const handleJumpToCurrent = () => {
     const now = new Date();
     // Re-run the logic to find current
-    let term = TERMS.find(t => now >= t.startDate && now <= t.endDate);
-    if (!term) term = TERMS.find(t => t.startDate > now) || TERMS[TERMS.length - 1];
+    let term = terms.find(t => now >= t.startDate && now <= t.endDate);
+    if (!term) term = terms.find(t => t.startDate > now) || terms[terms.length - 1];
     
     if (term) {
         setSelectedTermId(term.id);
@@ -638,7 +641,7 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey });
       
       // Build context about the current week's timetable
-      const timetable = currentWeekData.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+      const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
       let contextString = `Current Week Context: ${currentWeekData.displayString} (Week ${currentWeekData.weekNumber}).\n`;
       contextString += `Today is: ${new Date().toDateString()}.\n\n`;
       
@@ -652,8 +655,8 @@ const App: React.FC = () => {
 
       // Add Master Timetables
       contextString += `\n--- MASTER TIMETABLE DEFINITIONS ---\n`;
-      contextString += `(Week 1 Schedule)\n${JSON.stringify(getSimplifiedTimetable(TIMETABLE_WEEK_1), null, 2)}\n`;
-      contextString += `(Week 2 Schedule)\n${JSON.stringify(getSimplifiedTimetable(TIMETABLE_WEEK_2), null, 2)}\n\n`;
+      contextString += `(Week 1 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek1), null, 2)}\n`;
+      contextString += `(Week 2 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek2), null, 2)}\n\n`;
 
       // Add Colleague Timetables
       contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
@@ -832,7 +835,7 @@ const App: React.FC = () => {
 
                    // Generate ALL weeks for ALL terms for the year
                    const allWeeks: WeekData[] = [];
-                   TERMS.forEach(term => {
+                   terms.forEach(term => {
                       allWeeks.push(...generateWeeksForTerm(term));
                    });
 
@@ -965,7 +968,7 @@ const App: React.FC = () => {
 
   // --- Main Render ---
 
-  if (authLoading) {
+  if (authLoading || isPlannerDataLoading || (!hasInitializedState && terms.length > 0)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
@@ -974,11 +977,11 @@ const App: React.FC = () => {
   }
 
   // Force bypass login for playwright tests.
-  const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+  const isTestBypass = window.location.search.includes('bypass_login=true');
   if (isTestBypass) {
-     // we'll pretend there is a user
-     if (!user) {
-         setUser({ uid: 'test-user', displayName: 'Test User' } as any);
+     // we'll pretend there is an admin user
+     if (!user || user.uid !== ADMIN_UID) {
+         setUser({ uid: ADMIN_UID, displayName: 'Test Admin' } as any);
          setAuthLoading(false);
          return null; // Force re-render with user set
      }
@@ -1003,7 +1006,19 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold tracking-tight">Teacher Planner</h1>
-                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Academic Year 2025/2026 {isReadOnly && <span className="text-orange-500 ml-1 font-semibold">(View Only)</span>}</p>
+                  <div className="flex items-center mt-0.5 relative group/year">
+                    <select
+                      value={selectedAcademicYearId || ''}
+                      onChange={(e) => setSelectedAcademicYearId(e.target.value)}
+                      className="appearance-none bg-transparent text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium cursor-pointer hover:text-green-600 dark:hover:text-green-400 pr-4 outline-none focus:ring-0"
+                    >
+                      {academicYears.map(y => (
+                        <option key={y.id} value={y.id}>{y.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={10} className="absolute right-0 text-slate-400 pointer-events-none group-hover/year:text-green-600" />
+                    {isReadOnly && <span className="text-orange-500 ml-2 font-semibold text-[10px]">(View Only)</span>}
+                  </div>
                 </div>
               </div>
 
@@ -1066,7 +1081,7 @@ const App: React.FC = () => {
                 value={selectedTermId}
                 onChange={handleTermChange}
               >
-                {TERMS.map(term => (
+                {terms.map(term => (
                   <option key={term.id} value={term.id}>{term.name}</option>
                 ))}
               </select>
@@ -1154,6 +1169,13 @@ const App: React.FC = () => {
                   {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
                 </div>
               )}
+              <button
+                 onClick={() => setIsSettingsOpen(true)}
+                 className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg transition-colors"
+                 title="Settings"
+              >
+                 <Settings size={16} />
+              </button>
               <button 
                 onClick={() => signOut(auth)} 
                 className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors"
@@ -1230,8 +1252,8 @@ const App: React.FC = () => {
                     if (!currentWeekData) return null;
                     
                     // Determine which static timetable to use (Week 1 or Week 2)
-                    const timetable = currentWeekData.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
-                    const daySchedule = timetable[day];
+                    const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+                    const daySchedule = timetable[day] || {};
                     
                     // Calculate specific date for this row
                     const rowDate = addDays(currentWeekData.startDate, dayIndex);
@@ -1484,11 +1506,12 @@ const App: React.FC = () => {
                             <div 
                                 key={period} 
                                 className={`col-span-1 relative flex flex-col rounded-lg border shadow-sm transition-all duration-200 
-                                ${entry ? entry.colorClass : 'bg-white dark:bg-slate-800 border-dashed border-gray-300 dark:border-slate-700'} 
+                                ${getEntryClassName(entry)}
                                 ${!entry ? 'opacity-60' : 'hover:shadow-md hover:scale-[1.01] cursor-pointer'}
                                 ${isMeeting ? 'border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400/30' : ''}
                                 min-h-[140px]
                                 `}
+                                style={getEntryStyle(entry)}
                                 onClick={() => {
                                 // Allow viewing even if it's a free period
                                 openLessonModal(dateStr, period, entry ? entry.subject : 'Free Period');
@@ -1568,8 +1591,8 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto md:p-8 p-4">
               <MeetingPlanner 
                 initialWeekNumber={currentWeekData?.weekNumber || 1} 
-                userTimetableWeek1={TIMETABLE_WEEK_1}
-                userTimetableWeek2={TIMETABLE_WEEK_2}
+                userTimetableWeek1={timetableWeek1}
+                userTimetableWeek2={timetableWeek2}
               />
             </div>
           ) : activeTab === 'projects' ? (
@@ -1602,6 +1625,12 @@ const App: React.FC = () => {
         task={editingTask}
         categories={categories}
         onSave={handleEditTaskSave}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        isReadOnly={actualIsReadOnly}
       />
 
       <TaskCardModal
