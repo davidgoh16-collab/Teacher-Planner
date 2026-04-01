@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { AcademicYear, Term, WeeklyTimetable } from '../../types';
 import { fetchAcademicYears, fetchTerms, fetchTimetables, migrateInitialDataIfNeeded } from '../../services/plannerDataService';
 import { TERMS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2 } from '../../constants';
@@ -25,6 +25,8 @@ export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [timetableWeek1, setTimetableWeek1] = useState<WeeklyTimetable>(TIMETABLE_WEEK_1);
   const [timetableWeek2, setTimetableWeek2] = useState<WeeklyTimetable>(TIMETABLE_WEEK_2);
   const [isPlannerDataLoading, setIsPlannerDataLoading] = useState<boolean>(true);
+
+  const lastFetchedYearId = useRef<string | null>(null);
 
   const loadData = async (yearIdToLoad?: string | null) => {
     setIsPlannerDataLoading(true);
@@ -80,10 +82,11 @@ export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   // When selected year changes via UI, reload data for that year
   useEffect(() => {
-     if (selectedAcademicYearId && !isPlannerDataLoading) {
+     if (selectedAcademicYearId && selectedAcademicYearId !== lastFetchedYearId.current) {
+         lastFetchedYearId.current = selectedAcademicYearId;
          loadData(selectedAcademicYearId);
      }
-  }, [selectedAcademicYearId, isPlannerDataLoading]);
+  }, [selectedAcademicYearId]);
 
   return (
     <PlannerContext.Provider
