@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, Loader2, X, Bot, Info, Monitor, MonitorOff } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
-import { DAYS, PERIOD_LABELS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2, TERMS } from '../constants';
+import { DAYS, PERIOD_LABELS } from '../constants';
 import { toISODate, addDays, generateWeeksForTerm } from '../utils/dateUtils';
+import { usePlannerData } from '../src/context/PlannerContext';
 import { Task, Project } from '../types';
 
 interface LiveAssistantProps {
@@ -71,6 +72,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   isAdmin,
   onStatusChange
 }) => {
+  const { terms, timetableWeek1, timetableWeek2 } = usePlannerData();
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'listening' | 'speaking'>('idle');
@@ -202,7 +204,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
 
     // Generate all weeks for the year to perform lookup
     const allWeeks: WeekData[] = [];
-    TERMS.forEach(t => allWeeks.push(...generateWeeksForTerm(t)));
+    terms.forEach(t => allWeeks.push(...generateWeeksForTerm(t)));
 
     // Safety break
     let daysCount = 0;
@@ -220,7 +222,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
             });
 
             if (week) {
-                  const timetable = week.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+                  const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
                   result += `\nDate: ${dateStr} (${dayName}, Week ${week.weekNumber})\n`;
                   
                   PERIOD_LABELS.forEach(period => {
@@ -268,7 +270,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
 
       // Build context from current week data and lesson plans for immediate context
       let plannerContext = "";
-      const timetable = currentWeekData.weekNumber === 1 ? TIMETABLE_WEEK_1 : TIMETABLE_WEEK_2;
+      const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
 
       DAYS.forEach((day, dayIndex) => {
           const date = addDays(currentWeekData.startDate, dayIndex);
@@ -493,7 +495,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
                     const args = fc.args as any;
                     const dayIndex = DAYS.indexOf(args.dayOfWeek);
                     const allWeeks: WeekData[] = [];
-                    TERMS.forEach(t => allWeeks.push(...generateWeeksForTerm(t)));
+                    terms.forEach(t => allWeeks.push(...generateWeeksForTerm(t)));
                     
                     const batch: LessonPlan[] = allWeeks
                       .filter(w => !args.weekCycle || args.weekCycle === 'all' || (args.weekCycle === 'week1' && w.weekNumber === 1) || (args.weekCycle === 'week2' && w.weekNumber === 2))
