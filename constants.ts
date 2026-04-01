@@ -1,5 +1,25 @@
 import { Term, WeeklyTimetable } from './types';
 
+export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
+export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+// Color palette mapping based on image analysis
+// Added dark: classes for dark mode support
+export const COLORS = {
+  Y13_TT: 'bg-red-100 text-red-900 border-red-200 dark:bg-red-900/30 dark:text-red-100 dark:border-red-800',
+  Y13_GEO: 'bg-green-100 text-green-900 border-green-200 dark:bg-green-900/30 dark:text-green-100 dark:border-green-800',
+  Y12_TTE: 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-100 dark:border-yellow-800',
+  Y11_GEO: 'bg-teal-100 text-teal-900 border-teal-200 dark:bg-teal-900/30 dark:text-teal-100 dark:border-teal-800',
+  Y10_GEO: 'bg-orange-100 text-orange-900 border-orange-200 dark:bg-orange-900/30 dark:text-orange-100 dark:border-orange-800',
+  Y7_GEO: 'bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-900/30 dark:text-sky-100 dark:border-sky-800',
+  PPA: 'bg-gray-50 text-gray-500 border-gray-200 italic dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700',
+  STUDY: 'bg-pink-50 text-pink-900 border-pink-200 dark:bg-pink-900/20 dark:text-pink-100 dark:border-pink-800',
+  MEETING: 'bg-indigo-50 text-indigo-900 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-100 dark:border-indigo-800',
+  COMBINED: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-100 dark:border-fuchsia-800',
+  REG: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:border-emerald-800',
+};
+
+// INITIAL MIGRATION DATA
 export const TERMS: Term[] = [
   {
     id: 'autumn',
@@ -27,26 +47,6 @@ export const TERMS: Term[] = [
   },
 ];
 
-export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
-export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-// Color palette mapping based on image analysis
-// Added dark: classes for dark mode support
-const COLORS = {
-  Y13_TT: 'bg-red-100 text-red-900 border-red-200 dark:bg-red-900/30 dark:text-red-100 dark:border-red-800',
-  Y13_GEO: 'bg-green-100 text-green-900 border-green-200 dark:bg-green-900/30 dark:text-green-100 dark:border-green-800',
-  Y12_TTE: 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-100 dark:border-yellow-800',
-  Y11_GEO: 'bg-teal-100 text-teal-900 border-teal-200 dark:bg-teal-900/30 dark:text-teal-100 dark:border-teal-800',
-  Y10_GEO: 'bg-orange-100 text-orange-900 border-orange-200 dark:bg-orange-900/30 dark:text-orange-100 dark:border-orange-800',
-  Y7_GEO: 'bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-900/30 dark:text-sky-100 dark:border-sky-800',
-  PPA: 'bg-gray-50 text-gray-500 border-gray-200 italic dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700',
-  STUDY: 'bg-pink-50 text-pink-900 border-pink-200 dark:bg-pink-900/20 dark:text-pink-100 dark:border-pink-800',
-  MEETING: 'bg-indigo-50 text-indigo-900 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-100 dark:border-indigo-800',
-  COMBINED: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-100 dark:border-fuchsia-800',
-  REG: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:border-emerald-800',
-};
-
-// Timetable definition extracted from user's images
 export const TIMETABLE_WEEK_1: WeeklyTimetable = {
   Monday: {
     'Morning Mtg': { subject: 'Staff Briefing', colorClass: COLORS.MEETING },
