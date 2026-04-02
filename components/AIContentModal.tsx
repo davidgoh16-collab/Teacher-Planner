@@ -163,7 +163,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
             }
 
             const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: "gemini-3-flash-preview",
                 contents: prompt,
                 config: {
                     systemInstruction: systemPrompt,
