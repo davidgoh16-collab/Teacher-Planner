@@ -207,7 +207,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
             }));
 
             const chat = ai.chats.create({
-                model: "gemini-2.5-flash",
+                    model: 'gemini-3-flash-preview',
                 config: {
                     systemInstruction: systemInstruction,
                     tools: [{ functionDeclarations: [updateTasksDeclaration, deleteTasksDeclaration] }]
