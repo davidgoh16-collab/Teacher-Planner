@@ -136,6 +136,9 @@ const App: React.FC = () => {
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
   const [expandedActiveDays, setExpandedActiveDays] = useState<Record<string, boolean>>({});
 
+  // AI Action History for Undo
+  const [aiActionHistory, setAiActionHistory] = useState<Array<{ type: string, previousState: any }>>([]);
+
   // --- Initialize state after context load ---
   useEffect(() => {
     if (!isPlannerDataLoading && terms.length > 0 && !hasInitializedState) {
@@ -642,6 +645,46 @@ const App: React.FC = () => {
     return simple;
   };
 
+  const handleUndoLastAiAction = async () => {
+    if (aiActionHistory.length === 0 || isReadOnly) return;
+
+    const lastActions = aiActionHistory[aiActionHistory.length - 1];
+
+    // We assume the payload is an array of old LessonPlan objects (or null if they were newly created)
+    if (lastActions.type === 'updateLessons') {
+       const previousPlans = lastActions.previousState as Array<LessonPlan | {id: string, deleted: true}>;
+
+       // Optimistic update
+       setLessonPlans(prev => {
+          const next = { ...prev };
+          previousPlans.forEach(p => {
+             if ('deleted' in p) {
+                 delete next[p.id];
+             } else {
+                 next[p.id] = p as LessonPlan;
+             }
+          });
+          return next;
+       });
+
+       // Save to DB
+       try {
+           await Promise.all(previousPlans.map(p => {
+               if ('deleted' in p) {
+                   return deleteLessonPlan(p.id);
+               } else {
+                   return saveLessonPlan(p as LessonPlan);
+               }
+           }));
+       } catch (e) {
+           console.error("Failed to undo actions in DB", e);
+       }
+    }
+
+    setAiActionHistory(prev => prev.slice(0, -1));
+    setChatMessages(prev => [...prev, { role: 'model', text: 'I have undone my last changes to your planner.' }]);
+  };
+
   const handleAiSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
@@ -690,13 +733,13 @@ const App: React.FC = () => {
 
       contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
       contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
-
+      
       contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
       contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
       contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
       contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
       contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
-      
+
       // Compute subjects for all lesson plans to make it easy for the AI
       const computedLessonPlans = Object.values(lessonPlans).map(p => {
           const dateObj = new Date(p.dateStr);
@@ -798,16 +841,18 @@ const App: React.FC = () => {
 
       let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
            
-           CRITICAL INSTRUCTIONS ON CAPABILITIES:
+           CRITICAL INSTRUCTIONS ON CAPABILITIES & TOOL USAGE:
            - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
            - You CAN search by class name or subject. Look at the "Lesson Plans (All historical and future)" list in the context below. It includes the "subject" (which is the class name, e.g., "10B", "Year 12 Maths") and the date for every single lesson.
            - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
+           - DANGER: DO NOT USE THE \`updateLesson\` or \`addRecurringLesson\` TOOLS UNLESS EXPLICITLY TOLD TO ADD, CREATE, OR CHANGE A LESSON. If a user says "do it again", "tell me what I have", or "I have updated some so do it again", they are asking you to read the context and reply with text. Do NOT modify the database on their behalf unless they say "add these to my planner" or "create a lesson".
+           - NEVER fill in empty periods, supervised study, or revision sessions on your own initiative. ONLY create lessons when strictly requested.
 
            RULES:
            1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
            2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
            2. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
-           3. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
+           3. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
            4. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
            5. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
            
@@ -851,11 +896,19 @@ const App: React.FC = () => {
             finalText = "I cannot modify the planner as you are in read-only mode.";
         } else {
             const functionResponses = [];
+            const modificationsToTrack: any[] = [];
             
             for (const call of functionCalls) {
                 if (call.name === 'updateLesson') {
                     const args = call.args as any;
                     const key = getLessonKey(args.dateStr, args.periodLabel);
+                    const existingPlan = lessonPlans[key];
+                    if (existingPlan) {
+                        modificationsToTrack.push({ ...existingPlan });
+                    } else {
+                        modificationsToTrack.push({ id: key, deleted: true });
+                    }
+
                     const newPlan: LessonPlan = {
                         id: key,
                         dateStr: args.dateStr,
@@ -913,6 +966,14 @@ const App: React.FC = () => {
                       const dateStr = toISODate(targetDate);
                       
                       const key = getLessonKey(dateStr, periodLabel);
+
+                      const existingPlan = lessonPlans[key];
+                      if (existingPlan) {
+                          modificationsToTrack.push({ ...existingPlan });
+                      } else {
+                          modificationsToTrack.push({ id: key, deleted: true });
+                      }
+
                       createdPlans.push({
                           id: key,
                           dateStr: dateStr,
@@ -991,6 +1052,10 @@ const App: React.FC = () => {
             if (functionResponses.length > 0) {
                 const finalResult = await chat.sendMessage({ message: functionResponses });
                 finalText = finalResult.text || "";
+            }
+
+            if (modificationsToTrack.length > 0) {
+                setAiActionHistory(prev => [...prev, { type: 'updateLessons', previousState: modificationsToTrack }]);
             }
         }
       }
@@ -1756,6 +1821,15 @@ const App: React.FC = () => {
         isLoading={isAiLoading}
         onSetMessages={setChatMessages}
         quickAddButton={
+          <div className="flex flex-col gap-2 items-end">
+            {aiActionHistory.length > 0 && (
+              <button
+                onClick={handleUndoLastAiAction}
+                className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1 mb-1"
+              >
+                <ChevronLeft size={12} /> Undo AI Update
+              </button>
+            )}
           <button
             onClick={() => setIsQuickAddOpen(true)}
             className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
@@ -1765,6 +1839,7 @@ const App: React.FC = () => {
               Quick Add
             </span>
           </button>
+          </div>
         }
         liveAssistantButton={
           <LiveAssistant

@@ -393,15 +393,17 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
 
       ${dbContext}
 
-      CAPABILITIES:
+      CAPABILITIES & DANGERS:
       1. AUDIO & VISION: You can hear the teacher and see their screen if they share it. Use visual context to provide feedback.
       2. PLANNING: You can add/update lessons using 'updateLesson'.
       3. SCHEDULING: You can create recurring events with 'addRecurringLesson'.
       4. QUERYING: Use 'getSchedule' to check the planner for PAST or FUTURE dates not shown in the snapshot.
       5. TASKS & PROJECTS: You can manage long-term projects and tasks using 'saveTask' and 'saveProject'.
+      - DANGER: DO NOT USE THE \`updateLesson\` or \`addRecurringLesson\` TOOLS UNLESS EXPLICITLY TOLD TO ADD, CREATE, OR CHANGE A LESSON. If a user says "do it again", "tell me what I have", or "I have updated some so do it again", they are asking you to read the context and reply with text. Do NOT modify the database on their behalf unless they say "add these to my planner" or "create a lesson".
+      - NEVER fill in empty periods, supervised study, or revision sessions on your own initiative. ONLY create lessons when strictly requested.
 
       GUIDELINES:
-      - Be proactive. Notice upcoming deadlines for tasks or empty Free/Admin periods in the snapshot, and suggest working on High priority tasks.
+      - Be proactive. Notice upcoming deadlines for tasks or empty Free/Admin periods in the snapshot, and suggest working on High priority tasks. (Do not schedule them into the planner automatically though, just suggest it).
       - If you see a slide deck, offer feedback on clarity or engagement.
       - If the teacher asks "What do I have today?", read out the "Scheduled Class" entries even if there is no plan, and optionally remind them of high-priority tasks due today.
       - Distinguish between "Free" periods and "Scheduled Class - No Plan". When they have free periods, suggest they knock out a task or do some planning.
