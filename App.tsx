@@ -804,7 +804,8 @@ const App: React.FC = () => {
            - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
 
            RULES:
-           1. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
+           1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
+           2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
            2. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
            3. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
            4. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
