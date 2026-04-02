@@ -35,8 +35,9 @@ import AppsHub from './components/AppsHub';
 import CommunicationsTab from './components/CommunicationsTab';
 import GlobalSearch from './components/GlobalSearch';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchRoutineTasks, saveRoutineTask } from './services/projectService';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask } from './types';
+import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask } from './services/projectService';
+import { fetchApps, fetchAppCategories } from './services/appService';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -96,6 +97,11 @@ const App: React.FC = () => {
   
   // Routine Tasks
   const [routineTasks, setRoutineTasks] = useState<RoutineTask[]>([]);
+
+  // Other Global Data for AI Context
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [apps, setApps] = useState<AppItem[]>([]);
+  const [appCategories, setAppCategories] = useState<AppCategory[]>([]);
 
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
   const [lessonPlans, setLessonPlans] = useState<Record<string, LessonPlan>>({});
@@ -223,18 +229,24 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const [plans, tasks, projs, cats, routines] = await Promise.all([
+        const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
             fetchProjects(),
             fetchCategories(),
-            fetchRoutineTasks()
+            fetchRoutineTasks(),
+            fetchIdeas(),
+            fetchApps(),
+            fetchAppCategories()
         ]);
         setLessonPlans(plans);
         setGlobalTasks(tasks);
         setProjects(projs);
         setCategories(cats);
         setRoutineTasks(routines);
+        setIdeas(fetchedIdeas);
+        setApps(fetchedApps);
+        setAppCategories(fetchedAppCategories);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -645,10 +657,13 @@ const App: React.FC = () => {
       let contextString = `Current Week Context: ${currentWeekData.displayString} (Week ${currentWeekData.weekNumber}).\n`;
       contextString += `Today is: ${new Date().toDateString()}.\n\n`;
       
-      // Add Upcoming Weeks Context for Multi-week planning
-      contextString += `--- CALENDAR CONTEXT (UPCOMING WEEKS) ---\n`;
-      const upcomingWeeks = weeksInTerm.filter(w => w.startDate >= currentWeekData.startDate).slice(0, 10);
-      upcomingWeeks.forEach(w => {
+      // Add Entire Academic Year Calendar Context
+      contextString += `--- ACADEMIC YEAR CALENDAR ---\n`;
+      let allWeeksInYear: WeekData[] = [];
+      terms.forEach(term => {
+          allWeeksInYear = allWeeksInYear.concat(generateWeeksForTerm(term));
+      });
+      allWeeksInYear.forEach(w => {
         const end = addDays(w.startDate, 4);
         contextString += `Week ${w.weekNumber}: ${toISODate(w.startDate)} to ${toISODate(end)}\n`;
       });
@@ -673,8 +688,50 @@ const App: React.FC = () => {
       contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
       contextString += `\n----------------------------\n\n`;
 
-      contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
+      contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
+      contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
+
+      contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
+      contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
+      contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
+      contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
+      contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
       
+      // Compute subjects for all lesson plans to make it easy for the AI
+      const computedLessonPlans = Object.values(lessonPlans).map(p => {
+          const dateObj = new Date(p.dateStr);
+          const weekIdx = allWeeksInYear.findIndex(w => {
+              const end = addDays(w.startDate, 7);
+              return dateObj >= w.startDate && dateObj < end;
+          });
+
+          let subject = "Unknown";
+          if (weekIdx !== -1) {
+              const week = allWeeksInYear[weekIdx];
+              const dayIndex = dateObj.getDay();
+              const dayStr = DAYS[dayIndex - 1]; // 0=Sunday, so -1 for Monday index if using DAYS
+              if (dayStr) {
+                  const tt = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+                  const entry = tt[dayStr]?.[p.periodLabel];
+                  if (entry) {
+                      subject = entry.subject;
+                  }
+              }
+          }
+          return {
+              date: p.dateStr,
+              period: p.periodLabel,
+              subject: subject,
+              title: p.title,
+              type: p.type,
+              notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
+          };
+      });
+
+      contextString += `Lesson Plans (All historical and future): ${JSON.stringify(computedLessonPlans, null, 2)}\n`;
+      contextString += `\n----------------------------\n\n`;
+
+      contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
       DAYS.forEach((day, idx) => {
         const date = addDays(currentWeekData.startDate, idx);
         const dateStr = toISODate(date);
@@ -687,6 +744,7 @@ const App: React.FC = () => {
            contextString += `  - ${period}: ${subject} ${status}\n`;
         });
       });
+      contextString += `\n----------------------------\n\n`;
 
       // Define Function Tool (Only for Admins)
       const updateLessonTool: FunctionDeclaration = {
@@ -738,11 +796,13 @@ const App: React.FC = () => {
         }
       };
 
-      const systemInstruction = isReadOnly
-        ? `You are an expert teacher's assistant. You have access to the user's timetable and projects.
-           The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks.`
-        : `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
+      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
            
+           CRITICAL INSTRUCTIONS ON CAPABILITIES:
+           - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
+           - You CAN search by class name or subject. Look at the "Lesson Plans (All historical and future)" list in the context below. It includes the "subject" (which is the class name, e.g., "10B", "Year 12 Maths") and the date for every single lesson.
+           - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
+
            RULES:
            1. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
            2. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
@@ -752,9 +812,13 @@ const App: React.FC = () => {
            
            ${contextString}`;
 
+      if (isReadOnly) {
+          systemInstruction += `\n\nNOTE: The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks. You can only view and analyze the data.`;
+      }
+
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
@@ -1707,6 +1771,11 @@ const App: React.FC = () => {
             lessonPlans={lessonPlans}
             globalTasks={globalTasks}
             projects={projects}
+            categories={categories}
+            ideas={ideas}
+            routineTasks={routineTasks}
+            apps={apps}
+            appCategories={appCategories}
             isAdmin={isAdmin}
             onUpdateLesson={handleSaveLesson}
             onAddRecurringLesson={handleBatchSaveLessons}
