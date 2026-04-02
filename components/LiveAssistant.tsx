@@ -6,13 +6,18 @@ import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
 import { DAYS, PERIOD_LABELS } from '../constants';
 import { toISODate, addDays, generateWeeksForTerm } from '../utils/dateUtils';
 import { usePlannerData } from '../src/context/PlannerContext';
-import { Task, Project } from '../types';
+import { Task, Project, Category, Idea, RoutineTask, AppItem, AppCategory } from '../types';
 
 interface LiveAssistantProps {
   currentWeekData: WeekData | undefined;
   lessonPlans: Record<string, LessonPlan>;
   globalTasks: Task[];
   projects: Project[];
+  categories: Category[];
+  ideas: Idea[];
+  routineTasks: RoutineTask[];
+  apps: AppItem[];
+  appCategories: AppCategory[];
   onUpdateLesson: (lesson: LessonPlan) => Promise<void>;
   onAddRecurringLesson: (lessons: LessonPlan[]) => Promise<void>;
   onSaveTask: (task: Task) => Promise<void>;
@@ -65,6 +70,11 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   lessonPlans, 
   globalTasks,
   projects,
+  categories,
+  ideas,
+  routineTasks,
+  apps,
+  appCategories,
   onUpdateLesson, 
   onAddRecurringLesson,
   onSaveTask,
@@ -269,6 +279,12 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
       audioContextOutRef.current = outputCtx;
 
       // Build context from current week data and lesson plans for immediate context
+
+      let allWeeksInYear: WeekData[] = [];
+      terms.forEach(term => {
+          allWeeksInYear = allWeeksInYear.concat(generateWeeksForTerm(term));
+      });
+
       let plannerContext = "";
       const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
 
@@ -296,6 +312,47 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
               }
           });
       });
+
+      // Global Database Context
+      let dbContext = "\n--- ENTIRE DATABASE CONTENT ---\n";
+      dbContext += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
+      dbContext += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
+      dbContext += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
+      dbContext += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
+      dbContext += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
+      dbContext += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
+
+      const computedLessonPlans = Object.values(lessonPlans).map(p => {
+          const dateObj = new Date(p.dateStr);
+          const weekIdx = allWeeksInYear.findIndex(w => {
+              const end = addDays(w.startDate, 7);
+              return dateObj >= w.startDate && dateObj < end;
+          });
+
+          let subject = "Unknown";
+          if (weekIdx !== -1) {
+              const week = allWeeksInYear[weekIdx];
+              const dayIndex = dateObj.getDay();
+              const dayStr = DAYS[dayIndex - 1];
+              if (dayStr) {
+                  const tt = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+                  const entry = tt[dayStr]?.[p.periodLabel];
+                  if (entry) {
+                      subject = entry.subject;
+                  }
+              }
+          }
+          return {
+              date: p.dateStr,
+              period: p.periodLabel,
+              subject: subject,
+              title: p.title,
+              type: p.type,
+              notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
+          };
+      });
+      dbContext += `Lesson Plans (All historical and future): ${JSON.stringify(computedLessonPlans, null, 2)}\n`;
+      dbContext += `----------------------------\n`;
 
       // Format Tasks and Projects for Context
       const activeTasks = globalTasks.filter(t => t.status !== 'Completed');
@@ -333,6 +390,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
       ${plannerContext}
       ${tasksContext}
       ${projectsContext}
+
+      ${dbContext}
 
       CAPABILITIES:
       1. AUDIO & VISION: You can hear the teacher and see their screen if they share it. Use visual context to provide feedback.

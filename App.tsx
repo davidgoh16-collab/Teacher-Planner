@@ -813,7 +813,7 @@ const App: React.FC = () => {
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
@@ -1766,6 +1766,11 @@ const App: React.FC = () => {
             lessonPlans={lessonPlans}
             globalTasks={globalTasks}
             projects={projects}
+            categories={categories}
+            ideas={ideas}
+            routineTasks={routineTasks}
+            apps={apps}
+            appCategories={appCategories}
             isAdmin={isAdmin}
             onUpdateLesson={handleSaveLesson}
             onAddRecurringLesson={handleBatchSaveLessons}
