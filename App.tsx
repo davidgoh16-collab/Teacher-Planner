@@ -690,13 +690,13 @@ const App: React.FC = () => {
 
       contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
       contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
-      
+
       contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
       contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
       contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
       contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
       contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
-
+      
       // Compute subjects for all lesson plans to make it easy for the AI
       const computedLessonPlans = Object.values(lessonPlans).map(p => {
           const dateObj = new Date(p.dateStr);
@@ -796,11 +796,13 @@ const App: React.FC = () => {
         }
       };
 
-      const systemInstruction = isReadOnly
-        ? `You are an expert teacher's assistant. You have access to the user's timetable and projects.
-           The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks.`
-        : `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
+      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
            
+           CRITICAL INSTRUCTIONS ON CAPABILITIES:
+           - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
+           - You CAN search by class name or subject. Look at the "Lesson Plans (All historical and future)" list in the context below. It includes the "subject" (which is the class name, e.g., "10B", "Year 12 Maths") and the date for every single lesson.
+           - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
+
            RULES:
            1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
            2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
@@ -810,6 +812,10 @@ const App: React.FC = () => {
            5. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
            
            ${contextString}`;
+
+      if (isReadOnly) {
+          systemInstruction += `\n\nNOTE: The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks. You can only view and analyze the data.`;
+      }
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
