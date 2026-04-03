@@ -147,6 +147,18 @@ export interface AppItem {
   createdAt: number;
 }
 
+export interface KeyDate {
+  id: string;
+  title: string;
+  dateStr: string; // YYYY-MM-DD
+  time?: string; // e.g., "14:00"
+  isAllDay?: boolean;
+  notes?: string;
+  categoryId?: string;
+  colorClass?: string; // e.g. Tailwind class
+  createdAt: number;
+}
+
 export interface RoutineTask {
   id: string;
   title: string;
