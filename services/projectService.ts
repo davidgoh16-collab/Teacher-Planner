@@ -1,9 +1,10 @@
 import { db } from '../firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { Project, Task, Category, Idea } from '../types';
+import { Project, Task, Category, Idea, KeyDate } from '../types';
 
 const PROJECTS_COLLECTION = 'teacher_planner_projects';
 const TASKS_COLLECTION = 'teacher_planner_tasks';
+const KEY_DATES_COLLECTION = 'teacher_planner_key_dates';
 const CATEGORIES_COLLECTION = 'teacher_planner_categories';
 const IDEAS_COLLECTION = 'teacher_planner_ideas';
 
@@ -89,6 +90,34 @@ export const deleteTask = async (id: string): Promise<void> => {
         console.error("Error deleting task", e);
         console.warn("Ignoring deleteTask error for local testing.");
     }
+};
+
+// --- KEY DATES ---
+
+export const fetchKeyDates = async (): Promise<KeyDate[]> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, KEY_DATES_COLLECTION));
+    return querySnapshot.docs.map(docSnap => docSnap.data() as KeyDate);
+  } catch (e) {
+    console.error("Error fetching key dates", e);
+    return [];
+  }
+};
+
+export const saveKeyDate = async (keyDate: KeyDate): Promise<void> => {
+  try {
+    await setDoc(doc(db, KEY_DATES_COLLECTION, keyDate.id), keyDate);
+  } catch (e) {
+    console.error("Error saving key date", e);
+  }
+};
+
+export const deleteKeyDate = async (keyDateId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, KEY_DATES_COLLECTION, keyDateId));
+  } catch (e) {
+    console.error("Error deleting key date", e);
+  }
 };
 
 export const fetchIdeas = async (): Promise<Idea[]> => {
