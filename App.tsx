@@ -34,10 +34,11 @@ import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import CommunicationsTab from './components/CommunicationsTab';
 import GlobalSearch from './components/GlobalSearch';
+import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask } from './services/projectService';
+import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories } from './services/appService';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory } from './types';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -89,7 +90,7 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects' | 'apps' | 'communications'>('timetable');
+  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects' | 'apps' | 'communications' | 'keyDates'>('timetable');
 
   // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
@@ -102,6 +103,7 @@ const App: React.FC = () => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [apps, setApps] = useState<AppItem[]>([]);
   const [appCategories, setAppCategories] = useState<AppCategory[]>([]);
+  const [keyDates, setKeyDates] = useState<KeyDate[]>([]);
 
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
   const [lessonPlans, setLessonPlans] = useState<Record<string, LessonPlan>>({});
@@ -232,7 +234,7 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
-        const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories] = await Promise.all([
+        const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories, fetchedKeyDates] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
             fetchProjects(),
@@ -240,7 +242,8 @@ const App: React.FC = () => {
             fetchRoutineTasks(),
             fetchIdeas(),
             fetchApps(),
-            fetchAppCategories()
+            fetchAppCategories(),
+            fetchKeyDates()
         ]);
         setLessonPlans(plans);
         setGlobalTasks(tasks);
@@ -250,6 +253,7 @@ const App: React.FC = () => {
         setIdeas(fetchedIdeas);
         setApps(fetchedApps);
         setAppCategories(fetchedAppCategories);
+        setKeyDates(fetchedKeyDates);
       } catch (e) {
         console.error("Failed to load data from DB", e);
       } finally {
@@ -524,6 +528,24 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddKeyDate = async (newKeyDate: KeyDate) => {
+    if (actualIsReadOnly) return;
+    setKeyDates(prev => [...prev, newKeyDate]);
+    await saveKeyDate(newKeyDate);
+  };
+
+  const handleEditKeyDate = async (updatedKeyDate: KeyDate) => {
+    if (actualIsReadOnly) return;
+    setKeyDates(prev => prev.map(k => k.id === updatedKeyDate.id ? updatedKeyDate : k));
+    await saveKeyDate(updatedKeyDate);
+  };
+
+  const handleDeleteKeyDate = async (id: string) => {
+    if (actualIsReadOnly) return;
+    setKeyDates(prev => prev.filter(k => k.id !== id));
+    await deleteKeyDate(id);
+  };
+
   const isRoutineCompleted = (task: RoutineTask, targetDateStr: string) => {
     // If we have history, check it directly
     if (task.completedDatesStr && task.completedDatesStr.includes(targetDateStr)) {
@@ -739,6 +761,7 @@ const App: React.FC = () => {
       contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
       contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
       contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
+      contextString += `Key Dates: ${JSON.stringify(keyDates, null, 2)}\n`;
 
       // Compute subjects for all lesson plans to make it easy for the AI
       const computedLessonPlans = Object.values(lessonPlans).map(p => {
@@ -839,7 +862,52 @@ const App: React.FC = () => {
         }
       };
 
-      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, and manage project tasks.
+      const addKeyDateTool: FunctionDeclaration = {
+        name: 'addKeyDate',
+        description: 'Add a new key date to the calendar.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Title or name of the key date event.' },
+            dateStr: { type: Type.STRING, description: 'The date in YYYY-MM-DD format.' },
+            time: { type: Type.STRING, description: 'Optional time for the event (e.g. 14:00).' },
+            isAllDay: { type: Type.BOOLEAN, description: 'Whether the event is an all day event.' },
+            notes: { type: Type.STRING, description: 'Optional notes for the event.' }
+          },
+          required: ['title', 'dateStr']
+        }
+      };
+
+      const editKeyDateTool: FunctionDeclaration = {
+        name: 'editKeyDate',
+        description: 'Edit an existing key date on the calendar.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING, description: 'The ID of the key date to edit.' },
+            title: { type: Type.STRING, description: 'Title or name of the key date event.' },
+            dateStr: { type: Type.STRING, description: 'The date in YYYY-MM-DD format.' },
+            time: { type: Type.STRING, description: 'Optional time for the event (e.g. 14:00).' },
+            isAllDay: { type: Type.BOOLEAN, description: 'Whether the event is an all day event.' },
+            notes: { type: Type.STRING, description: 'Optional notes for the event.' }
+          },
+          required: ['id']
+        }
+      };
+
+      const deleteKeyDateTool: FunctionDeclaration = {
+        name: 'deleteKeyDate',
+        description: 'Delete an existing key date from the calendar.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING, description: 'The ID of the key date to delete.' }
+          },
+          required: ['id']
+        }
+      };
+
+      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, manage project tasks, and handle key calendar dates.
            
            CRITICAL INSTRUCTIONS ON CAPABILITIES & TOOL USAGE:
            - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
@@ -868,7 +936,7 @@ const App: React.FC = () => {
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
-          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTaskToProjectTool] }] : undefined
+          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTaskToProjectTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
         }
       });
 
@@ -1042,6 +1110,100 @@ const App: React.FC = () => {
                                 name: call.name,
                                 id: call.id,
                                 response: { error: `Failed to save task.` }
+                            }
+                        });
+                    }
+                } else if (call.name === 'addKeyDate') {
+                    const args = call.args as any;
+                    const newKeyDate: KeyDate = {
+                        id: `kd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        title: args.title,
+                        dateStr: args.dateStr,
+                        time: args.time,
+                        isAllDay: args.isAllDay !== undefined ? args.isAllDay : true,
+                        notes: args.notes,
+                        colorClass: 'bg-slate-200', // Default color
+                        createdAt: Date.now()
+                    };
+                    try {
+                        await saveKeyDate(newKeyDate);
+                        setKeyDates(prev => [...prev, newKeyDate]);
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Added key date "${newKeyDate.title}" for ${newKeyDate.dateStr}.` }
+                            }
+                        });
+                    } catch (e) {
+                         functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { error: `Failed to add key date.` }
+                            }
+                        });
+                    }
+                } else if (call.name === 'editKeyDate') {
+                    const args = call.args as any;
+                    const existingKeyDate = keyDates.find(k => k.id === args.id);
+                    if (!existingKeyDate) {
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { error: `Key date not found.` }
+                            }
+                        });
+                        continue;
+                    }
+
+                    const updatedKeyDate: KeyDate = {
+                        ...existingKeyDate,
+                        title: args.title || existingKeyDate.title,
+                        dateStr: args.dateStr || existingKeyDate.dateStr,
+                        time: args.time !== undefined ? args.time : existingKeyDate.time,
+                        isAllDay: args.isAllDay !== undefined ? args.isAllDay : existingKeyDate.isAllDay,
+                        notes: args.notes !== undefined ? args.notes : existingKeyDate.notes
+                    };
+
+                    try {
+                        await saveKeyDate(updatedKeyDate);
+                        setKeyDates(prev => prev.map(k => k.id === args.id ? updatedKeyDate : k));
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Edited key date "${updatedKeyDate.title}".` }
+                            }
+                        });
+                    } catch (e) {
+                         functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { error: `Failed to edit key date.` }
+                            }
+                        });
+                    }
+                } else if (call.name === 'deleteKeyDate') {
+                    const args = call.args as any;
+                    try {
+                        await deleteKeyDate(args.id);
+                        setKeyDates(prev => prev.filter(k => k.id !== args.id));
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Deleted key date with ID ${args.id}.` }
+                            }
+                        });
+                    } catch (e) {
+                         functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { error: `Failed to delete key date.` }
                             }
                         });
                     }
@@ -1351,6 +1513,12 @@ const App: React.FC = () => {
               className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'communications' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
               Communications
+            </button>
+            <button
+              onClick={() => setActiveTab('keyDates')}
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'keyDates' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
+            >
+              Key Dates
             </button>
         </div>
 
@@ -1743,6 +1911,14 @@ const App: React.FC = () => {
             />
           ) : activeTab === 'communications' ? (
             <CommunicationsTab isReadOnly={actualIsReadOnly} />
+          ) : activeTab === 'keyDates' ? (
+            <KeyDatesView
+              keyDates={keyDates}
+              categories={categories}
+              onAddKeyDate={handleAddKeyDate}
+              onEditKeyDate={handleEditKeyDate}
+              onDeleteKeyDate={handleDeleteKeyDate}
+            />
           ) : (
             <AppsHub isReadOnly={actualIsReadOnly} />
           )}
