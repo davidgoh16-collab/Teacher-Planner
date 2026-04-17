@@ -1908,10 +1908,55 @@ const App: React.FC = () => {
                             } as Task))
                         ]);
 
-                        const weekendTasks = allTasksAndSubtasks.filter(t =>
-                            t.scheduledDateStr === satDateStr || t.deadlineDateStr === satDateStr ||
-                            t.scheduledDateStr === sunDateStr || t.deadlineDateStr === sunDateStr
-                        );
+                        // Determine if we need to sweep holiday tasks
+                        // To do this, we need to know the start of this week and the end of the PREVIOUS week in the planner
+                        // If there is a gap > 3 days (weekend is 2 days), we had a break/holiday
+                        let holidayStartDateStr = null;
+                        let holidayEndDateStr = null;
+
+                        if (selectedWeekIndex > 0) {
+                            const prevWeekEnd = addDays(weeksInTerm[selectedWeekIndex - 1].startDate, 4); // Friday of prev week
+                            const currentWeekStart = currentWeekData.startDate; // Monday of current week
+                            const timeDiff = currentWeekStart.getTime() - prevWeekEnd.getTime();
+                            const daysDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+
+                            if (daysDiff > 3) {
+                                // There was a gap!
+                                holidayStartDateStr = toISODate(addDays(prevWeekEnd, 1)); // Saturday after previous term
+                                holidayEndDateStr = toISODate(addDays(currentWeekStart, -1)); // Sunday before current term starts
+                            }
+                        } else if (selectedWeekIndex === 0) {
+                             // First week of the term. Let's see if there was a previous term.
+                             const currentTermIdx = terms.findIndex(t => t.id === selectedTermId);
+                             if (currentTermIdx > 0) {
+                                 const prevTerm = terms[currentTermIdx - 1];
+                                 holidayStartDateStr = toISODate(addDays(prevTerm.endDate, 1));
+                                 holidayEndDateStr = toISODate(addDays(currentWeekData.startDate, -1));
+                             }
+                        }
+
+                        const weekendTasks = allTasksAndSubtasks.filter(t => {
+                            const isWeekend = t.scheduledDateStr === satDateStr || t.deadlineDateStr === satDateStr ||
+                                              t.scheduledDateStr === sunDateStr || t.deadlineDateStr === sunDateStr;
+
+                            let isHolidayBacklog = false;
+                            if (holidayStartDateStr && holidayEndDateStr) {
+                                if (t.scheduledDateStr && t.scheduledDateStr >= holidayStartDateStr && t.scheduledDateStr <= holidayEndDateStr) {
+                                    isHolidayBacklog = true;
+                                }
+                                if (t.deadlineDateStr && t.deadlineDateStr >= holidayStartDateStr && t.deadlineDateStr <= holidayEndDateStr) {
+                                    isHolidayBacklog = true;
+                                }
+                            }
+
+                            return isWeekend || isHolidayBacklog;
+                        });
+
+                        // We also need to pass this state to the rendering block
+                        const hasHolidayBacklog = holidayStartDateStr && holidayEndDateStr && weekendTasks.some(t => {
+                            return (t.scheduledDateStr && t.scheduledDateStr >= holidayStartDateStr && t.scheduledDateStr <= holidayEndDateStr) ||
+                                   (t.deadlineDateStr && t.deadlineDateStr >= holidayStartDateStr && t.deadlineDateStr <= holidayEndDateStr);
+                        });
 
                         // Sort by priority: High > Medium > Low
                         const priorityWeight: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
@@ -1920,8 +1965,8 @@ const App: React.FC = () => {
                         const activeWeekendTasks = weekendTasks.filter(t => t.status !== 'Completed');
                         const completedWeekendTasks = weekendTasks.filter(t => t.status === 'Completed');
 
-                        const applicableRoutinesSat = routineTasks.filter(t => t.type === 'daily' || !t.type || t.daysOfWeek?.includes(6));
-                        const applicableRoutinesSun = routineTasks.filter(t => t.type === 'daily' || !t.type || t.daysOfWeek?.includes(0));
+                        const applicableRoutinesSat = routineTasks.filter(t => t.daysOfWeek?.includes(6));
+                        const applicableRoutinesSun = routineTasks.filter(t => t.daysOfWeek?.includes(0));
 
                         const activeRoutinesSat = applicableRoutinesSat.filter(t => !isRoutineCompleted(t, satDateStr));
                         const completedRoutinesSat = applicableRoutinesSat.filter(t => isRoutineCompleted(t, satDateStr));
@@ -1951,7 +1996,9 @@ const App: React.FC = () => {
                         return (
                             <div className="col-span-9 bg-slate-200 dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors mt-6">
                                 <div className="flex items-center gap-2 mb-3 border-b border-slate-300 dark:border-slate-700 pb-2">
-                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">Weekend Tasks</h3>
+                                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">
+                                        {hasHolidayBacklog ? 'Weekend Tasks & Holiday Backlog' : 'Weekend Tasks'}
+                                    </h3>
                                     <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">({formatDate(saturdayDate)} & {formatDate(sundayDate)})</span>
                                 </div>
 
