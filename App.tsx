@@ -20,7 +20,8 @@ import {
   generateWeeksForTerm, 
   toISODate, 
   addDays, 
-  formatDate 
+  formatDate,
+  getMonday
 } from './utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
