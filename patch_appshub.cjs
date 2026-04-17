@@ -8,8 +8,6 @@ const marker = `                    );
                 </div>
             </div>`;
 
-// We'll create the weekend section logic and insert it just before the closing </div> of the space-y-4 container
-
 const insertion = `                    );
                     })}
 
@@ -42,7 +40,7 @@ const insertion = `                    );
                         );
 
                         // Sort by priority: High > Medium > Low
-                        const priorityWeight = { 'High': 3, 'Medium': 2, 'Low': 1 };
+                        const priorityWeight: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
                         weekendTasks.sort((a, b) => priorityWeight[b.priority] - priorityWeight[a.priority]);
 
                         const activeWeekendTasks = weekendTasks.filter(t => t.status !== 'Completed');
@@ -57,8 +55,6 @@ const insertion = `                    );
                         const activeRoutinesSun = applicableRoutinesSun.filter(t => !isRoutineCompleted(t, sunDateStr));
                         const completedRoutinesSun = applicableRoutinesSun.filter(t => isRoutineCompleted(t, sunDateStr));
 
-                        // For routines, we'll just display them as "Sat: Task" or "Sun: Task" if they appear on both or either
-                        // To avoid duplicates in display, let's map them
                         const activeRoutines = [
                             ...activeRoutinesSat.map(t => ({...t, targetDateStr: satDateStr, displayDay: 'Sat'})),
                             ...activeRoutinesSun.map(t => ({...t, targetDateStr: sunDateStr, displayDay: 'Sun'}))
