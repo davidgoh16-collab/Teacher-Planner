@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+          injectRegister: 'auto',
+          includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
           workbox: {
             maximumFileSizeToCacheInBytes: 5000000 // 5MB to accommodate the large chunk
           },
@@ -26,14 +27,20 @@ export default defineConfig(({ mode }) => {
             display: 'standalone',
             icons: [
               {
-                src: 'https://www.google.com/s2/favicons?domain=google.com&sz=192',
+                src: '/pwa-192x192.png',
                 sizes: '192x192',
                 type: 'image/png'
               },
               {
-                src: 'https://www.google.com/s2/favicons?domain=google.com&sz=512',
+                src: '/pwa-512x512.png',
                 sizes: '512x512',
                 type: 'image/png'
+              },
+              {
+                src: '/pwa-512x512.png',
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'any maskable'
               }
             ]
           }
