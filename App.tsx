@@ -1894,33 +1894,6 @@ const App: React.FC = () => {
                         const satDateStr = toISODate(saturdayDate);
                         const sunDateStr = toISODate(sundayDate);
 
-                        // Calculate if this week is the first week of a term, or first week after half-term
-                        let holidayStartStr = null;
-                        let holidayEndStr = null;
-
-                        // 1. Is it the first week of the term?
-                        const currentTermIdx = terms.findIndex(t => t.id === selectedTermId);
-                        const currentTerm = terms[currentTermIdx];
-                        const isFirstWeekOfTerm = currentTerm && currentWeekData.startDate.getTime() === getMonday(currentTerm.startDate).getTime();
-
-                        if (isFirstWeekOfTerm && currentTermIdx > 0) {
-                            // Find the previous term
-                            const prevTerm = terms[currentTermIdx - 1];
-                            holidayStartStr = toISODate(addDays(prevTerm.endDate, 1));
-                            holidayEndStr = toISODate(addDays(currentWeekData.startDate, -1)); // Day before this week starts
-                        }
-
-                        // 2. Is it the first week after half-term?
-                        let isFirstWeekAfterHalfTerm = false;
-                        if (currentTerm && currentTerm.halfTermEnd) {
-                            const mondayAfterHalfTerm = getMonday(addDays(currentTerm.halfTermEnd, 3));
-                            if (currentWeekData.startDate.getTime() === mondayAfterHalfTerm.getTime()) {
-                                isFirstWeekAfterHalfTerm = true;
-                                holidayStartStr = toISODate(currentTerm.halfTermStart!);
-                                holidayEndStr = toISODate(currentTerm.halfTermEnd!);
-                            }
-                        }
-
                         const allTasksAndSubtasks = globalTasks.flatMap(task => [
                             task,
                             ...(task.subtasks || []).map(st => ({
@@ -1935,18 +1908,10 @@ const App: React.FC = () => {
                             } as Task))
                         ]);
 
-                        const weekendTasks = allTasksAndSubtasks.filter(t => {
-                            const isSatOrSun = t.scheduledDateStr === satDateStr || t.deadlineDateStr === satDateStr ||
-                                               t.scheduledDateStr === sunDateStr || t.deadlineDateStr === sunDateStr;
-
-                            let isHoliday = false;
-                            if (holidayStartStr && holidayEndStr) {
-                                if (t.scheduledDateStr && t.scheduledDateStr >= holidayStartStr && t.scheduledDateStr <= holidayEndStr) isHoliday = true;
-                                if (t.deadlineDateStr && t.deadlineDateStr >= holidayStartStr && t.deadlineDateStr <= holidayEndStr) isHoliday = true;
-                            }
-
-                            return isSatOrSun || isHoliday;
-                        });
+                        const weekendTasks = allTasksAndSubtasks.filter(t =>
+                            t.scheduledDateStr === satDateStr || t.deadlineDateStr === satDateStr ||
+                            t.scheduledDateStr === sunDateStr || t.deadlineDateStr === sunDateStr
+                        );
 
                         // Sort by priority: High > Medium > Low
                         const priorityWeight: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
@@ -1955,8 +1920,27 @@ const App: React.FC = () => {
                         const activeWeekendTasks = weekendTasks.filter(t => t.status !== 'Completed');
                         const completedWeekendTasks = weekendTasks.filter(t => t.status === 'Completed');
 
-                        const totalCompleted = completedWeekendTasks.length;
-                        const totalActive = activeWeekendTasks.length;
+                        const applicableRoutinesSat = routineTasks.filter(t => t.type === 'daily' || !t.type || t.daysOfWeek?.includes(6));
+                        const applicableRoutinesSun = routineTasks.filter(t => t.type === 'daily' || !t.type || t.daysOfWeek?.includes(0));
+
+                        const activeRoutinesSat = applicableRoutinesSat.filter(t => !isRoutineCompleted(t, satDateStr));
+                        const completedRoutinesSat = applicableRoutinesSat.filter(t => isRoutineCompleted(t, satDateStr));
+
+                        const activeRoutinesSun = applicableRoutinesSun.filter(t => !isRoutineCompleted(t, sunDateStr));
+                        const completedRoutinesSun = applicableRoutinesSun.filter(t => isRoutineCompleted(t, sunDateStr));
+
+                        const activeRoutines = [
+                            ...activeRoutinesSat.map(t => ({...t, targetDateStr: satDateStr, displayDay: 'Sat'})),
+                            ...activeRoutinesSun.map(t => ({...t, targetDateStr: sunDateStr, displayDay: 'Sun'}))
+                        ];
+
+                        const completedRoutines = [
+                            ...completedRoutinesSat.map(t => ({...t, targetDateStr: satDateStr, displayDay: 'Sat'})),
+                            ...completedRoutinesSun.map(t => ({...t, targetDateStr: sunDateStr, displayDay: 'Sun'}))
+                        ];
+
+                        const totalCompleted = completedRoutines.length + completedWeekendTasks.length;
+                        const totalActive = activeRoutines.length + activeWeekendTasks.length;
                         const totalTasks = totalActive + totalCompleted;
 
                         if (totalTasks === 0) return null;
@@ -1968,10 +1952,7 @@ const App: React.FC = () => {
                             <div className="col-span-9 bg-slate-200 dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors mt-6">
                                 <div className="flex items-center gap-2 mb-3 border-b border-slate-300 dark:border-slate-700 pb-2">
                                     <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">Weekend Tasks</h3>
-                                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                                        ({formatDate(saturdayDate)} & {formatDate(sundayDate)}
-                                        {holidayStartStr ? ` + Holidays` : ''})
-                                    </span>
+                                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">({formatDate(saturdayDate)} & {formatDate(sundayDate)})</span>
                                 </div>
 
                                 <div className="mb-4">
@@ -1999,6 +1980,24 @@ const App: React.FC = () => {
 
                                         {isExpandedActive && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                                                {activeRoutines.map((task, idx) => (
+                                                    <div key={`${task.id}_${idx}`}
+                                                         className="flex items-start gap-2 bg-green-50/50 dark:bg-green-900/10 p-2 rounded border border-green-200/50 dark:border-green-800/50 shadow-sm text-sm relative group/dailytask cursor-pointer hover:shadow-md transition-shadow">
+                                                        <button
+                                                            onClick={(e) => handleToggleRoutineTask(e, task, task.targetDateStr)}
+                                                            className="mt-0.5 shrink-0 text-slate-300 dark:text-slate-600 hover:text-green-500"
+                                                        >
+                                                            <Circle size={14} />
+                                                        </button>
+                                                        <div className="flex-1 flex flex-col min-w-0">
+                                                            <span className="font-medium text-slate-700 dark:text-slate-200">
+                                                                {task.title}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-500 uppercase font-bold mt-0.5">{task.displayDay}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+
                                                 {activeWeekendTasks.map(task => {
                                                     const project = projects.find(p => p.id === task.projectId);
                                                     const bgColorClass = project?.colorClass || 'bg-white dark:bg-slate-800';
@@ -2008,18 +2007,7 @@ const App: React.FC = () => {
                                                     const isSatDue = task.deadlineDateStr === satDateStr;
                                                     const isSunDue = task.deadlineDateStr === sunDateStr;
 
-                                                    let isHolSch = false;
-                                                    let isHolDue = false;
-                                                    if (holidayStartStr && holidayEndStr) {
-                                                        if (task.scheduledDateStr && task.scheduledDateStr >= holidayStartStr && task.scheduledDateStr <= holidayEndStr) isHolSch = true;
-                                                        if (task.deadlineDateStr && task.deadlineDateStr >= holidayStartStr && task.deadlineDateStr <= holidayEndStr) isHolDue = true;
-                                                    }
-
-                                                    let dayStr = '';
-                                                    if ((isSatSch || isSatDue) && (isSunSch || isSunDue)) dayStr = 'Sat & Sun';
-                                                    else if (isSatSch || isSatDue) dayStr = 'Sat';
-                                                    else if (isSunSch || isSunDue) dayStr = 'Sun';
-                                                    else if (isHolSch || isHolDue) dayStr = 'Holiday';
+                                                    const dayStr = (isSatSch || isSatDue) && (isSunSch || isSunDue) ? 'Sat & Sun' : (isSatSch || isSatDue ? 'Sat' : 'Sun');
 
                                                     return (
                                                         <div key={task.id}
@@ -2053,8 +2041,8 @@ const App: React.FC = () => {
                                                                     <span className="opacity-50">|</span>
                                                                     <span className="font-semibold">{task.priority}</span>
                                                                     <span className="opacity-50">|</span>
-                                                                    {(isSatSch || isSunSch || isHolSch) && <span className="flex items-center gap-0.5" title="Scheduled"><CalendarDays size={12} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
-                                                                    {(isSatDue || isSunDue || isHolDue) && <span className="flex items-center gap-0.5" title="Due"><Clock size={12} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
+                                                                    {(isSatSch || isSunSch) && <span className="flex items-center gap-0.5" title="Scheduled"><CalendarDays size={12} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
+                                                                    {(isSatDue || isSunDue) && <span className="flex items-center gap-0.5" title="Due"><Clock size={12} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2077,6 +2065,23 @@ const App: React.FC = () => {
 
                                         {expandedRoutineDays['weekend'] && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-3">
+                                                {completedRoutines.map((task, idx) => (
+                                                    <div key={`${task.id}_${idx}`}
+                                                         className="flex items-start gap-2 bg-slate-100/50 dark:bg-slate-800/30 p-2 rounded border border-slate-200/50 dark:border-slate-700/50 text-sm cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+                                                         onClick={(e) => handleToggleRoutineTask(e, task, task.targetDateStr)}
+                                                    >
+                                                        <button className="mt-0.5 shrink-0 text-green-500">
+                                                            <CheckCircle2 size={14} />
+                                                        </button>
+                                                        <div className="flex-1 flex flex-col min-w-0">
+                                                            <span className="font-medium line-through text-slate-500">
+                                                                {task.title}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">{task.displayDay}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+
                                                 {completedWeekendTasks.map(task => (
                                                     <div key={task.id}
                                                          className="flex items-start gap-2 bg-slate-100/50 dark:bg-slate-800/30 p-2 rounded border border-slate-200/50 dark:border-slate-700/50 text-sm cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
