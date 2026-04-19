@@ -1,6 +1,6 @@
 import { Term, WeeklyTimetable } from './types';
 
-export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
+export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Break', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 // Color palette mapping based on image analysis
@@ -56,6 +56,7 @@ export const TIMETABLE_WEEK_1: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: 'PPA', colorClass: COLORS.COMBINED },
     'Period 3': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
+    'Break': null,
     'Period 4': null,
     'Period 5': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
     'Period 6': { subject: 'PPA', colorClass: COLORS.PPA },
@@ -66,6 +67,7 @@ export const TIMETABLE_WEEK_1: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
     'Period 3': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
+    'Break': null,
     'Period 4': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
     'Period 5': { subject: '13A/Gg1 - RM 44', colorClass: COLORS.Y13_GEO },
     'Period 6': { subject: 'PPA', colorClass: COLORS.COMBINED },
@@ -76,6 +78,7 @@ export const TIMETABLE_WEEK_1: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
     'Period 3': { subject: '13A/TT1', colorClass: COLORS.Y13_TT },
+    'Break': null,
     'Period 4': { subject: 'PPA', colorClass: COLORS.PPA },
     'Period 5': { subject: '7H/Geo - RM 44', colorClass: COLORS.Y7_GEO },
     'Period 6': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
@@ -86,6 +89,7 @@ export const TIMETABLE_WEEK_1: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': null,
     'Period 3': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
+    'Break': null,
     'Period 4': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
     'Period 5': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
     'Period 6': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
@@ -96,6 +100,7 @@ export const TIMETABLE_WEEK_1: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '13A/Gg1 - RM 44', colorClass: COLORS.Y13_GEO },
     'Period 3': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
+    'Break': null,
     'Period 4': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
     'Period 5': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
     'Period 6': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
@@ -109,6 +114,7 @@ export const TIMETABLE_WEEK_2: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': null,
     'Period 3': { subject: '13A/Gg1 - RM 44', colorClass: COLORS.Y13_GEO },
+    'Break': null,
     'Period 4': null,
     'Period 5': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
     'Period 6': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
@@ -119,6 +125,7 @@ export const TIMETABLE_WEEK_2: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: 'PPA', colorClass: COLORS.COMBINED },
     'Period 3': { subject: '13A/Gg1 - RM 44', colorClass: COLORS.Y13_GEO },
+    'Break': null,
     'Period 4': null,
     'Period 5': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
     'Period 6': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
@@ -129,6 +136,7 @@ export const TIMETABLE_WEEK_2: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
     'Period 3': { subject: 'PPA', colorClass: COLORS.PPA },
+    'Break': null,
     'Period 4': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
     'Period 5': { subject: 'PPA', colorClass: COLORS.PPA },
     'Period 6': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
@@ -139,6 +147,7 @@ export const TIMETABLE_WEEK_2: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
     'Period 3': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
+    'Break': null,
     'Period 4': null,
     'Period 5': { subject: '12A/TTE - RM 44', colorClass: COLORS.Y12_TTE },
     'Period 6': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
@@ -149,6 +158,7 @@ export const TIMETABLE_WEEK_2: WeeklyTimetable = {
     'Period 1': { subject: '10M', colorClass: COLORS.REG },
     'Period 2': { subject: '13A/Gg1 - RM 44', colorClass: COLORS.Y13_GEO },
     'Period 3': { subject: '13A/TT1 - RM 44', colorClass: COLORS.Y13_TT },
+    'Break': null,
     'Period 4': { subject: '10B/Gg1 - RM 44', colorClass: COLORS.Y10_GEO },
     'Period 5': { subject: '11C/Gg1 - RM 44', colorClass: COLORS.Y11_GEO },
     'Period 6': null,
