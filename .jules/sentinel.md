@@ -1,0 +1,4 @@
+## 2024-05-28 - Hardcoded Firebase API Key
+**Vulnerability:** A hardcoded Firebase API key was found in `firebase.ts` (`apiKey: "AIza..."`).
+**Learning:** In a Vite + Docker deployed application that relies on runtime environment variables (injected via `start-nginx.sh` into `env.js`), secrets must be explicitly passed through all layers: `Dockerfile` (ARG/ENV), `start-nginx.sh` (echo to env.js), `types.ts` (Window.ENV interface), and finally the code itself (`window.ENV?.VAR_NAME || import.meta.env.VAR_NAME`).
+**Prevention:** Always use environment variables for API keys and ensure the full injection pipeline is configured for new secrets. Never commit plaintext keys to source control.
