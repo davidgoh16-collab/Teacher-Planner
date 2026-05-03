@@ -16,8 +16,12 @@ import { getAuth, OAuthProvider } from 'firebase/auth';
  *    allow read, write: if true;
  */
 
+// 🛡️ Sentinel: Fetch API key from environment variables instead of hardcoding it
+// Hardcoded secrets can be exposed in source control.
+const apiKey = window.ENV?.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || "";
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg",
+  apiKey: apiKey,
   authDomain: "school-apps-52c7d.firebaseapp.com",
   projectId: "school-apps-52c7d",
   storageBucket: "school-apps-52c7d.firebasestorage.app",
