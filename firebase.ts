@@ -4,10 +4,10 @@ import { getAuth, OAuthProvider } from 'firebase/auth';
 
 /**
  * FIREBASE CONFIGURATION
- * 
+ *
  * To make this app work across devices, you need to create a project at:
  * https://console.firebase.google.com/
- * 
+ *
  * 1. Create a project.
  * 2. Add a Web App to the project.
  * 3. Copy the 'firebaseConfig' object they provide.
@@ -16,12 +16,8 @@ import { getAuth, OAuthProvider } from 'firebase/auth';
  *    allow read, write: if true;
  */
 
-// 🛡️ Sentinel: Fetch API key from environment variables instead of hardcoding it
-// Hardcoded secrets can be exposed in source control.
-const apiKey = window.ENV?.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || "";
-
 const firebaseConfig = {
-  apiKey: apiKey,
+  apiKey: "AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg",
   authDomain: "school-apps-52c7d.firebaseapp.com",
   projectId: "school-apps-52c7d",
   storageBucket: "school-apps-52c7d.firebasestorage.app",
