@@ -389,6 +389,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me to add a lesson or extract actions..."
+                /* 🛡️ Security: Limit input length to prevent potential DoS/excessive token usage */
+                maxLength={2000}
                 className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-10 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
               />
               <button 
