@@ -76,9 +76,12 @@ export const generateWeeksForTerm = (term: Term): WeekData[] => {
         startDate: new Date(currentMonday),
         displayString: `${formatDate(currentMonday)} - ${formatDate(endOfWeek)}`
       });
-      
+
       // Toggle week type for next week
       weekCounter = weekCounter === 1 ? 2 : 1;
+    } else {
+      // Returning from the half-term break restarts the cycle at Week 1.
+      weekCounter = 1;
     }
 
     // Move to next week
