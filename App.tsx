@@ -1550,11 +1550,11 @@ const App: React.FC = () => {
 
   // Timetable-only toolbar (term selector, class filter, week navigator).
   const timetableToolbarEl = (
-    <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
+    <div className="flex flex-nowrap items-center gap-1.5 lg:gap-2 bg-gray-100 dark:bg-slate-900 p-1 rounded-lg border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
       {/* Term Selector */}
       <div className="relative group shrink-0">
         <select
-          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-3 pr-8 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
           value={selectedTermId}
           onChange={handleTermChange}
         >
@@ -1562,16 +1562,16 @@ const App: React.FC = () => {
             <option key={term.id} value={term.id}>{term.name}</option>
           ))}
         </select>
-        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
+        <ChevronDown size={15} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
       </div>
 
       {/* Class Filter */}
-      <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-2 lg:pl-3 ml-0.5 lg:ml-1 shrink-0">
-        <div className="absolute left-5 lg:left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+      <div className="relative group shrink-0">
+        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
           <Filter size={14} />
         </div>
         <select
-          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 lg:pl-9 pr-7 lg:pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors max-w-[120px] lg:max-w-[150px] truncate shadow-sm"
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 pr-8 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors max-w-[130px] lg:max-w-[150px] truncate shadow-sm"
           value={viewFilter}
           onChange={(e) => setViewFilter(e.target.value)}
         >
@@ -1580,30 +1580,33 @@ const App: React.FC = () => {
             <option key={subj} value={subj}>{subj}</option>
           ))}
         </select>
-        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
+        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
       </div>
 
-      {/* Week Navigator */}
-      <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm shrink-0 ml-1">
+      {/* Week Navigator (single line) */}
+      <div className="flex items-center bg-white dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 shadow-sm shrink-0">
         <button
           onClick={handlePrevWeek}
           disabled={selectedWeekIndex === 0}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-md"
         >
           <ChevronLeft size={18} />
         </button>
-        <div className="px-4 py-2 min-w-[140px] text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" onClick={handleJumpToCurrent} title="Jump to current week">
-          <div className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
+        <div className="px-3 py-1.5 text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors whitespace-nowrap" onClick={handleJumpToCurrent} title="Jump to current week">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             {currentWeekData ? `Week ${currentWeekData.weekNumber}` : 'Loading...'}
-          </div>
-          <div className="text-sm font-bold text-slate-800 dark:text-white whitespace-nowrap">
-            {currentWeekData?.displayString}
-          </div>
+          </span>
+          {currentWeekData?.displayString && (
+            <>
+              <span className="mx-1.5 text-slate-300 dark:text-slate-600">·</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-white">{currentWeekData.displayString}</span>
+            </>
+          )}
         </div>
         <button
           onClick={handleNextWeek}
           disabled={selectedWeekIndex >= weeksInTerm.length - 1}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-md"
         >
           <ChevronRight size={18} />
         </button>
