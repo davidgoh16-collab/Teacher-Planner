@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Firebase service account keys (used by .claude/skills/teacher-planner)
+service-account.json
+*service-account*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
