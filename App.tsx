@@ -33,7 +33,6 @@ import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
-import CommunicationsTab from './components/CommunicationsTab';
 import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
@@ -92,7 +91,7 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects' | 'apps' | 'communications' | 'keyDates'>('timetable');
+  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates'>('timetable');
 
   // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
@@ -1609,12 +1608,6 @@ const App: React.FC = () => {
               Apps
             </button>
             <button
-              onClick={() => setActiveTab('communications')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'communications' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              Communications
-            </button>
-            <button
               onClick={() => setActiveTab('keyDates')}
               className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'keyDates' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
             >
@@ -2294,8 +2287,6 @@ const App: React.FC = () => {
                 todaysLessons={todaysLessons}
                 upcomingKeyDates={upcomingKeyDates}
             />
-          ) : activeTab === 'communications' ? (
-            <CommunicationsTab isReadOnly={actualIsReadOnly} />
           ) : activeTab === 'keyDates' ? (
             <KeyDatesView
               keyDates={keyDates}
