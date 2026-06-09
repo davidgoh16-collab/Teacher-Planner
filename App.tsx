@@ -40,7 +40,7 @@ import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
-import { fetchApps, fetchAppCategories } from './services/appService';
+import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL } from './services/aiService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
@@ -1455,6 +1455,25 @@ const App: React.FC = () => {
   const openApp = (app: AppItem) => { window.open(app.url, '_blank', 'noopener,noreferrer'); };
   const favouriteApps = apps.filter(a => a.isFavourite);
 
+  // Apps are owned here (single source of truth) so favourites reflect in the sidebar + Home.
+  const handleSaveApp = async (app: AppItem) => {
+    if (actualIsReadOnly) return;
+    setApps(prev => {
+      const exists = prev.find(a => a.id === app.id);
+      return exists ? prev.map(a => a.id === app.id ? app : a) : [app, ...prev];
+    });
+    try { await saveApp(app); } catch (e) { console.error('Failed to save app', e); }
+  };
+  const handleDeleteApp = async (id: string) => {
+    if (actualIsReadOnly) return;
+    if (!window.confirm('Are you sure you want to delete this app?')) return;
+    setApps(prev => prev.filter(a => a.id !== id));
+    try { await deleteApp(id); } catch (e) { console.error('Failed to delete app', e); }
+  };
+  const refreshAppCategories = async () => {
+    try { setAppCategories(await fetchAppCategories()); } catch (e) { console.error(e); }
+  };
+
   // Shared chat props for the embedded Home chat and the floating launcher (one conversation).
   const chatBag = {
     messages: chatMessages,
@@ -2265,7 +2284,14 @@ const App: React.FC = () => {
               onDeleteKeyDate={handleDeleteKeyDate}
             />
           ) : (
-            <AppsHub isReadOnly={actualIsReadOnly} />
+            <AppsHub
+              isReadOnly={actualIsReadOnly}
+              apps={apps}
+              categories={appCategories}
+              onSaveApp={handleSaveApp}
+              onDeleteApp={handleDeleteApp}
+              onRefreshCategories={refreshAppCategories}
+            />
           )}
       </AppShell>
 
