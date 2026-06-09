@@ -136,7 +136,7 @@ const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, ...rest }
 
         {/* View-specific toolbar */}
         {topBar && (
-          <div className="shrink-0 px-3 sm:px-4 py-2 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-x-auto no-scrollbar flex items-center gap-2">
+          <div className="shrink-0 px-3 sm:px-4 py-1.5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-x-auto no-scrollbar flex items-center gap-2">
             {topBar}
           </div>
         )}
