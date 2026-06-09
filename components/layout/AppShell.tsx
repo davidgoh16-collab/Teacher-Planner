@@ -44,19 +44,56 @@ const TITLES: Record<AppTab, string> = {
  * an optional view-specific toolbar sub-row + the scrollable main content.
  * On mobile the sidebar becomes an off-canvas drawer.
  */
+const SIDEBAR_MIN = 64;      // narrowest: icon-only
+const SIDEBAR_MAX = 340;
+const SIDEBAR_NARROW = 64;   // default width (icons only)
+const SIDEBAR_WIDE = 248;    // snap target when expanding
+const COLLAPSE_AT = 150;     // below this width, labels are hidden
+
 const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, ...rest }) => {
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('tp_sidebar_collapsed') === '1');
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem('tp_sidebar_width'));
+    return saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX ? saved : SIDEBAR_NARROW;
+  });
+  const [dragging, setDragging] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('tp_sidebar_collapsed', collapsed ? '1' : '0');
-  }, [collapsed]);
+    localStorage.setItem('tp_sidebar_width', String(width));
+  }, [width]);
+
+  const collapsed = width < COLLAPSE_AT;
+  const toggleCollapsed = () => setWidth(w => (w < COLLAPSE_AT ? SIDEBAR_WIDE : SIDEBAR_NARROW));
+
+  // Pointer-driven resize: track the drag on the window so it keeps working even if
+  // the cursor leaves the thin handle. Snap back to icon-width if dragged below the threshold.
+  const startResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    setDragging(true);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    const onMove = (ev: PointerEvent) => {
+      setWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + ev.clientX - startX)));
+    };
+    const onUp = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setWidth(w => (w < COLLAPSE_AT ? SIDEBAR_NARROW : w));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden md:flex shrink-0">
-        <Sidebar {...rest} collapsed={collapsed} onToggleCollapsed={() => setCollapsed(c => !c)} />
+        <Sidebar {...rest} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} width={width} dragging={dragging} onResizeStart={startResize} />
       </div>
 
       {/* Mobile drawer */}

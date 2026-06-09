@@ -28,6 +28,11 @@ interface SidebarProps {
   onLogout: () => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** Current pixel width (desktop). When set, drives an inline width + drag handle. */
+  width?: number;
+  /** True while the user is dragging the resize handle (disables width transition). */
+  dragging?: boolean;
+  onResizeStart?: (e: React.PointerEvent) => void;
   onNavigate?: () => void;
 }
 
@@ -44,14 +49,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeTab, onTabChange, favouriteApps, onOpenApp,
   academicYears, selectedAcademicYearId, onAcademicYearChange, isReadOnly,
   isAdmin, user, theme, themeIcon, onCycleTheme, onOpenSettings, onOpenCalendar, onExport, onLogout,
-  collapsed, onToggleCollapsed, onNavigate,
+  collapsed, onToggleCollapsed, width, dragging, onResizeStart, onNavigate,
 }) => {
   const handleNav = (tab: AppTab) => { onTabChange(tab); onNavigate?.(); };
 
+  // When `width` is provided (desktop) we drive size via an inline style so it can be
+  // dragged freely; otherwise (mobile drawer) fall back to a fixed Tailwind width.
   const widthClass = collapsed ? 'w-16' : 'w-64';
 
   return (
-    <aside className={`${widthClass} h-full flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 transition-[width] duration-200`}>
+    <aside
+      style={width != null ? { width } : undefined}
+      className={`${width != null ? '' : widthClass} relative h-full flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 ${dragging ? '' : 'transition-[width] duration-200'}`}
+    >
       {/* Brand + academic year */}
       <div className="p-3 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
@@ -168,6 +178,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           {collapsed ? <PanelLeftOpen size={18} /> : <><PanelLeftClose size={18} /> <span>Collapse</span></>}
         </button>
       </div>
+
+      {/* Resize handle (desktop) — drag to widen/narrow, double-click to snap. */}
+      {onResizeStart && (
+        <div
+          onPointerDown={onResizeStart}
+          onDoubleClick={onToggleCollapsed}
+          role="separator"
+          aria-orientation="vertical"
+          title="Drag to resize · double-click to toggle"
+          className="hidden md:block absolute top-0 right-0 h-full w-1.5 cursor-col-resize z-20 group"
+        >
+          <div className="absolute inset-y-0 right-0 w-px group-hover:bg-primary-400 group-active:bg-primary-500 transition-colors" />
+        </div>
+      )}
     </aside>
   );
 };
