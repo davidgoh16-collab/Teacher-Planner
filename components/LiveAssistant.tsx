@@ -718,6 +718,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
 
       <div className="relative flex flex-col items-end">
       <button
+        type="button"
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
         className={`group relative p-1.5 rounded-lg transition-colors ${
