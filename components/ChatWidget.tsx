@@ -16,9 +16,12 @@ interface ChatWidgetProps {
   quickAddButton?: React.ReactNode;
   isLiveActive?: boolean;
   liveStatusText?: string;
+  pendingConfirmation?: { summary: string } | null;
+  onConfirmActions?: () => void;
+  onCancelActions?: () => void;
 }
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages, liveAssistantButton, quickAddButton, isLiveActive, liveStatusText }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages, liveAssistantButton, quickAddButton, isLiveActive, liveStatusText, pendingConfirmation, onConfirmActions, onCancelActions }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
@@ -351,6 +354,27 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
                  </div>
               </div>
             )}
+
+            {pendingConfirmation && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full flex items-center justify-center shrink-0">
+                  <Bot size={14} />
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1.5">Confirm these changes to your planner?</p>
+                  <div className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap mb-3">{pendingConfirmation.summary}</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => onConfirmActions?.()} className="px-3 py-1 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+                      Confirm
+                    </button>
+                    <button onClick={() => onCancelActions?.()} className="px-3 py-1 text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-md transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
                 <div ref={messagesEndRef} />
               </div>
           </div>
