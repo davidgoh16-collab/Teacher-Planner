@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  X, Save, Trash2, Link as LinkIcon, ExternalLink, BookOpen, Users, 
-  Plus, MinusCircle, Copy, ArrowRight, CheckSquare, Square, 
-  Filter, ChevronDown, Lock, Repeat, CalendarRange, RotateCw
+import {
+  X, Save, Trash2, Link as LinkIcon, ExternalLink, BookOpen, Users,
+  Plus, MinusCircle, Copy, ArrowRight, CheckSquare, Square,
+  Filter, ChevronDown, Lock, Repeat, CalendarRange, RotateCw, Sparkles, Loader2
 } from 'lucide-react';
 import { LessonPlan, WeekData } from '../types';
 import { PERIOD_LABELS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2, DAYS, TERMS } from '../constants';
 import { toISODate, addDays, formatDate, generateWeeksForTerm } from '../utils/dateUtils';
+import { generateContentFromAction } from '../services/aiService';
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -40,6 +41,26 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const [currentLinkInput, setCurrentLinkInput] = useState('');
   const [notes, setNotes] = useState(initialData.notes);
   const [type, setType] = useState<'lesson' | 'meeting'>(initialData.type || 'lesson');
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const handleSuggestNotes = async () => {
+    if (isReadOnly || isSuggesting) return;
+    setIsSuggesting(true);
+    try {
+      const subject = subjectName && subjectName !== 'Free Period' ? subjectName : 'this class';
+      const prompt = type === 'meeting'
+        ? `Suggest a concise agenda for a school meeting${title ? ` titled "${title}"` : ''}. Provide 3-5 bullet-point agenda items a teacher could discuss. Keep it practical and brief.`
+        : `Suggest a lesson focus and 3 engaging activities for a ${subject} lesson${title ? ` on "${title}"` : ''}. Format as a short learning objective followed by a numbered list of 3 activities. Keep it concise and classroom-ready.`;
+      const suggestion = await generateContentFromAction(prompt);
+      if (suggestion) {
+        setNotes(prev => prev && prev.trim() ? `${prev.trim()}\n\n${suggestion}` : suggestion);
+      }
+    } catch (e) {
+      console.error('Failed to suggest lesson notes', e);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
 
   // Duplication State
   const [isDuplicating, setIsDuplicating] = useState(false);
@@ -720,6 +741,18 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
                         {type === 'meeting' ? 'Meeting Notes' : 'Notes / Homework'}
                         </label>
+                        {!isReadOnly && (
+                            <button
+                                type="button"
+                                onClick={handleSuggestNotes}
+                                disabled={isSuggesting}
+                                className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+                                title="Get an AI suggestion"
+                            >
+                                {isSuggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                                {isSuggesting ? 'Suggesting...' : 'Suggest with AI'}
+                            </button>
+                        )}
                     </div>
 
                     {/* Last Lesson Info Box */}

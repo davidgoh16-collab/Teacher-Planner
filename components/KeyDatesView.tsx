@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { KeyDate, Category } from '../types';
-import { Plus, Edit2, Trash2, Calendar, List } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, List, Sparkles, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { generateContentFromAction } from '../services/aiService';
+import AIContentModal from './AIContentModal';
 
 interface KeyDatesViewProps {
   keyDates: KeyDate[];
@@ -23,6 +25,31 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
   const [editingDate, setEditingDate] = useState<KeyDate | null>(null);
 
   const [showPastDates, setShowPastDates] = useState(false);
+
+  // AI "Draft note" state
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiContent, setAiContent] = useState<string | null>(null);
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
+
+  const handleDraftNote = async (date: KeyDate) => {
+    setAiLoadingId(date.id);
+    setAiContent(null);
+    setAiTitle(`Draft for "${date.title}"`);
+    try {
+      const prettyDate = new Date(date.dateStr).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const prompt = `You are a teacher's assistant. Draft a brief, friendly note/reminder for the following event.\n\nEvent: ${date.title}\nDate: ${prettyDate}${date.time ? ` at ${date.time}` : ''}${date.notes ? `\nContext notes: ${date.notes}` : ''}\n\nKeep it concise and ready to send to colleagues or parents. Use clear, warm, professional language.`;
+      const content = await generateContentFromAction(prompt);
+      setAiContent(content);
+      setAiModalOpen(true);
+    } catch (e) {
+      console.error('Failed to draft note', e);
+      setAiContent('Failed to generate a draft. Please try again.');
+      setAiModalOpen(true);
+    } finally {
+      setAiLoadingId(null);
+    }
+  };
 
   // Form State
   const [title, setTitle] = useState('');
@@ -159,6 +186,14 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
             )}
           </div>
           <div className="flex space-x-2">
+             <button
+                onClick={() => handleDraftNote(date)}
+                disabled={aiLoadingId === date.id}
+                className="p-1 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                title="Draft a note with AI"
+             >
+                {aiLoadingId === date.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+             </button>
              <button onClick={() => handleOpenModal(date)} className="p-1 text-slate-400 hover:text-blue-600 transition-colors"><Edit2 className="w-4 h-4" /></button>
              <button onClick={() => onDeleteKeyDate(date.id)} className="p-1 text-slate-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
           </div>
@@ -407,6 +442,13 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
           </div>
         </div>
       )}
+
+      <AIContentModal
+        isOpen={aiModalOpen && aiContent !== null}
+        onClose={() => { setAiModalOpen(false); setAiContent(null); }}
+        content={aiContent}
+        title={aiTitle}
+      />
     </div>
   );
 };
