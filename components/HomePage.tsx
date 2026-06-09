@@ -77,40 +77,11 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Today strip */}
+      {/* Greeting strip */}
       <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl font-bold">{greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}</h2>
           <span className="text-sm text-slate-500 dark:text-slate-400">{longDate}</span>
-        </div>
-        <div className="mt-2.5 flex flex-col sm:flex-row gap-2 sm:gap-5 text-sm">
-          {/* Today's lessons */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 shrink-0"><BookOpen size={14} /> Lessons</span>
-            {todaysLessons.length === 0 ? (
-              <span className="text-slate-400 dark:text-slate-500 shrink-0">None today</span>
-            ) : todaysLessons.map((l, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 whitespace-nowrap shrink-0">
-                {l.hasPlan ? <CheckCircle2 size={12} className="text-primary-500" /> : <Circle size={12} className="text-slate-400" />}
-                <span className="font-medium">{l.subject}</span>
-                <span className="text-slate-400 dark:text-slate-500 text-xs">{l.period}</span>
-              </span>
-            ))}
-          </div>
-          {/* Today's tasks */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 shrink-0"><CheckCircle2 size={14} /> Tasks</span>
-            {todaysTasks.length === 0 ? (
-              <span className="text-slate-400 dark:text-slate-500 shrink-0">Nothing due</span>
-            ) : todaysTasks.slice(0, 6).map(t => (
-              <span key={t.id} className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 whitespace-nowrap shrink-0">{t.title}</span>
-            ))}
-            {overdueCount > 0 && (
-              <button onClick={() => onNavigate('projects')} className="px-2 py-1 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium whitespace-nowrap shrink-0">
-                {overdueCount} overdue
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -123,6 +94,50 @@ const HomePage: React.FC<HomePageProps> = ({
         </main>
 
         <aside className="lg:w-80 xl:w-96 shrink-0 lg:border-l border-gray-200 dark:border-slate-800 p-4 space-y-4 lg:h-full lg:overflow-y-auto">
+          {/* Today's Lessons — full vertical list (no horizontal scrolling) */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm mb-3"><BookOpen size={15} className="text-primary-600 dark:text-primary-400" /> Today's Lessons</h3>
+            {todaysLessons.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500">No lessons scheduled today.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {todaysLessons.map((l, i) => (
+                  <li key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                    {l.hasPlan
+                      ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
+                      : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
+                    <span className="font-medium text-sm truncate flex-1">{l.subject}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Today's Tasks — vertical list */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><CheckCircle2 size={15} className="text-primary-600 dark:text-primary-400" /> Today's Tasks</h3>
+              {overdueCount > 0 && (
+                <button onClick={() => onNavigate('projects')} className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                  {overdueCount} overdue
+                </button>
+              )}
+            </div>
+            {todaysTasks.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500">Nothing due today.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {todaysTasks.map(t => (
+                  <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                    <Circle size={13} className="text-slate-300 dark:text-slate-600 mt-1 shrink-0" />
+                    <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t.title}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <BriefingPanel tasks={globalTasks} todaysLessons={todaysLessons} upcomingKeyDates={upcomingKeyDates} />
           <AIInsightsPanel contextType="all_tasks" tasks={globalTasks} isReadOnly={isReadOnly} onTaskUpdate={onTasksRefresh} />
 
