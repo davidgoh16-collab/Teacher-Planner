@@ -720,10 +720,10 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
       <button
         onClick={isActive ? stopSession : startSession}
         disabled={isConnecting}
-        className={`group relative p-1.5 rounded-md transition-colors ${
-          isActive 
+        className={`group relative p-1.5 rounded-lg transition-colors ${
+          isActive
             ? 'bg-red-500 text-white hover:bg-red-600'
-            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            : 'text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-200 dark:hover:bg-slate-700'
         }`}
         title={isActive ? "End Voice Session" : "Start Voice Assistant"}
       >

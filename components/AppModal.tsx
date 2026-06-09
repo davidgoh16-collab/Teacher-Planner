@@ -94,6 +94,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
       iconValue: iconValue.trim() || 'Globe',
       categoryId: categoryId || undefined,
       colorClass: colorClass,
+      isFavourite: initialData?.isFavourite,
       createdAt: initialData?.createdAt || Date.now(),
     };
 
