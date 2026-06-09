@@ -38,9 +38,11 @@ interface ProjectPlannerProps {
   onTaskUpdate?: (task: Task) => void;
   onTaskDelete?: (taskId: string) => void;
   onTaskAdd?: (task: Task) => void;
+  todaysLessons?: { period: string; subject: string; hasPlan: boolean }[];
+  upcomingKeyDates?: { title: string; dateStr: string }[];
 }
 
-const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd }) => {
+const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd, todaysLessons, upcomingKeyDates }) => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -767,6 +769,8 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
             projects={projects}
             categories={categories}
             isReadOnly={isReadOnly}
+            todaysLessons={todaysLessons}
+            upcomingKeyDates={upcomingKeyDates}
             onTaskDeleted={(taskId) => {
                 setAllTasks(prev => prev.filter(t => t.id !== taskId));
                 if (onTaskDelete) onTaskDelete(taskId);

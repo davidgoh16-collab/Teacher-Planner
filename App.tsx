@@ -217,7 +217,44 @@ const App: React.FC = () => {
   }, [selectedTermId, weeksInTerm.length, selectedWeekIndex]);
 
   const currentWeekData: WeekData | undefined = weeksInTerm[selectedWeekIndex];
-  
+
+  // Today's lessons (with plan status) for the proactive briefing panel.
+  const todaysLessons = useMemo(() => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    const todayDow = new Date().getDay(); // 0=Sun..6=Sat
+    if (todayDow === 0 || todayDow === 6) return []; // weekends have no timetable
+    const week = weeksInTerm.find(w => {
+      const startISO = toISODate(w.startDate);
+      const endISO = toISODate(addDays(w.startDate, 4));
+      return todayISO >= startISO && todayISO <= endISO;
+    });
+    if (!week) return [];
+    const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+    const dayName = DAYS[todayDow - 1];
+    const daySchedule = (timetable[dayName] || {}) as Record<string, any>;
+    const lessons: { period: string; subject: string; hasPlan: boolean }[] = [];
+    PERIOD_LABELS.forEach(period => {
+      const entry = daySchedule[period];
+      if (entry?.subject) {
+        const plan = lessonPlans[`${todayISO}_${period}`];
+        const hasPlan = !!(plan && (plan.title || plan.notes || (plan.links && plan.links.length > 0)));
+        lessons.push({ period, subject: entry.subject, hasPlan });
+      }
+    });
+    return lessons;
+  }, [weeksInTerm, timetableWeek1, timetableWeek2, lessonPlans]);
+
+  // Key dates in the next ~14 days for the briefing panel.
+  const upcomingKeyDates = useMemo(() => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    const horizonISO = toISODate(addDays(new Date(), 14));
+    return keyDates
+      .filter(kd => kd.dateStr >= todayISO && kd.dateStr <= horizonISO)
+      .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+      .slice(0, 8)
+      .map(kd => ({ title: kd.title, dateStr: kd.dateStr }));
+  }, [keyDates]);
+
   // --- Effects ---
 
   // Auth Listener
@@ -2193,6 +2230,8 @@ const App: React.FC = () => {
                 onTaskAdd={(newTask) => {
                     setGlobalTasks(prev => [newTask, ...prev]);
                 }}
+                todaysLessons={todaysLessons}
+                upcomingKeyDates={upcomingKeyDates}
             />
           ) : activeTab === 'communications' ? (
             <CommunicationsTab isReadOnly={actualIsReadOnly} />

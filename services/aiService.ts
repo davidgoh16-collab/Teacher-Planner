@@ -437,6 +437,100 @@ export const extractTaskDetails = async (
     }
 };
 
+export interface BriefingItem {
+    kind: 'overdue' | 'due_today' | 'lesson' | 'suggestion';
+    title: string;
+    detail?: string;
+    taskId?: string;
+}
+
+export interface Briefing {
+    greeting: string;
+    summary: string;
+    items: BriefingItem[];
+}
+
+const BRIEFING_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        greeting: { type: Type.STRING, description: "A short, warm greeting referencing the day." },
+        summary: { type: Type.STRING, description: "1-2 sentence overview of the day's workload." },
+        items: {
+            type: Type.ARRAY,
+            description: "The most relevant briefing items, ordered by importance.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    kind: { type: Type.STRING, enum: ["overdue", "due_today", "lesson", "suggestion"] },
+                    title: { type: Type.STRING },
+                    detail: { type: Type.STRING, description: "Optional short supporting detail." },
+                    taskId: { type: Type.STRING, description: "Related task id when applicable, else empty string." },
+                },
+                required: ["kind", "title"],
+            },
+        },
+    },
+    required: ["greeting", "summary", "items"],
+};
+
+export interface BriefingContext {
+    todayISO: string;
+    weekday: string;
+    overdueTasks: { id: string; title: string; deadlineDateStr?: string }[];
+    dueTodayTasks: { id: string; title: string }[];
+    todaysLessons: { period: string; subject: string; hasPlan: boolean }[];
+    upcomingKeyDates: { title: string; dateStr: string }[];
+}
+
+/**
+ * Generates a proactive daily/weekly briefing for the teacher.
+ * Read-only narrative + light suggestions; never mutates data.
+ */
+export const generateBriefing = async (ctx: BriefingContext): Promise<Briefing> => {
+    const empty: Briefing = { greeting: "", summary: "", items: [] };
+    try {
+        const ai = getAiClient();
+
+        const prompt = `
+            You are a teacher's proactive planning assistant. Produce a concise morning briefing.
+            Today is ${ctx.weekday}, ${ctx.todayISO}.
+
+            OVERDUE TASKS (deadline passed, still open): ${ctx.overdueTasks.length ? JSON.stringify(ctx.overdueTasks) : "none"}
+            DUE TODAY: ${ctx.dueTodayTasks.length ? JSON.stringify(ctx.dueTodayTasks) : "none"}
+            TODAY'S LESSONS: ${ctx.todaysLessons.length ? JSON.stringify(ctx.todaysLessons) : "none"}
+            UPCOMING KEY DATES (next ~14 days): ${ctx.upcomingKeyDates.length ? JSON.stringify(ctx.upcomingKeyDates) : "none"}
+
+            Guidelines:
+            - Surface overdue items first, then due-today, then lessons that still lack a plan (hasPlan = false).
+            - Add 2-3 concrete "suggestion" items for what to tackle next. Keep each title short and actionable.
+            - When an item refers to a specific task, set its taskId to that task's id.
+            - Be encouraging and brief. Return at most 8 items total. If there is genuinely nothing to do, say so warmly with an empty items array.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: TEXT_MODEL,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: BRIEFING_SCHEMA,
+            },
+        });
+
+        if (response.text) {
+            const parsed = extractAndParseJSON(response.text) as Briefing;
+            return {
+                greeting: parsed.greeting || "",
+                summary: parsed.summary || "",
+                items: Array.isArray(parsed.items) ? parsed.items : [],
+            };
+        }
+        return empty;
+    } catch (error) {
+        console.error("Error generating briefing:", error);
+        return empty;
+    }
+};
+
 export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
   try {
     const prompt = `
