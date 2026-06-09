@@ -894,19 +894,31 @@ const App: React.FC = () => {
         }
       };
 
-      const addTaskToProjectTool: FunctionDeclaration = {
-        name: 'addTaskToProject',
-        description: 'Add a new task to an existing project.',
+      const addTasksToProjectTool: FunctionDeclaration = {
+        name: 'addTasksToProject',
+        description: 'Create one OR MORE tasks in a single call. ALWAYS use this for task creation: pass an array with a single item for one task, or multiple items when the user asks for several tasks at once. Never call this more than once per request — include every requested task in the `tasks` array.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            projectId: { type: Type.STRING, description: 'The ID of the project.' },
-            title: { type: Type.STRING, description: 'Task title.' },
-            description: { type: Type.STRING, description: 'Task notes or description.' },
-            priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'], description: 'Default is Medium.' }
+            tasks: {
+              type: Type.ARRAY,
+              description: 'The list of tasks to create.',
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  projectId: { type: Type.STRING, description: 'The ID of the project to add the task to. Pick the most relevant existing project from the context.' },
+                  title: { type: Type.STRING, description: 'Task title.' },
+                  description: { type: Type.STRING, description: 'Optional task notes or description.' },
+                  priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'], description: 'Default is Medium.' },
+                  deadlineDateStr: { type: Type.STRING, description: 'Optional deadline in YYYY-MM-DD format.' },
+                  scheduledDateStr: { type: Type.STRING, description: 'Optional scheduled/start date in YYYY-MM-DD format.' },
+                },
+                required: ['projectId', 'title'],
+              },
+            },
           },
-          required: ['projectId', 'title']
-        }
+          required: ['tasks'],
+        },
       };
 
       const addKeyDateTool: FunctionDeclaration = {
@@ -971,7 +983,7 @@ const App: React.FC = () => {
            3. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
            4. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
            5. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
-           6. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
+           6. To create tasks, ALWAYS use the 'addTasksToProject' tool and pass ALL requested tasks in its 'tasks' array in ONE call — whether the user asks for a single task or many. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, include EVERY action item as a separate entry in that same 'tasks' array (choosing the relevant project from the context).
            
            ${contextString}`;
 
@@ -985,7 +997,7 @@ const App: React.FC = () => {
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
-          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTaskToProjectTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
+          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTasksToProjectTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
         }
       });
 
@@ -1040,8 +1052,14 @@ const App: React.FC = () => {
           return `• Add ${a.type === 'meeting' ? 'meeting' : 'lesson'} "${a.title}" on ${a.dateStr} (${a.periodLabel})`;
         case 'addRecurringLesson':
           return `• Add recurring "${a.title}" every ${a.dayOfWeek} (${a.periodLabel}, ${a.weekCycle || 'all'} weeks)`;
-        case 'addTaskToProject':
-          return `• Add task "${a.title}"${a.priority ? ` [${a.priority}]` : ''}`;
+        case 'addTasksToProject': {
+          const list = Array.isArray(a.tasks) ? a.tasks : [];
+          if (list.length <= 1) {
+            const t = list[0] || a;
+            return `• Add task "${t.title || ''}"${t.priority ? ` [${t.priority}]` : ''}`;
+          }
+          return `• Add ${list.length} tasks:\n${list.map((t: any) => `   – ${t.title}${t.priority ? ` [${t.priority}]` : ''}`).join('\n')}`;
+        }
         case 'addKeyDate':
           return `• Add key date "${a.title}" on ${a.dateStr}`;
         case 'editKeyDate':
@@ -1183,26 +1201,33 @@ const App: React.FC = () => {
                         }
                      });
                    }
-                } else if (call.name === 'addTaskToProject') {
+                } else if (call.name === 'addTasksToProject' || call.name === 'addTaskToProject') {
                     const args = call.args as any;
-                    const newTask: Task = {
-                        id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        projectId: args.projectId,
-                        title: args.title,
-                        description: args.description || undefined,
-                        priority: args.priority || 'Medium',
-                        status: 'Uncompleted',
-                        subtasks: []
-                    };
+                    // Accept either the bulk shape ({ tasks: [...] }) or a single-task shape.
+                    const rawTasks: any[] = Array.isArray(args.tasks) ? args.tasks : [args];
+                    const createdTasks: Task[] = rawTasks
+                        .filter(t => t && t.title)
+                        .map((t, idx) => ({
+                            id: `task_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+                            projectId: t.projectId || projects[0]?.id || '',
+                            title: t.title,
+                            description: t.description || undefined,
+                            priority: t.priority || 'Medium',
+                            status: 'Uncompleted' as const,
+                            scheduledDateStr: t.scheduledDateStr || undefined,
+                            deadlineDateStr: t.deadlineDateStr || undefined,
+                            subtasks: [],
+                            createdAt: Date.now(),
+                        }));
 
                     try {
-                        await saveTask(newTask);
-                        setGlobalTasks(prev => [...prev, newTask]);
+                        await Promise.all(createdTasks.map(t => saveTask(t)));
+                        setGlobalTasks(prev => [...prev, ...createdTasks]);
                         functionResponses.push({
                             functionResponse: {
                                 name: call.name,
                                 id: call.id,
-                                response: { result: `Success: Added task "${newTask.title}" to project.` }
+                                response: { result: `Success: Added ${createdTasks.length} task${createdTasks.length === 1 ? '' : 's'}.` }
                             }
                         });
                     } catch (e) {
@@ -1211,7 +1236,7 @@ const App: React.FC = () => {
                             functionResponse: {
                                 name: call.name,
                                 id: call.id,
-                                response: { error: `Failed to save task.` }
+                                response: { error: `Failed to save tasks.` }
                             }
                         });
                     }
@@ -1313,7 +1338,10 @@ const App: React.FC = () => {
             }
 
             // Build a confirmation summary from the executed results (no model round-trip needed).
-            const okCount = functionResponses.filter(r => r.functionResponse?.response?.result).length;
+            const successes = functionResponses
+                .map(r => r.functionResponse?.response?.result as string | undefined)
+                .filter((s): s is string => !!s)
+                .map(s => s.replace(/^Success:\s*/i, ''));
             const errors = functionResponses
                 .map(r => r.functionResponse?.response?.error)
                 .filter(Boolean) as string[];
@@ -1322,7 +1350,12 @@ const App: React.FC = () => {
                 setAiActionHistory(prev => [...prev, { type: 'updateLessons', previousState: modificationsToTrack }]);
             }
 
-            let confirmText = okCount > 0 ? `Done — applied ${okCount} change${okCount === 1 ? '' : 's'} to your planner.` : "";
+            let confirmText = '';
+            if (successes.length === 1) {
+                confirmText = `Done — ${successes[0].charAt(0).toLowerCase()}${successes[0].slice(1)}`;
+            } else if (successes.length > 1) {
+                confirmText = `Done — applied the following:\n${successes.map(s => `• ${s}`).join('\n')}`;
+            }
             if (errors.length > 0) {
                 confirmText += `${confirmText ? '\n\n' : ''}Some changes failed:\n${errors.map(e => `• ${e}`).join('\n')}`;
             }
