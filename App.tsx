@@ -27,6 +27,8 @@ import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatLauncher from './components/layout/ChatLauncher';
+import ChatPanel from './components/ChatPanel';
+import AppShell from './components/layout/AppShell';
 import { useChatConversations } from './hooks/useChatConversations';
 import LiveAssistant from './components/LiveAssistant';
 import TaskCardModal from './components/TaskCardModal';
@@ -40,7 +42,7 @@ import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/l
 import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories } from './services/appService';
 import { TEXT_MODEL } from './services/aiService';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate } from './types';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -92,7 +94,7 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates'>('timetable');
+  const [activeTab, setActiveTab] = useState<AppTab>('timetable');
 
   // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
@@ -1449,240 +1451,141 @@ const App: React.FC = () => {
     </div>
   );
 
+  // Open an app shortcut in a new tab (used by sidebar favourites + Home grid).
+  const openApp = (app: AppItem) => { window.open(app.url, '_blank', 'noopener,noreferrer'); };
+  const favouriteApps = apps.filter(a => a.isFavourite);
+
+  // Shared chat props for the embedded Home chat and the floating launcher (one conversation).
+  const chatBag = {
+    messages: chatMessages,
+    onSendMessage: handleAiSendMessage,
+    isLoading: isAiLoading,
+    pendingConfirmation: pendingActions,
+    onConfirmActions: handleConfirmActions,
+    onCancelActions: handleCancelActions,
+    liveAssistantButton: liveAssistantButton,
+    ...chatConv,
+  };
+
+  // Global search — surfaced in the top bar on every screen.
+  const globalSearchEl = (
+    <GlobalSearch
+      globalTasks={globalTasks}
+      projects={projects}
+      lessonPlans={lessonPlans}
+      onTaskSelect={(task) => {
+        openTaskModal(task);
+      }}
+      onProjectSelect={(project) => {
+        setActiveTab('projects');
+        setSelectedProjectId(project.id);
+      }}
+      onLessonSelect={(lesson) => {
+        setActiveTab('timetable');
+        const d = new Date(lesson.dateStr);
+        const weekIdx = weeksInTerm.findIndex(w => {
+          const end = addDays(w.startDate, 7);
+          return d >= w.startDate && d < end;
+        });
+        if (weekIdx !== -1) setSelectedWeekIndex(weekIdx);
+        openLessonModal(lesson.dateStr, lesson.periodLabel, lesson.title || 'Lesson');
+      }}
+    />
+  );
+
+  // Timetable-only toolbar (term selector, class filter, week navigator).
+  const timetableToolbarEl = (
+    <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
+      {/* Term Selector */}
+      <div className="relative group shrink-0">
+        <select
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
+          value={selectedTermId}
+          onChange={handleTermChange}
+        >
+          {terms.map(term => (
+            <option key={term.id} value={term.id}>{term.name}</option>
+          ))}
+        </select>
+        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
+      </div>
+
+      {/* Class Filter */}
+      <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-2 lg:pl-3 ml-0.5 lg:ml-1 shrink-0">
+        <div className="absolute left-5 lg:left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+          <Filter size={14} />
+        </div>
+        <select
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 lg:pl-9 pr-7 lg:pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors max-w-[120px] lg:max-w-[150px] truncate shadow-sm"
+          value={viewFilter}
+          onChange={(e) => setViewFilter(e.target.value)}
+        >
+          <option value="All">All Classes</option>
+          {uniqueSubjects.map(subj => (
+            <option key={subj} value={subj}>{subj}</option>
+          ))}
+        </select>
+        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
+      </div>
+
+      {/* Week Navigator */}
+      <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm shrink-0 ml-1">
+        <button
+          onClick={handlePrevWeek}
+          disabled={selectedWeekIndex === 0}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div className="px-4 py-2 min-w-[140px] text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" onClick={handleJumpToCurrent} title="Jump to current week">
+          <div className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
+            {currentWeekData ? `Week ${currentWeekData.weekNumber}` : 'Loading...'}
+          </div>
+          <div className="text-sm font-bold text-slate-800 dark:text-white whitespace-nowrap">
+            {currentWeekData?.displayString}
+          </div>
+        </div>
+        <button
+          onClick={handleNextWeek}
+          disabled={selectedWeekIndex >= weeksInTerm.length - 1}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      
-      {/* Top Navigation Bar */}
-      <header className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white shadow-lg z-50 sticky top-0 border-b border-gray-200 dark:border-slate-800">
-        <div className="w-full px-2 sm:px-4 py-2 sm:py-3 flex flex-col xl:flex-row justify-between items-center gap-3 sm:gap-4">
-          
-          <div className="flex items-center justify-between w-full xl:w-auto shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-600 p-2 rounded-lg shadow-sm">
-                  <BookOpen size={20} className="text-white sm:w-6 sm:h-6" />
-                </div>
-                <div>
-                  <h1 className="text-lg sm:text-xl font-bold tracking-tight">Teacher Planner</h1>
-                  <div className="flex items-center mt-0.5 relative group/year">
-                    <select
-                      value={selectedAcademicYearId || ''}
-                      onChange={(e) => setSelectedAcademicYearId(e.target.value)}
-                      className="appearance-none bg-transparent text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium cursor-pointer hover:text-green-600 dark:hover:text-green-400 pr-4 outline-none focus:ring-0"
-                    >
-                      {academicYears.map(y => (
-                        <option key={y.id} value={y.id}>{y.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={10} className="absolute right-0 text-slate-400 pointer-events-none group-hover/year:text-green-600" />
-                    {isReadOnly && <span className="text-orange-500 ml-2 font-semibold text-[10px]">(View Only)</span>}
-                  </div>
-                </div>
+    <>
+      <AppShell
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        favouriteApps={favouriteApps}
+        onOpenApp={openApp}
+        academicYears={academicYears}
+        selectedAcademicYearId={selectedAcademicYearId}
+        onAcademicYearChange={setSelectedAcademicYearId}
+        isReadOnly={isReadOnly}
+        isAdmin={isAdmin}
+        user={user}
+        theme={theme}
+        themeIcon={getThemeIcon()}
+        onCycleTheme={cycleTheme}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
+        onExport={exportData}
+        onLogout={() => signOut(auth)}
+        search={globalSearchEl}
+        topBar={activeTab === 'timetable' ? timetableToolbarEl : undefined}
+      >
+          {activeTab === 'home' ? (
+            <div className="h-full p-3 sm:p-4 md:p-6">
+              <div className="max-w-4xl mx-auto h-full">
+                <ChatPanel layout="embedded" {...chatBag} />
               </div>
-
-              {/* User Profile / Logout for Mobile */}
-              <div className="flex items-center gap-2 xl:hidden">
-                  <button
-                      onClick={cycleTheme}
-                      className="flex items-center justify-center bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
-                      title={`Theme: ${theme}`}
-                  >
-                      {getThemeIcon()}
-                  </button>
-                  {user?.photoURL ? (
-                    <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-gray-300 dark:border-slate-600 shadow-sm" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => signOut(auth)}
-                    className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors"
-                    title="Sign Out"
-                  >
-                    <LogOut size={16} />
-                  </button>
-              </div>
-          </div>
-
-          <div className="w-full xl:w-auto max-w-lg xl:max-w-none">
-              <GlobalSearch
-                globalTasks={globalTasks}
-                projects={projects}
-                lessonPlans={lessonPlans}
-                onTaskSelect={(task) => {
-                   openTaskModal(task);
-                }}
-                onProjectSelect={(project) => {
-                   setActiveTab('projects');
-                   setSelectedProjectId(project.id);
-                }}
-                onLessonSelect={(lesson) => {
-                   setActiveTab('timetable');
-                   const d = new Date(lesson.dateStr);
-                   const weekIdx = weeksInTerm.findIndex(w => {
-                      const end = addDays(w.startDate, 7);
-                      return d >= w.startDate && d < end;
-                   });
-                   if (weekIdx !== -1) setSelectedWeekIndex(weekIdx);
-                   openLessonModal(lesson.dateStr, lesson.periodLabel, lesson.title || 'Lesson');
-                }}
-              />
-          </div>
-
-          <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 lg:gap-3 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-xl border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto w-full xl:w-auto no-scrollbar justify-center xl:justify-start">
-            {/* Term Selector */}
-            <div className="relative group shrink-0">
-              <select 
-                className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-4 pr-10 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
-                value={selectedTermId}
-                onChange={handleTermChange}
-              >
-                {terms.map(term => (
-                  <option key={term.id} value={term.id}>{term.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
             </div>
-
-            {/* Class Filter */}
-            <div className="relative group border-l border-gray-300 dark:border-slate-700 pl-2 lg:pl-3 ml-0.5 lg:ml-1 shrink-0">
-               <div className="absolute left-5 lg:left-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
-                  <Filter size={14} />
-               </div>
-               <select 
-                  className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 lg:pl-9 pr-7 lg:pr-8 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium cursor-pointer transition-colors max-w-[120px] lg:max-w-[150px] truncate shadow-sm"
-                  value={viewFilter}
-                  onChange={(e) => setViewFilter(e.target.value)}
-               >
-                  <option value="All">All Classes</option>
-                  {uniqueSubjects.map(subj => (
-                      <option key={subj} value={subj}>{subj}</option>
-                  ))}
-               </select>
-               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 pointer-events-none" />
-            </div>
-
-            {/* Week Navigator */}
-            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm shrink-0 ml-1">
-              <button 
-                onClick={handlePrevWeek} 
-                disabled={selectedWeekIndex === 0}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              
-              <div className="px-4 py-2 min-w-[140px] text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors" onClick={handleJumpToCurrent} title="Jump to current week">
-                 <div className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
-                    {currentWeekData ? `Week ${currentWeekData.weekNumber}` : 'Loading...'}
-                 </div>
-                 <div className="text-sm font-bold text-slate-800 dark:text-white whitespace-nowrap">
-                    {currentWeekData?.displayString}
-                 </div>
-              </div>
-
-              <button 
-                onClick={handleNextWeek}
-                disabled={selectedWeekIndex >= weeksInTerm.length - 1}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="hidden xl:flex items-center gap-2 shrink-0">
-            <button 
-                onClick={cycleTheme}
-                className="flex items-center gap-2 bg-gray-100 dark:bg-slate-900 hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 shadow-sm"
-                title={`Theme: ${theme}`}
-            >
-                {getThemeIcon()}
-            </button>
-            
-            <button 
-                onClick={() => setIsCalendarOpen(true)}
-                className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors px-3"
-            >
-                <CalendarDays size={14} /> <span className="hidden sm:inline">Calendar</span>
-            </button>
-
-            {isAdmin && (
-                <button 
-                    onClick={exportData} 
-                    className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors px-3"
-                >
-                    <Download size={14} /> Backup
-                </button>
-            )}
-
-            {/* User Profile / Logout */}
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-300 dark:border-slate-700 ml-1">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-gray-300 dark:border-slate-600 shadow-sm" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-              )}
-              <button
-                 onClick={() => setIsSettingsOpen(true)}
-                 className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg transition-colors"
-                 title="Settings"
-              >
-                 <Settings size={16} />
-              </button>
-              <button 
-                onClick={() => signOut(auth)} 
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors"
-                title="Sign Out"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Grid Content */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Tab Bar */}
-        <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-2 sm:px-4 py-2 flex gap-2 sm:gap-4 shrink-0 overflow-x-auto no-scrollbar scroll-smooth">
-            <button 
-              onClick={() => setActiveTab('timetable')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'timetable' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              My Timetable
-            </button>
-            <button 
-              onClick={() => setActiveTab('meetings')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'meetings' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              Meeting Planner
-            </button>
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'projects' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              Project Planner
-            </button>
-            <button
-              onClick={() => setActiveTab('apps')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'apps' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              Apps
-            </button>
-            <button
-              onClick={() => setActiveTab('keyDates')}
-              className={`whitespace-nowrap px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeTab === 'keyDates' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              Key Dates
-            </button>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          {activeTab === 'timetable' ? (
+          ) : activeTab === 'timetable' ? (
             <div className="min-w-[1600px] mx-auto md:p-8 p-4">
             
                 {/* Grid Header - Sticky Top */}
@@ -2364,8 +2267,7 @@ const App: React.FC = () => {
           ) : (
             <AppsHub isReadOnly={actualIsReadOnly} />
           )}
-        </div>
-      </main>
+      </AppShell>
 
       <TaskEditModal
         isOpen={isTaskModalOpen}
@@ -2433,21 +2335,11 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating chat + quick-add, shown when away from Home (Home embeds the chat). */}
-      {activeTab !== 'home' && (
-        <ChatLauncher
-          quickAddButton={quickAddFab}
-          chat={{
-            messages: chatMessages,
-            onSendMessage: handleAiSendMessage,
-            isLoading: isAiLoading,
-            pendingConfirmation: pendingActions,
-            onConfirmActions: handleConfirmActions,
-            onCancelActions: handleCancelActions,
-            liveAssistantButton: liveAssistantButton,
-            ...chatConv,
-          }}
-        />
+      {/* Floating chat + quick-add. Home embeds the chat, so there it only gets the quick-add FAB. */}
+      {activeTab === 'home' ? (
+        <div className="fixed bottom-6 right-6 z-50">{quickAddFab}</div>
+      ) : (
+        <ChatLauncher quickAddButton={quickAddFab} chat={chatBag} />
       )}
 
       <QuickAddModal
@@ -2465,7 +2357,7 @@ const App: React.FC = () => {
           // but saving it here works fine, they will re-fetch or optimistically update
         }}
       />
-    </div>
+    </>
   );
 };
 

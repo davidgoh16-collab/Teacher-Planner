@@ -10,6 +10,9 @@ declare global {
 
 export type WeekType = 1 | 2;
 
+// Top-level navigable sections (left sidebar).
+export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates';
+
 export interface LessonPlan {
   id: string;
   dateStr: string; // ISO date string YYYY-MM-DD
@@ -145,6 +148,7 @@ export interface AppItem {
   iconValue: string; // the lucide icon name or image url
   categoryId?: string;
   colorClass?: string;
+  isFavourite?: boolean; // pinned to Home + sidebar quick-launch
   createdAt: number;
 }
 
