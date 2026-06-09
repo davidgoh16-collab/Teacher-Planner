@@ -1,49 +1,31 @@
 import React, { useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
-import { ChatMessage } from '../types';
-import ChatPanel from './ChatPanel';
-import { useChatConversations } from '../hooks/useChatConversations';
+import ChatPanel, { ChatBag } from '../ChatPanel';
 
-interface ChatWidgetProps {
-  messages: ChatMessage[];
-  onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
-  isLoading: boolean;
-  onSetMessages: (messages: ChatMessage[]) => void;
-  liveAssistantButton?: React.ReactNode;
+interface ChatLauncherProps {
+  chat: ChatBag;
   quickAddButton?: React.ReactNode;
-  isLiveActive?: boolean;
-  liveStatusText?: string;
-  pendingConfirmation?: { summary: string } | null;
-  onConfirmActions?: () => void;
-  onCancelActions?: () => void;
 }
 
 /**
- * Floating chat launcher (bottom-right). Thin wrapper around the presentational
- * ChatPanel; conversation history is owned by useChatConversations.
+ * Floating chat launcher (bottom-right) shown when you're away from the Home page.
+ * It renders the shared ChatPanel in a popover so the conversation continues across
+ * navigation — conversation state lives in App via useChatConversations.
  */
-const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoading, onSetMessages, liveAssistantButton, quickAddButton, pendingConfirmation, onConfirmActions, onCancelActions }) => {
+const ChatLauncher: React.FC<ChatLauncherProps> = ({ chat, quickAddButton }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const chatConv = useChatConversations({ messages, onSetMessages });
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
       {/* Chat window — kept mounted (hidden when closed) to preserve panel state */}
       <div className={`mb-4 pointer-events-auto ${(!isOpen && !isFullScreen) ? 'hidden' : ''}`}>
         <ChatPanel
+          {...chat}
           layout="floating"
-          messages={messages}
-          onSendMessage={onSendMessage}
-          isLoading={isLoading}
-          pendingConfirmation={pendingConfirmation}
-          onConfirmActions={onConfirmActions}
-          onCancelActions={onCancelActions}
-          liveAssistantButton={liveAssistantButton}
           isFullScreen={isFullScreen}
           onToggleFullScreen={() => setIsFullScreen(f => !f)}
           onClose={() => setIsOpen(false)}
-          {...chatConv}
         />
       </div>
 
@@ -56,6 +38,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
             className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
               isOpen ? 'bg-slate-700 text-white rotate-90' : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
+            aria-label={isOpen ? 'Close chat' : 'Open chat'}
           >
             {isOpen ? <X size={24} /> : <MessageCircle size={28} />}
           </button>
@@ -65,4 +48,4 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ messages, onSendMessage, isLoad
   );
 };
 
-export default ChatWidget;
+export default ChatLauncher;

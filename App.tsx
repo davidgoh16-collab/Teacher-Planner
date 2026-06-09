@@ -26,7 +26,8 @@ import {
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
-import ChatWidget from './components/ChatWidget';
+import ChatLauncher from './components/layout/ChatLauncher';
+import { useChatConversations } from './hooks/useChatConversations';
 import LiveAssistant from './components/LiveAssistant';
 import TaskCardModal from './components/TaskCardModal';
 import MeetingPlanner from './components/MeetingPlanner';
@@ -91,7 +92,7 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates'>('timetable');
+  const [activeTab, setActiveTab] = useState<'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates'>('timetable');
 
   // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
@@ -134,6 +135,9 @@ const App: React.FC = () => {
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  // Conversation history lives here (single instance) so the Home chat and the
+  // floating launcher share one continuous conversation.
+  const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages });
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
@@ -1383,6 +1387,68 @@ const App: React.FC = () => {
   // Ensure bypass test can write
   const actualIsReadOnly = isTestBypass ? false : isReadOnly;
 
+  // Voice assistant button — rendered inside the chat header (Home embed + floating launcher).
+  const liveAssistantButton = (
+    <LiveAssistant
+      currentWeekData={currentWeekData}
+      lessonPlans={lessonPlans}
+      globalTasks={globalTasks}
+      projects={projects}
+      categories={categories}
+      ideas={ideas}
+      routineTasks={routineTasks}
+      apps={apps}
+      appCategories={appCategories}
+      isAdmin={isAdmin}
+      onUpdateLesson={handleSaveLesson}
+      onAddRecurringLesson={handleBatchSaveLessons}
+      onSaveTask={async (task) => {
+        await saveTask(task);
+        setGlobalTasks(prev => {
+          const exists = prev.find(t => t.id === task.id);
+          if (exists) return prev.map(t => t.id === task.id ? task : t);
+          return [...prev, task];
+        });
+      }}
+      onSaveProject={async (project) => {
+        await saveProject(project);
+        setProjects(prev => {
+          const exists = prev.find(p => p.id === project.id);
+          if (exists) return prev.map(p => p.id === project.id ? project : p);
+          return [...prev, project];
+        });
+      }}
+      onStatusChange={(active, statusText) => {
+        setIsLiveActive(active);
+        if (statusText) setLiveStatusText(statusText);
+      }}
+    />
+  );
+
+  // Quick-add "+" FAB (with the contextual "Undo AI Update" pill). Shown on every screen.
+  const quickAddFab = (
+    <div className="flex flex-col gap-2 items-end">
+      {aiActionHistory.length > 0 && (
+        <button
+          onClick={handleUndoLastAiAction}
+          className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1 mb-1"
+        >
+          <ChevronLeft size={12} /> Undo AI Update
+        </button>
+      )}
+      <button
+        onClick={() => setIsQuickAddOpen(true)}
+        className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
+        aria-label="Quick add task"
+      >
+        <Plus size={24} />
+        <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Quick Add
+        </span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       
@@ -2367,74 +2433,22 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <ChatWidget 
-        messages={chatMessages}
-        onSendMessage={handleAiSendMessage}
-        isLoading={isAiLoading}
-        onSetMessages={setChatMessages}
-        quickAddButton={
-          <div className="flex flex-col gap-2 items-end">
-            {aiActionHistory.length > 0 && (
-              <button
-                onClick={handleUndoLastAiAction}
-                className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1 mb-1"
-              >
-                <ChevronLeft size={12} /> Undo AI Update
-              </button>
-            )}
-          <button
-            onClick={() => setIsQuickAddOpen(true)}
-            className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
-          >
-            <Plus size={24} />
-            <span className="absolute right-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              Quick Add
-            </span>
-          </button>
-          </div>
-        }
-        liveAssistantButton={
-          <LiveAssistant
-            currentWeekData={currentWeekData}
-            lessonPlans={lessonPlans}
-            globalTasks={globalTasks}
-            projects={projects}
-            categories={categories}
-            ideas={ideas}
-            routineTasks={routineTasks}
-            apps={apps}
-            appCategories={appCategories}
-            isAdmin={isAdmin}
-            onUpdateLesson={handleSaveLesson}
-            onAddRecurringLesson={handleBatchSaveLessons}
-            onSaveTask={async (task) => {
-              await saveTask(task);
-              setGlobalTasks(prev => {
-                const exists = prev.find(t => t.id === task.id);
-                if (exists) return prev.map(t => t.id === task.id ? task : t);
-                return [...prev, task];
-              });
-            }}
-            onSaveProject={async (project) => {
-              await saveProject(project);
-              setProjects(prev => {
-                const exists = prev.find(p => p.id === project.id);
-                if (exists) return prev.map(p => p.id === project.id ? project : p);
-                return [...prev, project];
-              });
-            }}
-            onStatusChange={(active, statusText) => {
-              setIsLiveActive(active);
-              if (statusText) setLiveStatusText(statusText);
-            }}
-          />
-        }
-        isLiveActive={isLiveActive}
-        liveStatusText={liveStatusText}
-        pendingConfirmation={pendingActions}
-        onConfirmActions={handleConfirmActions}
-        onCancelActions={handleCancelActions}
-      />
+      {/* Floating chat + quick-add, shown when away from Home (Home embeds the chat). */}
+      {activeTab !== 'home' && (
+        <ChatLauncher
+          quickAddButton={quickAddFab}
+          chat={{
+            messages: chatMessages,
+            onSendMessage: handleAiSendMessage,
+            isLoading: isAiLoading,
+            pendingConfirmation: pendingActions,
+            onConfirmActions: handleConfirmActions,
+            onCancelActions: handleCancelActions,
+            liveAssistantButton: liveAssistantButton,
+            ...chatConv,
+          }}
+        />
+      )}
 
       <QuickAddModal
         isOpen={isQuickAddOpen}

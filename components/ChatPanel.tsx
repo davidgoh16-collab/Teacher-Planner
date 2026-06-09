@@ -7,7 +7,7 @@ import { readFileContent } from '../utils/fileUtils';
 
 export type ChatPanelLayout = 'embedded' | 'floating' | 'fullscreen';
 
-interface ChatPanelProps {
+export interface ChatPanelProps {
   layout?: ChatPanelLayout;
 
   // Chat data
@@ -42,6 +42,12 @@ interface ChatPanelProps {
   // Optional empty-state override (e.g. Home hero supplies its own greeting/prompts)
   emptyState?: React.ReactNode;
 }
+
+/**
+ * The shared chat props passed around the app (built once in App.tsx as `chatBag`).
+ * Layout-specific controls are supplied by each chat surface, not shared.
+ */
+export type ChatBag = Omit<ChatPanelProps, 'layout' | 'isFullScreen' | 'onToggleFullScreen' | 'onClose' | 'emptyState'>;
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
   layout = 'floating',
