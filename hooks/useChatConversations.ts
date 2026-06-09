@@ -41,20 +41,17 @@ export function useChatConversations({ messages, onSetMessages }: UseChatConvers
     onSetMessages([]);
   };
 
-  // Load conversations once on mount; open the most recent, or start a fresh one.
+  // Load the conversation list (for the history menu) but ALWAYS open a fresh
+  // conversation each time the app starts. Previous chats stay available in history.
   useEffect(() => {
     const loadConvs = async () => {
       try {
         const convs = await fetchAIConversations();
         setConversations(convs);
-        if (convs.length > 0) {
-          setCurrentConversationId(convs[0].id);
-          onSetMessages(convs[0].messages);
-        } else {
-          handleNewConversation();
-        }
       } catch (e) {
         console.error(e);
+      } finally {
+        handleNewConversation();
       }
     };
     loadConvs();
