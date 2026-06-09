@@ -30,7 +30,7 @@ const HomePage: React.FC<HomePageProps> = ({
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
   const now = new Date();
   const greeting = greetingFor(now.getHours());
-  const longDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const headerDate = now.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
   const { todaysTasks, overdueCount } = useMemo(() => {
     const open = (t: Task) => t.status !== 'Completed';
@@ -59,8 +59,8 @@ const HomePage: React.FC<HomePageProps> = ({
       <div className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 p-3 rounded-2xl mb-4">
         <Sparkles size={26} />
       </div>
-      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">How can I help you plan today?</h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm">Ask me to plan lessons, draft messages, organise tasks, or summarise your day.</p>
+      <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm">How can I help you plan today? Ask me to plan lessons, draft messages, or organise tasks.</p>
       <div className="flex flex-wrap gap-2 justify-center mt-5 max-w-md">
         {prompts.map((p, i) => (
           <button
@@ -77,14 +77,6 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Greeting strip */}
-      <div className="shrink-0 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-xl font-bold">{greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}</h2>
-          <span className="text-sm text-slate-500 dark:text-slate-400">{longDate}</span>
-        </div>
-      </div>
-
       {/* Body: chat hero + Today rail */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
         <main className="flex-1 min-w-0 p-3 sm:p-4 lg:h-full">
@@ -96,7 +88,10 @@ const HomePage: React.FC<HomePageProps> = ({
         <aside className="lg:w-80 xl:w-96 shrink-0 lg:border-l border-gray-200 dark:border-slate-800 p-4 space-y-4 lg:h-full lg:overflow-y-auto">
           {/* Today's Lessons — full vertical list (no horizontal scrolling) */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
-            <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm mb-3"><BookOpen size={15} className="text-primary-600 dark:text-primary-400" /> Today's Lessons</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><BookOpen size={15} className="text-primary-600 dark:text-primary-400" /> Today's Lessons</h3>
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{headerDate}</span>
+            </div>
             {todaysLessons.length === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500">No lessons scheduled today.</p>
             ) : (
