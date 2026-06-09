@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '../types';
 import { X, Send, Bot, User, Loader2, Sparkles, CheckSquare, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { getAiClient } from '../services/aiService';
+import { getAiClient, TEXT_MODEL } from '../services/aiService';
 import { FunctionDeclaration, Type } from "@google/genai";
 import { saveTask, deleteTask } from '../services/projectService';
 
@@ -207,7 +207,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
             }));
 
             const chat = ai.chats.create({
-                    model: 'gemini-3-flash-preview',
+                    model: TEXT_MODEL,
                 config: {
                     systemInstruction: systemInstruction,
                     tools: [{ functionDeclarations: [updateTasksDeclaration, deleteTasksDeclaration] }]

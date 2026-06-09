@@ -10,6 +10,10 @@ export const getAiClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+// Single source of truth for the text model. Swap here to migrate every text-based AI call.
+// The native-audio voice model (LiveAssistant) is intentionally separate.
+export const TEXT_MODEL = "gemini-3.5-flash";
+
 const DAY_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -291,7 +295,7 @@ export const generateInsights = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: TEXT_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -312,7 +316,7 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: TEXT_MODEL,
       contents: prompt,
     });
     return response.text || "";
@@ -322,51 +326,208 @@ export const generateContentFromAction = async (prompt: string): Promise<string>
   }
 };
 
+export interface ExtractedTaskDetails {
+    title: string;
+    description: string;
+    priority: string;
+    scheduledDateStr: string;
+    deadlineDateStr: string;
+    projectId: string;
+    categoryId: string;
+    confidence: number;
+}
+
+const TASK_EXTRACTION_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING, description: "A short, clear title for the task." },
+        description: { type: Type.STRING, description: "Any remaining details/notes, or empty string." },
+        priority: { type: Type.STRING, enum: ["High", "Medium", "Low"], description: "Default Medium if unspecified." },
+        scheduledDateStr: { type: Type.STRING, description: "Start/scheduled date YYYY-MM-DD, or empty string." },
+        deadlineDateStr: { type: Type.STRING, description: "Deadline/due date YYYY-MM-DD, or empty string." },
+        projectId: { type: Type.STRING, description: "ID of a matching available project, or empty string." },
+        categoryId: { type: Type.STRING, description: "ID of a matching available category, or empty string." },
+        confidence: { type: Type.NUMBER, description: "0..1 overall confidence in this extraction." },
+    },
+    required: ["title", "priority", "confidence"],
+};
+
+export interface TaskExtractionContext {
+    subjects?: string[];
+    todayISO?: string;
+    weekday?: string;
+    termEndISO?: string;
+}
+
 export const extractTaskDetails = async (
     naturalLanguageInput: string,
     projects?: { id: string; name: string }[],
-    categories?: { id: string; name: string }[]
-): Promise<{ title: string, description: string, priority: string, scheduledDateStr: string, deadlineDateStr: string, projectId: string, categoryId: string }> => {
+    categories?: { id: string; name: string }[],
+    context?: TaskExtractionContext
+): Promise<ExtractedTaskDetails> => {
     try {
         const ai = getAiClient();
 
         const projectsStr = projects && projects.length > 0 ? `Available Projects: ${projects.map(p => `"${p.name}" (ID: ${p.id})`).join(', ')}` : "No projects available.";
         const categoriesStr = categories && categories.length > 0 ? `Available Categories: ${categories.map(c => `"${c.name}" (ID: ${c.id})`).join(', ')}` : "No categories available.";
 
+        // Build a concrete date scaffold so relative phrasing ("next Tuesday", "tomorrow") resolves reliably.
+        const todayISO = context?.todayISO || new Date().toISOString().split('T')[0];
+        const todayDate = new Date(`${todayISO}T00:00:00`);
+        const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const weekday = context?.weekday || weekdayNames[todayDate.getDay()];
+        const upcomingDays: string[] = [];
+        for (let i = 1; i <= 7; i++) {
+            const d = new Date(todayDate);
+            d.setDate(d.getDate() + i);
+            upcomingDays.push(`${weekdayNames[d.getDay()]} = ${d.toISOString().split('T')[0]}`);
+        }
+        const subjectsStr = context?.subjects && context.subjects.length > 0
+            ? `The teacher's timetable includes these subjects/classes: ${context.subjects.join(', ')}. Use these to interpret class references (e.g. "10B", "Year 9 Geography") when forming the title or matching a project/category.`
+            : "";
+        const termEndStr = context?.termEndISO ? `The current term ends on ${context.termEndISO} (use for phrases like "end of term").` : "";
+
         const prompt = `
-            Extract task details from the following natural language input:
-            "${naturalLanguageInput}"
+            You are extracting a single task from a teacher's natural-language input.
+            Input: "${naturalLanguageInput}"
+
+            DATE CONTEXT:
+            - Today is ${weekday}, ${todayISO}.
+            - Upcoming days: ${upcomingDays.join('; ')}.
+            - "tomorrow" = ${upcomingDays[0].split(' = ')[1]}. "next week" = roughly 7 days out. ${termEndStr}
+            - When the user names a weekday (e.g. "Friday", "next Tuesday"), resolve it to the nearest upcoming matching date above.
 
             ${projectsStr}
             ${categoriesStr}
+            ${subjectsStr}
 
-            Return a JSON object with the following keys:
-            - title (string): A short, clear title for the task.
-            - description (string): Any remaining details, notes, or steps. If none, return an empty string "".
-            - priority (string): Must be exactly "High", "Medium", or "Low". Default to "Medium" if not specified.
-            - scheduledDateStr (string): The start or scheduled date in "YYYY-MM-DD" format. If words like "tomorrow", "next week" are used, calculate the date relative to today (${new Date().toISOString().split('T')[0]}). If not specified, return an empty string "".
-            - deadlineDateStr (string): The due date or deadline in "YYYY-MM-DD" format. Calculate relative to today if needed. If not specified, return an empty string "".
-            - projectId (string): The ID of the project if the user mentions one of the Available Projects. Otherwise, return an empty string "".
-            - categoryId (string): The ID of the category if the user mentions one of the Available Categories. Otherwise, return an empty string "".
-
-            Do not wrap in markdown tags like \`\`\`json.
+            Rules:
+            - priority must be exactly "High", "Medium", or "Low" (default "Medium" if not stated).
+            - Dates must be "YYYY-MM-DD" or an empty string "" if not specified. Never invent a date that wasn't implied.
+            - Only set projectId/categoryId when the input clearly matches one of the available options above; otherwise use "".
+            - confidence is a number 0..1 reflecting how sure you are of the overall extraction (lower it when dates or project matches are ambiguous).
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: TEXT_MODEL,
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
+                responseSchema: TASK_EXTRACTION_SCHEMA,
             },
         });
 
         if (response.text) {
-            return extractAndParseJSON(response.text);
+            const parsed = extractAndParseJSON(response.text) as Partial<ExtractedTaskDetails>;
+            return {
+                title: parsed.title || "",
+                description: parsed.description || "",
+                priority: parsed.priority || "Medium",
+                scheduledDateStr: parsed.scheduledDateStr || "",
+                deadlineDateStr: parsed.deadlineDateStr || "",
+                projectId: parsed.projectId || "",
+                categoryId: parsed.categoryId || "",
+                confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+            };
         }
         throw new Error("No response text from Gemini");
     } catch (error) {
         console.error("Error extracting task details:", error);
-        return { title: "", description: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "", projectId: "", categoryId: "" };
+        return { title: "", description: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "", projectId: "", categoryId: "", confidence: 0 };
+    }
+};
+
+export interface BriefingItem {
+    kind: 'overdue' | 'due_today' | 'lesson' | 'suggestion';
+    title: string;
+    detail?: string;
+    taskId?: string;
+}
+
+export interface Briefing {
+    greeting: string;
+    summary: string;
+    items: BriefingItem[];
+}
+
+const BRIEFING_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        greeting: { type: Type.STRING, description: "A short, warm greeting referencing the day." },
+        summary: { type: Type.STRING, description: "1-2 sentence overview of the day's workload." },
+        items: {
+            type: Type.ARRAY,
+            description: "The most relevant briefing items, ordered by importance.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    kind: { type: Type.STRING, enum: ["overdue", "due_today", "lesson", "suggestion"] },
+                    title: { type: Type.STRING },
+                    detail: { type: Type.STRING, description: "Optional short supporting detail." },
+                    taskId: { type: Type.STRING, description: "Related task id when applicable, else empty string." },
+                },
+                required: ["kind", "title"],
+            },
+        },
+    },
+    required: ["greeting", "summary", "items"],
+};
+
+export interface BriefingContext {
+    todayISO: string;
+    weekday: string;
+    overdueTasks: { id: string; title: string; deadlineDateStr?: string }[];
+    dueTodayTasks: { id: string; title: string }[];
+    todaysLessons: { period: string; subject: string; hasPlan: boolean }[];
+    upcomingKeyDates: { title: string; dateStr: string }[];
+}
+
+/**
+ * Generates a proactive daily/weekly briefing for the teacher.
+ * Read-only narrative + light suggestions; never mutates data.
+ */
+export const generateBriefing = async (ctx: BriefingContext): Promise<Briefing> => {
+    const empty: Briefing = { greeting: "", summary: "", items: [] };
+    try {
+        const ai = getAiClient();
+
+        const prompt = `
+            You are a teacher's proactive planning assistant. Produce a concise morning briefing.
+            Today is ${ctx.weekday}, ${ctx.todayISO}.
+
+            OVERDUE TASKS (deadline passed, still open): ${ctx.overdueTasks.length ? JSON.stringify(ctx.overdueTasks) : "none"}
+            DUE TODAY: ${ctx.dueTodayTasks.length ? JSON.stringify(ctx.dueTodayTasks) : "none"}
+            TODAY'S LESSONS: ${ctx.todaysLessons.length ? JSON.stringify(ctx.todaysLessons) : "none"}
+            UPCOMING KEY DATES (next ~14 days): ${ctx.upcomingKeyDates.length ? JSON.stringify(ctx.upcomingKeyDates) : "none"}
+
+            Guidelines:
+            - Surface overdue items first, then due-today, then lessons that still lack a plan (hasPlan = false).
+            - Add 2-3 concrete "suggestion" items for what to tackle next. Keep each title short and actionable.
+            - When an item refers to a specific task, set its taskId to that task's id.
+            - Be encouraging and brief. Return at most 8 items total. If there is genuinely nothing to do, say so warmly with an empty items array.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: TEXT_MODEL,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: BRIEFING_SCHEMA,
+            },
+        });
+
+        if (response.text) {
+            const parsed = extractAndParseJSON(response.text) as Briefing;
+            return {
+                greeting: parsed.greeting || "",
+                summary: parsed.summary || "",
+                items: Array.isArray(parsed.items) ? parsed.items : [],
+            };
+        }
+        return empty;
+    } catch (error) {
+        console.error("Error generating briefing:", error);
+        return empty;
     }
 };
 
@@ -407,7 +568,7 @@ export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyT
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: TEXT_MODEL,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -464,7 +625,7 @@ export const parseMasterTimetableAndTerms = async (
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: TEXT_MODEL,
       contents: { parts },
       config: {
         responseMimeType: "application/json",
@@ -516,7 +677,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
 
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: TEXT_MODEL,
       contents: {
         parts: [
           { text: prompt },

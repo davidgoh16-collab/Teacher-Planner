@@ -19,6 +19,7 @@ import { saveTask, deleteTask } from '../services/projectService';
 import { handleTaskRecurrence } from '../utils/taskUtils';
 import TaskEditModal from './TaskEditModal';
 import AIInsightsPanel from './AIInsightsPanel';
+import BriefingPanel from './BriefingPanel';
 import AIContentModal from './AIContentModal';
 import ReviewTasksModal from './ReviewTasksModal';
 import TaskCardModal from './TaskCardModal';
@@ -31,11 +32,13 @@ interface GlobalTasksViewProps {
     onTaskUpdate?: () => void;
     onTaskDeleted?: (taskId: string) => void;
     onTaskUpdated?: (task: Task) => void;
+    todaysLessons?: { period: string; subject: string; hasPlan: boolean }[];
+    upcomingKeyDates?: { title: string; dateStr: string }[];
 }
 
 type ViewMode = 'list' | 'timeline' | 'matrix';
 
-export default function GlobalTasksView({ allTasks, projects, categories, isReadOnly, onTaskUpdate, onTaskDeleted, onTaskUpdated }: GlobalTasksViewProps) {
+export default function GlobalTasksView({ allTasks, projects, categories, isReadOnly, onTaskUpdate, onTaskDeleted, onTaskUpdated, todaysLessons, upcomingKeyDates }: GlobalTasksViewProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('matrix');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -883,6 +886,12 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-slate-950 custom-scrollbar">
+
+                <BriefingPanel
+                    tasks={allTasks}
+                    todaysLessons={todaysLessons}
+                    upcomingKeyDates={upcomingKeyDates}
+                />
 
                 <AIInsightsPanel
                     contextType="all_tasks"

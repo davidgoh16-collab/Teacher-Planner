@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Bot, Paperclip, Loader2, Send } from 'lucide-react';
 import { Project, Task } from '../types';
-import { extractTaskDetails, getAiClient } from '../services/aiService';
+import { extractTaskDetails, getAiClient, TEXT_MODEL } from '../services/aiService';
 import { readFileContent } from '../utils/fileUtils';
 import { saveTask } from '../services/projectService';
 import { Type, FunctionDeclaration, Chat } from "@google/genai";
@@ -73,7 +73,7 @@ const ProjectAskAIModal: React.FC<ProjectAskAIModalProps> = ({ isOpen, onClose, 
             Be thorough. If the user asks a general question, you can just answer it instead.`;
 
             const chat: Chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: TEXT_MODEL,
                 config: {
                     systemInstruction: systemInstruction,
                     tools: [{ functionDeclarations: [addTaskTool] }]

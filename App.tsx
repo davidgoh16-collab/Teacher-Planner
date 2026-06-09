@@ -39,6 +39,7 @@ import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories } from './services/appService';
+import { TEXT_MODEL } from './services/aiService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -142,6 +143,9 @@ const App: React.FC = () => {
   // AI Action History for Undo
   const [aiActionHistory, setAiActionHistory] = useState<Array<{ type: string, previousState: any }>>([]);
 
+  // Pending AI actions awaiting user confirmation before they mutate the planner.
+  const [pendingActions, setPendingActions] = useState<{ calls: any[]; summary: string } | null>(null);
+
   // --- Initialize state after context load ---
   useEffect(() => {
     if (!isPlannerDataLoading && terms.length > 0 && !hasInitializedState) {
@@ -216,7 +220,44 @@ const App: React.FC = () => {
   }, [selectedTermId, weeksInTerm.length, selectedWeekIndex]);
 
   const currentWeekData: WeekData | undefined = weeksInTerm[selectedWeekIndex];
-  
+
+  // Today's lessons (with plan status) for the proactive briefing panel.
+  const todaysLessons = useMemo(() => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    const todayDow = new Date().getDay(); // 0=Sun..6=Sat
+    if (todayDow === 0 || todayDow === 6) return []; // weekends have no timetable
+    const week = weeksInTerm.find(w => {
+      const startISO = toISODate(w.startDate);
+      const endISO = toISODate(addDays(w.startDate, 4));
+      return todayISO >= startISO && todayISO <= endISO;
+    });
+    if (!week) return [];
+    const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+    const dayName = DAYS[todayDow - 1];
+    const daySchedule = (timetable[dayName] || {}) as Record<string, any>;
+    const lessons: { period: string; subject: string; hasPlan: boolean }[] = [];
+    PERIOD_LABELS.forEach(period => {
+      const entry = daySchedule[period];
+      if (entry?.subject) {
+        const plan = lessonPlans[`${todayISO}_${period}`];
+        const hasPlan = !!(plan && (plan.title || plan.notes || (plan.links && plan.links.length > 0)));
+        lessons.push({ period, subject: entry.subject, hasPlan });
+      }
+    });
+    return lessons;
+  }, [weeksInTerm, timetableWeek1, timetableWeek2, lessonPlans]);
+
+  // Key dates in the next ~14 days for the briefing panel.
+  const upcomingKeyDates = useMemo(() => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    const horizonISO = toISODate(addDays(new Date(), 14));
+    return keyDates
+      .filter(kd => kd.dateStr >= todayISO && kd.dateStr <= horizonISO)
+      .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+      .slice(0, 8)
+      .map(kd => ({ title: kd.title, dateStr: kd.dateStr }));
+  }, [keyDates]);
+
   // --- Effects ---
 
   // Auth Listener
@@ -917,13 +958,15 @@ const App: React.FC = () => {
            - DANGER: DO NOT USE THE \`updateLesson\` or \`addRecurringLesson\` TOOLS UNLESS EXPLICITLY TOLD TO ADD, CREATE, OR CHANGE A LESSON. If a user says "do it again", "tell me what I have", or "I have updated some so do it again", they are asking you to read the context and reply with text. Do NOT modify the database on their behalf unless they say "add these to my planner" or "create a lesson".
            - NEVER fill in empty periods, supervised study, or revision sessions on your own initiative. ONLY create lessons when strictly requested.
 
+           TOOL TRIGGERS — only call a mutating tool when the user uses an explicit create/change verb such as "add", "create", "schedule", "update", "change", "delete", or "remove". For any other request (questions, summaries, "what do I have", "tell me", "do it again" without a clear new instruction), reply with TEXT ONLY and call no tools. The user will be asked to confirm before any change is applied, so never assume consent.
+
            RULES:
            1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
            2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
-           2. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
-           3. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
-           4. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
-           5. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
+           3. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
+           4. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
+           5. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
+           6. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, you MUST use the 'addTaskToProject' tool for EACH action item you find if they specify a project to add them to.
            
            ${contextString}`;
 
@@ -933,7 +976,7 @@ const App: React.FC = () => {
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: TEXT_MODEL,
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
@@ -964,9 +1007,62 @@ const App: React.FC = () => {
         if (isReadOnly) {
             finalText = "I cannot modify the planner as you are in read-only mode.";
         } else {
-            const functionResponses = [];
+            // Defer mutating actions until the user explicitly confirms them.
+            const summary = describeFunctionCalls(functionCalls);
+            setPendingActions({ calls: functionCalls, summary });
+            if (!finalText) {
+                finalText = "I've prepared the following change(s). Please confirm to apply them.";
+            }
+        }
+      }
+
+      setChatMessages(prev => [...prev, { role: 'model', text: finalText }]);
+
+    } catch (error) {
+      console.error("AI Error:", error);
+      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to Gemini. Please check console for details." }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Human-readable summary of pending AI actions, shown in the confirmation prompt.
+  const describeFunctionCalls = (functionCalls: any[]): string => {
+    return functionCalls.map(call => {
+      const a = (call.args || {}) as any;
+      switch (call.name) {
+        case 'updateLesson':
+          return `• Add ${a.type === 'meeting' ? 'meeting' : 'lesson'} "${a.title}" on ${a.dateStr} (${a.periodLabel})`;
+        case 'addRecurringLesson':
+          return `• Add recurring "${a.title}" every ${a.dayOfWeek} (${a.periodLabel}, ${a.weekCycle || 'all'} weeks)`;
+        case 'addTaskToProject':
+          return `• Add task "${a.title}"${a.priority ? ` [${a.priority}]` : ''}`;
+        case 'addKeyDate':
+          return `• Add key date "${a.title}" on ${a.dateStr}`;
+        case 'editKeyDate':
+          return `• Edit key date "${a.title || a.id}"`;
+        case 'deleteKeyDate':
+          return `• Delete key date ${a.id}`;
+        default:
+          return `• ${call.name}`;
+      }
+    }).join('\n');
+  };
+
+  const handleCancelActions = () => {
+    setPendingActions(null);
+    setChatMessages(prev => [...prev, { role: 'model', text: "No problem — I've left your planner unchanged." }]);
+  };
+
+  const handleConfirmActions = async () => {
+    if (!pendingActions || isReadOnly) return;
+    const functionCalls = pendingActions.calls;
+    setPendingActions(null);
+    setIsAiLoading(true);
+    try {
+            const functionResponses: any[] = [];
             const modificationsToTrack: any[] = [];
-            
+
             for (const call of functionCalls) {
                 if (call.name === 'updateLesson') {
                     const args = call.args as any;
@@ -1210,24 +1306,27 @@ const App: React.FC = () => {
                     }
                 }
             }
-            
-            // Send function responses back to the model to get the final text confirmation
-            if (functionResponses.length > 0) {
-                const finalResult = await chat.sendMessage({ message: functionResponses });
-                finalText = finalResult.text || "";
-            }
+
+            // Build a confirmation summary from the executed results (no model round-trip needed).
+            const okCount = functionResponses.filter(r => r.functionResponse?.response?.result).length;
+            const errors = functionResponses
+                .map(r => r.functionResponse?.response?.error)
+                .filter(Boolean) as string[];
 
             if (modificationsToTrack.length > 0) {
                 setAiActionHistory(prev => [...prev, { type: 'updateLessons', previousState: modificationsToTrack }]);
             }
-        }
-      }
 
-      setChatMessages(prev => [...prev, { role: 'model', text: finalText }]);
+            let confirmText = okCount > 0 ? `Done — applied ${okCount} change${okCount === 1 ? '' : 's'} to your planner.` : "";
+            if (errors.length > 0) {
+                confirmText += `${confirmText ? '\n\n' : ''}Some changes failed:\n${errors.map(e => `• ${e}`).join('\n')}`;
+            }
+            if (!confirmText) confirmText = "No changes were applied.";
 
+            setChatMessages(prev => [...prev, { role: 'model', text: confirmText }]);
     } catch (error) {
-      console.error("AI Error:", error);
-      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to Gemini. Please check console for details." }]);
+      console.error("AI Confirm Error:", error);
+      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, something went wrong applying those changes. Please check the console." }]);
     } finally {
       setIsAiLoading(false);
     }
@@ -2192,6 +2291,8 @@ const App: React.FC = () => {
                 onTaskAdd={(newTask) => {
                     setGlobalTasks(prev => [newTask, ...prev]);
                 }}
+                todaysLessons={todaysLessons}
+                upcomingKeyDates={upcomingKeyDates}
             />
           ) : activeTab === 'communications' ? (
             <CommunicationsTab isReadOnly={actualIsReadOnly} />
@@ -2339,6 +2440,9 @@ const App: React.FC = () => {
         }
         isLiveActive={isLiveActive}
         liveStatusText={liveStatusText}
+        pendingConfirmation={pendingActions}
+        onConfirmActions={handleConfirmActions}
+        onCancelActions={handleCancelActions}
       />
 
       <QuickAddModal

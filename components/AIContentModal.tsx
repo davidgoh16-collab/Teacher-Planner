@@ -3,6 +3,7 @@ import { Bot, X, Check, Edit2, RotateCcw, Save, Loader2, Send } from 'lucide-rea
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI } from '@google/genai';
+import { TEXT_MODEL } from '../services/aiService';
 
 const remarkPlugins = [remarkGfm];
 
@@ -99,7 +100,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
             const prompt = `Please rewrite this content to be better:\n\n${editedContent}`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-pro',
+                model: TEXT_MODEL,
                 contents: prompt,
                 config: {
                     systemInstruction: systemPrompt,
@@ -163,7 +164,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
             }
 
             const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: TEXT_MODEL,
                 contents: prompt,
                 config: {
                     systemInstruction: systemPrompt,
