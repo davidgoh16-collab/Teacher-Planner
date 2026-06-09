@@ -27,8 +27,8 @@ import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatLauncher from './components/layout/ChatLauncher';
-import ChatPanel from './components/ChatPanel';
 import AppShell from './components/layout/AppShell';
+import HomePage from './components/HomePage';
 import { useChatConversations } from './hooks/useChatConversations';
 import LiveAssistant from './components/LiveAssistant';
 import TaskCardModal from './components/TaskCardModal';
@@ -94,7 +94,7 @@ const App: React.FC = () => {
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
-  const [activeTab, setActiveTab] = useState<AppTab>('timetable');
+  const [activeTab, setActiveTab] = useState<AppTab>('home');
 
   // Global Tasks & Projects
   const [globalTasks, setGlobalTasks] = useState<Task[]>([]);
@@ -1473,6 +1473,9 @@ const App: React.FC = () => {
   const refreshAppCategories = async () => {
     try { setAppCategories(await fetchAppCategories()); } catch (e) { console.error(e); }
   };
+  const refreshTasks = async () => {
+    try { setGlobalTasks(await fetchTasks()); } catch (e) { console.error(e); }
+  };
 
   // Shared chat props for the embedded Home chat and the floating launcher (one conversation).
   const chatBag = {
@@ -1599,11 +1602,18 @@ const App: React.FC = () => {
         topBar={activeTab === 'timetable' ? timetableToolbarEl : undefined}
       >
           {activeTab === 'home' ? (
-            <div className="h-full p-3 sm:p-4 md:p-6">
-              <div className="max-w-4xl mx-auto h-full">
-                <ChatPanel layout="embedded" {...chatBag} />
-              </div>
-            </div>
+            <HomePage
+              chat={chatBag}
+              todaysLessons={todaysLessons}
+              upcomingKeyDates={upcomingKeyDates}
+              globalTasks={globalTasks}
+              favouriteApps={favouriteApps}
+              onOpenApp={openApp}
+              onNavigate={setActiveTab}
+              isReadOnly={actualIsReadOnly}
+              onTasksRefresh={refreshTasks}
+              userName={user?.displayName || undefined}
+            />
           ) : activeTab === 'timetable' ? (
             <div className="min-w-[1600px] mx-auto md:p-8 p-4">
             
