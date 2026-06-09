@@ -147,7 +147,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const rootClass =
     layout === 'embedded'
-      ? 'flex flex-col h-full w-full bg-white dark:bg-slate-900 rounded-2xl shadow-soft border border-gray-200 dark:border-slate-800 overflow-hidden'
+      ? 'flex flex-col h-full w-full bg-white dark:bg-slate-900 overflow-hidden'
       : layout === 'fullscreen' || isFullScreen
         ? 'fixed inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col'
         : 'w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col border border-gray-200 dark:border-slate-700 overflow-hidden';

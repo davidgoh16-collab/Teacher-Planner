@@ -79,8 +79,8 @@ const HomePage: React.FC<HomePageProps> = ({
     <div className="h-full flex flex-col">
       {/* Body: chat hero + Today rail */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
-        <main className="flex-1 min-w-0 p-3 sm:p-4 lg:h-full">
-          <div className="h-[60vh] lg:h-full max-w-4xl mx-auto">
+        <main className="flex-1 min-w-0 lg:h-full">
+          <div className="h-[60vh] lg:h-full w-full">
             <ChatPanel layout="embedded" {...chat} emptyState={emptyState} />
           </div>
         </main>
