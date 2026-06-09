@@ -154,30 +154,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div className={rootClass}>
-      {/* Header */}
-      <div className="bg-slate-900 dark:bg-slate-950 p-4 flex justify-between items-center text-white border-b border-slate-700 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary-600 p-1.5 rounded-lg">
-            <Bot size={18} />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm">Planning Assistant</h3>
-            <p className="text-[10px] text-slate-400">Powered by Gemini</p>
-          </div>
-        </div>
+      {/* Slim control strip — blends with the chat area (no branded bar) */}
+      <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50 dark:bg-slate-950/50 shrink-0">
+        <button
+          onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${isHistoryOpen ? 'bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+          title="Conversations"
+        >
+          <List size={16} /> <span className="hidden sm:inline">Conversations</span>
+        </button>
         <div className="flex items-center gap-1">
-          {liveAssistantButton && <div className="mr-1">{liveAssistantButton}</div>}
-          <button
-            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-            className={`p-1.5 rounded-md transition-colors ${isHistoryOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            title="History"
-          >
-            <List size={18} />
-          </button>
           {onToggleFullScreen && (
             <button
               onClick={onToggleFullScreen}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title={isFullScreen ? 'Exit Full Screen' : 'Full Screen'}
             >
               {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -186,7 +176,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {onClose && !isFullScreen && (
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              title="Close"
             >
               <X size={18} />
             </button>
@@ -334,7 +325,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </button>
           </div>
         )}
-        <div className="relative flex items-center">
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl pl-2 pr-1.5 py-1 focus-within:ring-2 focus-within:ring-primary-500/50 transition-all">
           <input
             type="file"
             ref={fileInputRef}
@@ -346,7 +337,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="absolute left-2 p-1.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors shrink-0 disabled:opacity-50 z-10"
+            className="p-1.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors shrink-0 disabled:opacity-50"
             title="Attach Document"
           >
             <Paperclip size={18} />
@@ -358,12 +349,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             placeholder="Ask me to add a lesson or extract actions..."
             /* Security: limit input length to prevent excessive token usage */
             maxLength={2000}
-            className="w-full bg-gray-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl pl-10 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+            className="flex-1 min-w-0 bg-transparent text-slate-800 dark:text-slate-100 py-2 text-sm focus:outline-none"
           />
+          {/* Voice assistant (mic) sits right beside the send button */}
+          {liveAssistantButton && <div className="shrink-0">{liveAssistantButton}</div>}
           <button
             type="submit"
             disabled={isLoading || (!input.trim() && !selectedFile)}
-            className="absolute right-2 p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+            title="Send"
           >
             <Send size={16} />
           </button>
