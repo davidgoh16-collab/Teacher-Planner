@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Task, Category, Project, Idea } from '../types';
-import { extractTaskDetails } from '../services/aiService';
-import { X, Check, Bot } from 'lucide-react';
+import { extractTaskDetails, ExtractedTaskDetails } from '../services/aiService';
+import { usePlannerData } from '../src/context/PlannerContext';
+import { X, Check, Bot, Sparkles } from 'lucide-react';
 
 interface QuickAddModalProps {
     isOpen: boolean;
@@ -27,6 +28,35 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
         // AI State
     const [aiTaskInput, setAiTaskInput] = useState('');
     const [isExtracting, setIsExtracting] = useState(false);
+    const [preview, setPreview] = useState<ExtractedTaskDetails | null>(null);
+
+    const { timetableWeek1, timetableWeek2, terms } = usePlannerData();
+
+    // Unique subjects/classes from the timetable, used to help the AI interpret class references.
+    const subjects = useMemo(() => {
+        const set = new Set<string>();
+        [timetableWeek1, timetableWeek2].forEach(tt => {
+            Object.values(tt || {}).forEach((daySchedule: any) => {
+                Object.values(daySchedule || {}).forEach((entry: any) => {
+                    if (entry?.subject) set.add(entry.subject);
+                });
+            });
+        });
+        return Array.from(set).sort();
+    }, [timetableWeek1, timetableWeek2]);
+
+    // End date of the term containing today (for "end of term" phrasing).
+    const termEndISO = useMemo(() => {
+        const now = new Date();
+        const current = (terms || []).find(t => {
+            const start = t.startDate instanceof Date ? t.startDate : new Date(t.startDate);
+            const end = t.endDate instanceof Date ? t.endDate : new Date(t.endDate);
+            return now >= start && now <= end;
+        });
+        if (!current) return undefined;
+        const end = current.endDate instanceof Date ? current.endDate : new Date(current.endDate);
+        return end.toISOString().split('T')[0];
+    }, [terms]);
 
 // Idea State
     const [ideaText, setIdeaText] = useState('');
@@ -51,21 +81,37 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose, categori
     const handleAiTaskExtract = async () => {
         if (!aiTaskInput.trim()) return;
         setIsExtracting(true);
+        setPreview(null);
         try {
-            const details = await extractTaskDetails(aiTaskInput, projects, categories);
-            if (details.title) setTaskTitle(details.title);
-            if (details.description) setTaskDescription(details.description);
-            if (details.priority) setTaskPriority(details.priority as any);
-            if (details.scheduledDateStr) setTaskScheduledDateStr(details.scheduledDateStr);
-            if (details.deadlineDateStr) setTaskDeadlineDateStr(details.deadlineDateStr);
-            if (details.projectId) setTaskProjectId(details.projectId);
-            if (details.categoryId) setTaskCategoryId(details.categoryId);
-            setAiTaskInput('');
+            const todayISO = new Date().toISOString().split('T')[0];
+            const details = await extractTaskDetails(aiTaskInput, projects, categories, {
+                subjects,
+                todayISO,
+                termEndISO,
+            });
+            if (!details.title) {
+                console.warn("AI returned no task title for input:", aiTaskInput);
+                return;
+            }
+            setPreview(details);
         } catch (e) {
             console.error("Failed to extract task details:", e);
         } finally {
             setIsExtracting(false);
         }
+    };
+
+    const applyPreview = () => {
+        if (!preview) return;
+        if (preview.title) setTaskTitle(preview.title);
+        if (preview.description) setTaskDescription(preview.description);
+        if (preview.priority) setTaskPriority(preview.priority as any);
+        if (preview.scheduledDateStr) setTaskScheduledDateStr(preview.scheduledDateStr);
+        if (preview.deadlineDateStr) setTaskDeadlineDateStr(preview.deadlineDateStr);
+        if (preview.projectId) setTaskProjectId(preview.projectId);
+        if (preview.categoryId) setTaskCategoryId(preview.categoryId);
+        setPreview(null);
+        setAiTaskInput('');
     };
 const handleSaveTask = (e: React.FormEvent) => {
         e.preventDefault();
@@ -115,6 +161,8 @@ const handleSaveTask = (e: React.FormEvent) => {
         setTaskDeadlineDateStr('');
         setIdeaText('');
         setIdeaProjectId('');
+        setAiTaskInput('');
+        setPreview(null);
     };
 
     const handleClose = () => {
@@ -174,6 +222,48 @@ const handleSaveTask = (e: React.FormEvent) => {
                                 </button>
                             </div>
                         </div>
+
+                        {preview && (
+                            <div className="border border-blue-300 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-900/15 rounded-lg p-3 mb-2 animate-in fade-in duration-200">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                                        <Sparkles size={14} /> AI suggestion
+                                    </div>
+                                    {(() => {
+                                        const c = preview.confidence ?? 0;
+                                        const cfg = c >= 0.7
+                                            ? { label: 'High confidence', cls: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' }
+                                            : c >= 0.4
+                                            ? { label: 'Medium confidence', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' }
+                                            : { label: 'Low confidence', cls: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
+                                        return (
+                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.cls}`}>
+                                                {cfg.label} · {Math.round(c * 100)}%
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                                <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                                    <div><span className="font-semibold">Title:</span> {preview.title}</div>
+                                    {preview.description && <div className="text-xs text-slate-500 dark:text-slate-400">{preview.description}</div>}
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 pt-1">
+                                        <span><span className="font-semibold">Priority:</span> {preview.priority}</span>
+                                        {preview.scheduledDateStr && <span><span className="font-semibold">Scheduled:</span> {preview.scheduledDateStr}</span>}
+                                        {preview.deadlineDateStr && <span><span className="font-semibold">Deadline:</span> {preview.deadlineDateStr}</span>}
+                                        {preview.categoryId && <span><span className="font-semibold">Category:</span> {categories.find(c => c.id === preview.categoryId)?.name || preview.categoryId}</span>}
+                                        {preview.projectId && <span><span className="font-semibold">Project:</span> {projects.find(p => p.id === preview.projectId)?.name || preview.projectId}</span>}
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-3">
+                                    <button type="button" onClick={() => setPreview(null)} className="px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors">
+                                        Discard
+                                    </button>
+                                    <button type="button" onClick={applyPreview} className="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-1">
+                                        <Check size={13} /> Apply
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Title *</label>

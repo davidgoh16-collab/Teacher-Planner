@@ -39,6 +39,7 @@ import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories } from './services/appService';
+import { TEXT_MODEL } from './services/aiService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -933,7 +934,7 @@ const App: React.FC = () => {
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: TEXT_MODEL,
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
