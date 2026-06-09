@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#16a34a" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-    <title>EduPlan 2025</title>
+    <title>Teacher Planner</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -63,6 +63,19 @@
       .dark ::-webkit-scrollbar-thumb:hover {
         background: #64748b;
       }
+
+      /* Hide scrollbar (toolbars, chip rows) */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+      /* Thin styled scrollbar */
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+
+      /* Subtle enter animation for panels & modals using the `animate-in` class */
+      @keyframes tp-enter { from { opacity: 0; transform: translateY(4px) scale(0.985); } to { opacity: 1; transform: none; } }
+      .animate-in { animation: tp-enter 0.2s ease-out both; }
     </style>
     <script src="/env.js"></script>
   <script type="importmap">
