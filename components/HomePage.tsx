@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle2, Circle, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { BookOpen, CheckCircle2, Circle, Clock, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
 import AIInsightsPanel from './AIInsightsPanel';
@@ -19,6 +19,7 @@ interface HomePageProps {
   onNavigate: (tab: AppTab) => void;
   isReadOnly: boolean;
   onTasksRefresh?: () => void;
+  onToggleTask?: (e: React.MouseEvent, task: Task) => void;
   userName?: string;
 }
 
@@ -28,7 +29,7 @@ const greetingFor = (h: number) => (h < 12 ? 'Good morning' : h < 18 ? 'Good aft
 const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const HomePage: React.FC<HomePageProps> = ({
-  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, userName,
+  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, onToggleTask, userName,
 }) => {
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
   const now = new Date();
@@ -164,8 +165,15 @@ const HomePage: React.FC<HomePageProps> = ({
               <ul className="space-y-1.5">
                 {todaysTasks.map(t => (
                   <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
-                    <Circle size={13} className="text-slate-300 dark:text-slate-600 mt-1 shrink-0" />
-                    <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t.title}</span>
+                    <button
+                      onClick={(e) => onToggleTask?.(e, t)}
+                      disabled={isReadOnly || !onToggleTask}
+                      title={t.status === 'In Progress' ? 'In progress — click to complete' : 'Click to mark in progress'}
+                      className={`mt-0.5 shrink-0 disabled:cursor-default ${t.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                    >
+                      {t.status === 'In Progress' ? <Clock size={14} /> : <Circle size={14} />}
+                    </button>
+                    <span className={`text-sm flex-1 ${t.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{t.title}</span>
                   </li>
                 ))}
               </ul>

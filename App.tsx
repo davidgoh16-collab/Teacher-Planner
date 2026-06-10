@@ -1648,6 +1648,7 @@ const App: React.FC = () => {
               onNavigate={setActiveTab}
               isReadOnly={actualIsReadOnly}
               onTasksRefresh={refreshTasks}
+              onToggleTask={(e, task) => toggleTaskCompletion(e, task.id, task._parentTaskId)}
               userName={user?.displayName || undefined}
             />
           ) : activeTab === 'timetable' ? (
