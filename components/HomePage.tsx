@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle2, Circle, Star, Plus, Sparkles } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BookOpen, CheckCircle2, Circle, Clock, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
 import AIInsightsPanel from './AIInsightsPanel';
 import IconRenderer from './ui/IconRenderer';
 import { Task, AppItem, AppTab } from '../types';
 
-interface TodaysLesson { period: string; subject: string; hasPlan: boolean; }
+interface TodaysLesson { period: string; subject: string; hasPlan: boolean; title?: string; links?: string[]; }
 interface UpcomingKeyDate { title: string; dateStr: string; }
 
 interface HomePageProps {
@@ -19,24 +19,32 @@ interface HomePageProps {
   onNavigate: (tab: AppTab) => void;
   isReadOnly: boolean;
   onTasksRefresh?: () => void;
+  onToggleTask?: (e: React.MouseEvent, task: Task) => void;
   userName?: string;
 }
 
 const greetingFor = (h: number) => (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
 
+// Ensure a user-entered link is treated as an absolute URL (e.g. "docs.google.com" -> "https://docs.google.com").
+const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
 const HomePage: React.FC<HomePageProps> = ({
-  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, userName,
+  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, onToggleTask, userName,
 }) => {
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
   const now = new Date();
   const greeting = greetingFor(now.getHours());
   const headerDate = now.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
-  const { todaysTasks, overdueCount } = useMemo(() => {
+  const [showOverdue, setShowOverdue] = useState(false);
+
+  const { todaysTasks, overdueTasks, overdueCount } = useMemo(() => {
     const open = (t: Task) => t.status !== 'Completed';
     const todays = globalTasks.filter(t => open(t) && (t.scheduledDateStr === todayISO || t.deadlineDateStr === todayISO));
-    const overdue = globalTasks.filter(t => open(t) && t.deadlineDateStr && t.deadlineDateStr < todayISO).length;
-    return { todaysTasks: todays, overdueCount: overdue };
+    const overdue = globalTasks
+      .filter(t => open(t) && t.deadlineDateStr && t.deadlineDateStr < todayISO)
+      .sort((a, b) => (a.deadlineDateStr || '').localeCompare(b.deadlineDateStr || ''));
+    return { todaysTasks: todays, overdueTasks: overdue, overdueCount: overdue.length };
   }, [globalTasks, todayISO]);
 
   // Data-aware suggested prompts.
@@ -96,15 +104,51 @@ const HomePage: React.FC<HomePageProps> = ({
               <p className="text-sm text-slate-400 dark:text-slate-500">No lessons scheduled today.</p>
             ) : (
               <ul className="space-y-1.5">
-                {todaysLessons.map((l, i) => (
-                  <li key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
-                    {l.hasPlan
-                      ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
-                      : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
-                    <span className="font-medium text-sm truncate flex-1">{l.subject}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
-                  </li>
-                ))}
+                {todaysLessons.map((l, i) => {
+                  const links = l.links || [];
+                  const primaryLink = links[0];
+                  const label = l.title || l.subject;
+                  return (
+                    <li key={i} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                      <div className="flex items-center gap-2.5">
+                        {l.hasPlan
+                          ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
+                          : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
+                        {primaryLink ? (
+                          <a
+                            href={normalizeUrl(primaryLink)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open lesson link: ${label}`}
+                            className="font-medium text-sm truncate flex-1 inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:underline"
+                          >
+                            <span className="truncate">{label}</span>
+                            <ExternalLink size={12} className="shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="font-medium text-sm truncate flex-1">{label}</span>
+                        )}
+                        <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
+                      </div>
+                      {links.length > 1 && (
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[26px]">
+                          {links.slice(1).map((link, li) => (
+                            <a
+                              key={li}
+                              href={normalizeUrl(link)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                            >
+                              <LinkIcon size={10} className="shrink-0" />
+                              <span className="truncate max-w-[140px]">Link {li + 2}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -114,8 +158,14 @@ const HomePage: React.FC<HomePageProps> = ({
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><CheckCircle2 size={15} className="text-primary-600 dark:text-primary-400" /> Today's Tasks</h3>
               {overdueCount > 0 && (
-                <button onClick={() => onNavigate('projects')} className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                <button
+                  onClick={() => setShowOverdue(v => !v)}
+                  aria-expanded={showOverdue}
+                  title={showOverdue ? 'Hide overdue tasks' : 'Show overdue tasks'}
+                  className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors inline-flex items-center gap-1"
+                >
                   {overdueCount} overdue
+                  {showOverdue ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
               )}
             </div>
@@ -125,11 +175,47 @@ const HomePage: React.FC<HomePageProps> = ({
               <ul className="space-y-1.5">
                 {todaysTasks.map(t => (
                   <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
-                    <Circle size={13} className="text-slate-300 dark:text-slate-600 mt-1 shrink-0" />
-                    <span className="text-sm text-slate-700 dark:text-slate-200 flex-1">{t.title}</span>
+                    <button
+                      onClick={(e) => onToggleTask?.(e, t)}
+                      disabled={isReadOnly || !onToggleTask}
+                      title={t.status === 'In Progress' ? 'In progress — click to complete' : 'Click to mark in progress'}
+                      className={`mt-0.5 shrink-0 disabled:cursor-default ${t.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}
+                    >
+                      {t.status === 'In Progress' ? <Clock size={14} /> : <Circle size={14} />}
+                    </button>
+                    <span className={`text-sm flex-1 ${t.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{t.title}</span>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {/* Overdue tasks — collapsible */}
+            {overdueCount > 0 && showOverdue && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5 mb-2">
+                  <AlertTriangle size={12} /> Overdue ({overdueCount})
+                </h4>
+                <ul className="space-y-1.5">
+                  {overdueTasks.map(t => (
+                    <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/15">
+                      <button
+                        onClick={(e) => onToggleTask?.(e, t)}
+                        disabled={isReadOnly || !onToggleTask}
+                        title={t.status === 'In Progress' ? 'In progress — click to complete' : 'Click to mark in progress'}
+                        className={`mt-0.5 shrink-0 disabled:cursor-default ${t.status === 'In Progress' ? 'text-amber-500' : 'text-red-300 dark:text-red-700 hover:text-red-500'}`}
+                      >
+                        {t.status === 'In Progress' ? <Clock size={14} /> : <Circle size={14} />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm block ${t.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{t.title}</span>
+                        {t.deadlineDateStr && (
+                          <span className="text-[11px] text-red-500 dark:text-red-400">Due {new Date(t.deadlineDateStr + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
