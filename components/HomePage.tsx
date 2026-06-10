@@ -108,27 +108,35 @@ const HomePage: React.FC<HomePageProps> = ({
                 {todaysLessons.map((l, i) => {
                   const links = l.links || [];
                   const primaryLink = links[0];
-                  const label = l.title || l.subject;
+                  // Show the class name (subject) as the main label, and the
+                  // lesson plan title (the lesson they're on) as a sub-line.
+                  const className = l.subject;
+                  const lessonTitle = l.title && l.title !== l.subject ? l.title : undefined;
                   return (
                     <li key={i} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
                       <div className="flex items-center gap-2.5">
                         {l.hasPlan
                           ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
                           : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
-                        {primaryLink ? (
-                          <a
-                            href={normalizeUrl(primaryLink)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`Open lesson link: ${label}`}
-                            className="font-medium text-sm truncate flex-1 inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:underline"
-                          >
-                            <span className="truncate">{label}</span>
-                            <ExternalLink size={12} className="shrink-0" />
-                          </a>
-                        ) : (
-                          <span className="font-medium text-sm truncate flex-1">{label}</span>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          {primaryLink ? (
+                            <a
+                              href={normalizeUrl(primaryLink)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Open lesson link: ${className}`}
+                              className="font-medium text-sm inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:underline max-w-full"
+                            >
+                              <span className="truncate">{className}</span>
+                              <ExternalLink size={12} className="shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="font-medium text-sm truncate block">{className}</span>
+                          )}
+                          {lessonTitle && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400 truncate block">{lessonTitle}</span>
+                          )}
+                        </div>
                         <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
                       </div>
                       {links.length > 1 && (
