@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle2, Circle, Star, Plus, Sparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, Circle, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
 import AIInsightsPanel from './AIInsightsPanel';
 import IconRenderer from './ui/IconRenderer';
 import { Task, AppItem, AppTab } from '../types';
 
-interface TodaysLesson { period: string; subject: string; hasPlan: boolean; }
+interface TodaysLesson { period: string; subject: string; hasPlan: boolean; title?: string; links?: string[]; }
 interface UpcomingKeyDate { title: string; dateStr: string; }
 
 interface HomePageProps {
@@ -23,6 +23,9 @@ interface HomePageProps {
 }
 
 const greetingFor = (h: number) => (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+
+// Ensure a user-entered link is treated as an absolute URL (e.g. "docs.google.com" -> "https://docs.google.com").
+const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const HomePage: React.FC<HomePageProps> = ({
   chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, userName,
@@ -96,15 +99,51 @@ const HomePage: React.FC<HomePageProps> = ({
               <p className="text-sm text-slate-400 dark:text-slate-500">No lessons scheduled today.</p>
             ) : (
               <ul className="space-y-1.5">
-                {todaysLessons.map((l, i) => (
-                  <li key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
-                    {l.hasPlan
-                      ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
-                      : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
-                    <span className="font-medium text-sm truncate flex-1">{l.subject}</span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
-                  </li>
-                ))}
+                {todaysLessons.map((l, i) => {
+                  const links = l.links || [];
+                  const primaryLink = links[0];
+                  const label = l.title || l.subject;
+                  return (
+                    <li key={i} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                      <div className="flex items-center gap-2.5">
+                        {l.hasPlan
+                          ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
+                          : <Circle size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
+                        {primaryLink ? (
+                          <a
+                            href={normalizeUrl(primaryLink)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open lesson link: ${label}`}
+                            className="font-medium text-sm truncate flex-1 inline-flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:underline"
+                          >
+                            <span className="truncate">{label}</span>
+                            <ExternalLink size={12} className="shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="font-medium text-sm truncate flex-1">{label}</span>
+                        )}
+                        <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{l.period}</span>
+                      </div>
+                      {links.length > 1 && (
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[26px]">
+                          {links.slice(1).map((link, li) => (
+                            <a
+                              key={li}
+                              href={normalizeUrl(link)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                            >
+                              <LinkIcon size={10} className="shrink-0" />
+                              <span className="truncate max-w-[140px]">Link {li + 2}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

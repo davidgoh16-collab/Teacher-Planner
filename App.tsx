@@ -240,13 +240,13 @@ const App: React.FC = () => {
     const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
     const dayName = DAYS[todayDow - 1];
     const daySchedule = (timetable[dayName] || {}) as Record<string, any>;
-    const lessons: { period: string; subject: string; hasPlan: boolean }[] = [];
+    const lessons: { period: string; subject: string; hasPlan: boolean; title?: string; links?: string[] }[] = [];
     PERIOD_LABELS.forEach(period => {
       const entry = daySchedule[period];
       if (entry?.subject) {
         const plan = lessonPlans[`${todayISO}_${period}`];
         const hasPlan = !!(plan && (plan.title || plan.notes || (plan.links && plan.links.length > 0)));
-        lessons.push({ period, subject: entry.subject, hasPlan });
+        lessons.push({ period, subject: entry.subject, hasPlan, title: plan?.title || undefined, links: plan?.links || [] });
       }
     });
     return lessons;
