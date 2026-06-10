@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle2, Circle, Clock, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BookOpen, CheckCircle2, Circle, Clock, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
 import AIInsightsPanel from './AIInsightsPanel';
@@ -36,11 +36,15 @@ const HomePage: React.FC<HomePageProps> = ({
   const greeting = greetingFor(now.getHours());
   const headerDate = now.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
-  const { todaysTasks, overdueCount } = useMemo(() => {
+  const [showOverdue, setShowOverdue] = useState(false);
+
+  const { todaysTasks, overdueTasks, overdueCount } = useMemo(() => {
     const open = (t: Task) => t.status !== 'Completed';
     const todays = globalTasks.filter(t => open(t) && (t.scheduledDateStr === todayISO || t.deadlineDateStr === todayISO));
-    const overdue = globalTasks.filter(t => open(t) && t.deadlineDateStr && t.deadlineDateStr < todayISO).length;
-    return { todaysTasks: todays, overdueCount: overdue };
+    const overdue = globalTasks
+      .filter(t => open(t) && t.deadlineDateStr && t.deadlineDateStr < todayISO)
+      .sort((a, b) => (a.deadlineDateStr || '').localeCompare(b.deadlineDateStr || ''));
+    return { todaysTasks: todays, overdueTasks: overdue, overdueCount: overdue.length };
   }, [globalTasks, todayISO]);
 
   // Data-aware suggested prompts.
@@ -154,8 +158,14 @@ const HomePage: React.FC<HomePageProps> = ({
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><CheckCircle2 size={15} className="text-primary-600 dark:text-primary-400" /> Today's Tasks</h3>
               {overdueCount > 0 && (
-                <button onClick={() => onNavigate('projects')} className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                <button
+                  onClick={() => setShowOverdue(v => !v)}
+                  aria-expanded={showOverdue}
+                  title={showOverdue ? 'Hide overdue tasks' : 'Show overdue tasks'}
+                  className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors inline-flex items-center gap-1"
+                >
                   {overdueCount} overdue
+                  {showOverdue ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
               )}
             </div>
@@ -177,6 +187,35 @@ const HomePage: React.FC<HomePageProps> = ({
                   </li>
                 ))}
               </ul>
+            )}
+
+            {/* Overdue tasks — collapsible */}
+            {overdueCount > 0 && showOverdue && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5 mb-2">
+                  <AlertTriangle size={12} /> Overdue ({overdueCount})
+                </h4>
+                <ul className="space-y-1.5">
+                  {overdueTasks.map(t => (
+                    <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/15">
+                      <button
+                        onClick={(e) => onToggleTask?.(e, t)}
+                        disabled={isReadOnly || !onToggleTask}
+                        title={t.status === 'In Progress' ? 'In progress — click to complete' : 'Click to mark in progress'}
+                        className={`mt-0.5 shrink-0 disabled:cursor-default ${t.status === 'In Progress' ? 'text-amber-500' : 'text-red-300 dark:text-red-700 hover:text-red-500'}`}
+                      >
+                        {t.status === 'In Progress' ? <Clock size={14} /> : <Circle size={14} />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm block ${t.status === 'In Progress' ? 'text-amber-700 dark:text-amber-500' : 'text-slate-700 dark:text-slate-200'}`}>{t.title}</span>
+                        {t.deadlineDateStr && (
+                          <span className="text-[11px] text-red-500 dark:text-red-400">Due {new Date(t.deadlineDateStr + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
