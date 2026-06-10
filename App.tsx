@@ -1649,6 +1649,14 @@ const App: React.FC = () => {
               isReadOnly={actualIsReadOnly}
               onTasksRefresh={refreshTasks}
               onToggleTask={(e, task) => toggleTaskCompletion(e, task.id, task._parentTaskId)}
+              onOpenTask={(task) => {
+                if (task._parentTaskId) {
+                  const parent = globalTasks.find(t => t.id === task._parentTaskId);
+                  if (parent) openCardModal(parent);
+                } else {
+                  openCardModal(task);
+                }
+              }}
               userName={user?.displayName || undefined}
             />
           ) : activeTab === 'timetable' ? (

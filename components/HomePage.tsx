@@ -20,6 +20,7 @@ interface HomePageProps {
   isReadOnly: boolean;
   onTasksRefresh?: () => void;
   onToggleTask?: (e: React.MouseEvent, task: Task) => void;
+  onOpenTask?: (task: Task) => void;
   userName?: string;
 }
 
@@ -29,7 +30,7 @@ const greetingFor = (h: number) => (h < 12 ? 'Good morning' : h < 18 ? 'Good aft
 const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const HomePage: React.FC<HomePageProps> = ({
-  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, onToggleTask, userName,
+  chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, onToggleTask, onOpenTask, userName,
 }) => {
   const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
   const now = new Date();
@@ -174,7 +175,11 @@ const HomePage: React.FC<HomePageProps> = ({
             ) : (
               <ul className="space-y-1.5">
                 {todaysTasks.map(t => (
-                  <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                  <li
+                    key={t.id}
+                    onClick={() => onOpenTask?.(t)}
+                    className={`flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 ${onOpenTask ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors' : ''}`}
+                  >
                     <button
                       onClick={(e) => onToggleTask?.(e, t)}
                       disabled={isReadOnly || !onToggleTask}
@@ -197,7 +202,11 @@ const HomePage: React.FC<HomePageProps> = ({
                 </h4>
                 <ul className="space-y-1.5">
                   {overdueTasks.map(t => (
-                    <li key={t.id} className="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/15">
+                    <li
+                      key={t.id}
+                      onClick={() => onOpenTask?.(t)}
+                      className={`flex items-start gap-2.5 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/15 ${onOpenTask ? 'cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/25 transition-colors' : ''}`}
+                    >
                       <button
                         onClick={(e) => onToggleTask?.(e, t)}
                         disabled={isReadOnly || !onToggleTask}
