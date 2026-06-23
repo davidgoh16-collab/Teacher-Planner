@@ -39,7 +39,7 @@ export const deleteCategory = async (id: string): Promise<void> => {
 export const fetchProjects = async (): Promise<Project[]> => {
     try {
         const querySnapshot = await getDocs(collection(db, PROJECTS_COLLECTION));
-        return querySnapshot.docs.map(docSnap => docSnap.data() as Project).sort((a, b) => b.createdAt - a.createdAt);
+        return querySnapshot.docs.map(docSnap => docSnap.data() as Project).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
     } catch (e) {
         console.error("Error fetching projects", e);
         return [];

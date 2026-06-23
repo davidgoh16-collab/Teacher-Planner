@@ -120,6 +120,9 @@ export interface Project {
   links: ProjectLink[];
   tasks: Task[]; // Usually fetched separately, but good for typed responses
   createdAt: number;
+  order?: number; // Manual sort position (set via drag-to-reorder)
+  completed?: boolean; // Manual completion flag (moves project to Completed section)
+  completedAt?: number; // Timestamp when marked complete
 }
 
 export interface ChatMessage {
