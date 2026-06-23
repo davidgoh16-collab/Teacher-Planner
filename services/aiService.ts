@@ -359,6 +359,32 @@ export interface TaskExtractionContext {
     termEndISO?: string;
 }
 
+/**
+ * Builds a concrete relative-date scaffold so the model can resolve phrases like
+ * "today", "tomorrow", "Friday", or "next week" into exact YYYY-MM-DD values.
+ * Shared by the task extractor and the main chat assistant.
+ */
+export const buildDateContextBlock = (todayISO?: string, termEndISO?: string): string => {
+  const today = todayISO || new Date().toISOString().split('T')[0];
+  const todayDate = new Date(`${today}T00:00:00`);
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekday = weekdayNames[todayDate.getDay()];
+  const upcomingDays: string[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(todayDate);
+    d.setDate(d.getDate() + i);
+    upcomingDays.push(`${weekdayNames[d.getDay()]} = ${d.toISOString().split('T')[0]}`);
+  }
+  const termEndStr = termEndISO ? ` The current term ends on ${termEndISO} (use for phrases like "end of term").` : "";
+  return [
+    `- Today is ${weekday}, ${today}.`,
+    `- Upcoming days: ${upcomingDays.join('; ')}.`,
+    `- "tomorrow" = ${upcomingDays[0].split(' = ')[1]}. "next week" = roughly 7 days out.${termEndStr}`,
+    `- When the user names a weekday (e.g. "Friday", "next Tuesday"), resolve it to the nearest upcoming matching date above.`,
+    `- All dates passed to tools MUST be in YYYY-MM-DD format.`,
+  ].join('\n');
+};
+
 export const extractTaskDetails = async (
     naturalLanguageInput: string,
     projects?: { id: string; name: string }[],

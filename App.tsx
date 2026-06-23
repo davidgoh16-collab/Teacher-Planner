@@ -39,9 +39,9 @@ import AppsHub from './components/AppsHub';
 import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { fetchTasks, saveTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
+import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
-import { TEXT_MODEL } from './services/aiService';
+import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -767,7 +767,7 @@ const App: React.FC = () => {
       // Build context about the current week's timetable
       const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
       let contextString = `Current Week Context: ${currentWeekData.displayString} (Week ${currentWeekData.weekNumber}).\n`;
-      contextString += `Today is: ${new Date().toDateString()}.\n\n`;
+      contextString += `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n\n`;
       
       // Add Entire Academic Year Calendar Context
       contextString += `--- ACADEMIC YEAR CALENDAR ---\n`;
@@ -797,7 +797,7 @@ const App: React.FC = () => {
 
       contextString += `\n--- APP TASKS & PROJECTS ---\n`;
       contextString += `Projects: ${JSON.stringify(projects.map(p => ({id: p.id, name: p.name, desc: p.description})), null, 2)}\n`;
-      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
+      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, priority: t.priority, scheduled: t.scheduledDateStr, deadline: t.deadlineDateStr, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
       contextString += `\n----------------------------\n\n`;
 
       contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
@@ -921,6 +921,47 @@ const App: React.FC = () => {
         },
       };
 
+      const updateTasksTool: FunctionDeclaration = {
+        name: 'updateTasks',
+        description: "Update, reschedule, re-prioritise, rename, move, or COMPLETE one or more EXISTING tasks. Use this (NOT addTasksToProject) whenever the user refers to a task that already exists in the Tasks context. To mark a task done, set status to 'Completed'. To reschedule, set scheduledDateStr and/or deadlineDateStr.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            updates: {
+              type: Type.ARRAY,
+              description: 'Each item MUST contain the exact id of an existing task plus only the fields to change.',
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING, description: 'The exact id of the existing task (from the Tasks context).' },
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
+                  status: { type: Type.STRING, enum: ['Uncompleted', 'In Progress', 'Completed'] },
+                  projectId: { type: Type.STRING, description: 'Move the task to a different project (use a project id from context).' },
+                  scheduledDateStr: { type: Type.STRING, description: 'Scheduled/start date in YYYY-MM-DD format.' },
+                  deadlineDateStr: { type: Type.STRING, description: 'Deadline in YYYY-MM-DD format.' },
+                },
+                required: ['id'],
+              },
+            },
+          },
+          required: ['updates'],
+        },
+      };
+
+      const deleteTasksTool: FunctionDeclaration = {
+        name: 'deleteTasks',
+        description: 'Delete one or more EXISTING tasks by their ids (from the Tasks context).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            taskIds: { type: Type.ARRAY, description: 'The ids of the tasks to delete.', items: { type: Type.STRING } },
+          },
+          required: ['taskIds'],
+        },
+      };
+
       const addKeyDateTool: FunctionDeclaration = {
         name: 'addKeyDate',
         description: 'Add a new key date to the calendar.',
@@ -983,13 +1024,25 @@ const App: React.FC = () => {
            3. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
            4. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
            5. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
-           6. To create tasks, ALWAYS use the 'addTasksToProject' tool and pass ALL requested tasks in its 'tasks' array in ONE call — whether the user asks for a single task or many. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, include EVERY action item as a separate entry in that same 'tasks' array (choosing the relevant project from the context).
-           
+           6. To create NEW tasks, ALWAYS use the 'addTasksToProject' tool and pass ALL requested tasks in its 'tasks' array in ONE call — whether the user asks for a single task or many. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, include EVERY action item as a separate entry in that same 'tasks' array (choosing the relevant project from the context).
+           7. To CHANGE an EXISTING task — reschedule, rename, re-prioritise, move project, or mark it complete — use the 'updateTasks' tool with the task's exact id from the Tasks context. Set status to 'Completed' to complete it; set scheduledDateStr and/or deadlineDateStr to reschedule it. NEVER use 'addTasksToProject' to modify a task that already exists — that creates a duplicate.
+           8. To remove existing tasks, use the 'deleteTasks' tool with their ids.
+           9. Use the DATE CONTEXT section to convert relative dates — "today", "tomorrow", named weekdays (e.g. "Friday"), and "next week" — into exact YYYY-MM-DD values for every tool.
+           10. If a request is ambiguous, garbled, or does not clearly map to a planner action (a lesson, task, or key date), DO NOT invent or guess a task/lesson. Reply with TEXT asking the user to clarify what they mean, and call no tools.
+
            ${contextString}`;
 
       if (isReadOnly) {
           systemInstruction += `\n\nNOTE: The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks. You can only view and analyze the data.`;
       }
+
+      // Prior conversation (recent window) as history so follow-ups like
+      // "change that task" / "reschedule it" retain context. Gemini requires the
+      // history to start with a user turn, so drop any leading model messages.
+      const recentMessages = chatMessages.slice(-16);
+      const mappedHistory = recentMessages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+      const firstUserIdx = mappedHistory.findIndex(m => m.role === 'user');
+      const chatHistory = firstUserIdx === -1 ? [] : mappedHistory.slice(firstUserIdx);
 
       // Initialize Chat using new SDK pattern
       const chat: Chat = ai.chats.create({
@@ -997,8 +1050,9 @@ const App: React.FC = () => {
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
-          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTasksToProjectTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
-        }
+          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTasksToProjectTool, updateTasksTool, deleteTasksTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
+        },
+        history: chatHistory
       });
 
       let finalMessage: any = userMessage;
@@ -1059,6 +1113,24 @@ const App: React.FC = () => {
             return `• Add task "${t.title || ''}"${t.priority ? ` [${t.priority}]` : ''}`;
           }
           return `• Add ${list.length} tasks:\n${list.map((t: any) => `   – ${t.title}${t.priority ? ` [${t.priority}]` : ''}`).join('\n')}`;
+        }
+        case 'updateTasks': {
+          const ups = Array.isArray(a.updates) ? a.updates : [];
+          return ups.map((u: any) => {
+            const title = globalTasks.find(t => t.id === u.id)?.title || u.title || u.id;
+            const bits: string[] = [];
+            if (u.status) bits.push(u.status === 'Completed' ? 'mark complete' : `status → ${u.status}`);
+            if (u.scheduledDateStr) bits.push(`scheduled ${u.scheduledDateStr}`);
+            if (u.deadlineDateStr) bits.push(`due ${u.deadlineDateStr}`);
+            if (u.priority) bits.push(`priority ${u.priority}`);
+            if (u.title) bits.push(`rename to "${u.title}"`);
+            if (u.projectId) bits.push('move project');
+            return `• Update task "${title}"${bits.length ? `: ${bits.join(', ')}` : ''}`;
+          }).join('\n');
+        }
+        case 'deleteTasks': {
+          const ids = Array.isArray(a.taskIds) ? a.taskIds : [];
+          return ids.map((id: string) => `• Delete task "${globalTasks.find(t => t.id === id)?.title || id}"`).join('\n');
         }
         case 'addKeyDate':
           return `• Add key date "${a.title}" on ${a.dateStr}`;
@@ -1238,6 +1310,61 @@ const App: React.FC = () => {
                                 id: call.id,
                                 response: { error: `Failed to save tasks.` }
                             }
+                        });
+                    }
+                } else if (call.name === 'updateTasks') {
+                    const updates: any[] = Array.isArray(call.args?.updates) ? call.args.updates : [];
+                    try {
+                        let changed = 0;
+                        const updatedList = [...globalTasks];
+                        for (const u of updates) {
+                            const idx = updatedList.findIndex(t => t.id === u.id);
+                            if (idx === -1) continue;
+                            const merged: Task = { ...updatedList[idx] };
+                            if (typeof u.title === 'string') merged.title = u.title;
+                            if (typeof u.description === 'string') merged.description = u.description;
+                            if (['High', 'Medium', 'Low'].includes(u.priority)) merged.priority = u.priority;
+                            if (['Uncompleted', 'In Progress', 'Completed'].includes(u.status)) {
+                                merged.status = u.status;
+                                merged.completedAt = u.status === 'Completed' ? Date.now() : undefined;
+                            }
+                            if (typeof u.projectId === 'string' && u.projectId) merged.projectId = u.projectId;
+                            if (typeof u.scheduledDateStr === 'string') merged.scheduledDateStr = u.scheduledDateStr || undefined;
+                            if (typeof u.deadlineDateStr === 'string') merged.deadlineDateStr = u.deadlineDateStr || undefined;
+                            await saveTask(merged);
+                            updatedList[idx] = merged;
+                            changed++;
+                        }
+                        setGlobalTasks(updatedList);
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Updated ${changed} task${changed === 1 ? '' : 's'}.` }
+                            }
+                        });
+                    } catch (e) {
+                        console.error(e);
+                        functionResponses.push({
+                            functionResponse: { name: call.name, id: call.id, response: { error: `Failed to update tasks.` } }
+                        });
+                    }
+                } else if (call.name === 'deleteTasks') {
+                    const ids: string[] = Array.isArray(call.args?.taskIds) ? call.args.taskIds : [];
+                    try {
+                        for (const id of ids) await deleteTask(id);
+                        setGlobalTasks(prev => prev.filter(t => !ids.includes(t.id)));
+                        functionResponses.push({
+                            functionResponse: {
+                                name: call.name,
+                                id: call.id,
+                                response: { result: `Success: Deleted ${ids.length} task${ids.length === 1 ? '' : 's'}.` }
+                            }
+                        });
+                    } catch (e) {
+                        console.error(e);
+                        functionResponses.push({
+                            functionResponse: { name: call.name, id: call.id, response: { error: `Failed to delete tasks.` } }
                         });
                     }
                 } else if (call.name === 'addKeyDate') {
