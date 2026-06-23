@@ -27,9 +27,7 @@ const PRIORITIES: Task['priority'][] = ['High', 'Medium', 'Low'];
 const STATUSES: Task['status'][] = ['Uncompleted', 'In Progress', 'Completed'];
 
 export default function ProjectAssistantPanel({ project, tasks, allCategories, isReadOnly, onClose, onTaskAdded, onTaskUpdated, onTaskDeleted }: ProjectAssistantPanelProps) {
-    const [messages, setMessages] = useState<Message[]>([
-        { role: 'model', text: `Hi! I'm the assistant for **${project.name}**. Ask me anything about this project, or tell me to add, change, or remove tasks — e.g. _"add a task to book the hall"_, _"move the deadline for the risk assessment to Friday"_, or _"delete the duplicate tasks"_. You can also attach a document and I'll pull out the action items.` }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -47,6 +45,14 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
 
     const isGeneral = project.id.startsWith('__general_');
     const taskCategories = allCategories.filter(c => c.type === 'task');
+
+    // Live project stats for the overview header.
+    const totalCount = localTasks.length;
+    const completedCount = localTasks.filter(t => t.status === 'Completed').length;
+    const inProgressCount = localTasks.filter(t => t.status === 'In Progress').length;
+    const todoCount = Math.max(0, totalCount - completedCount - inProgressCount);
+    const progressPct = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+    const projectCategory = allCategories.find(c => c.id === project.categoryId);
 
     const addTaskDeclaration: FunctionDeclaration = {
         name: "addTask",
@@ -304,6 +310,34 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar bg-slate-50/50 dark:bg-slate-950/50">
+                    {/* Project overview */}
+                    <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Overview</h3>
+                            {projectCategory && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${projectCategory.colorClass}`}>
+                                    {projectCategory.name}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 whitespace-pre-wrap">
+                            {project.description?.trim() || <span className="italic opacity-60">No description provided.</span>}
+                        </p>
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="text-slate-500 dark:text-slate-400">Progress</span>
+                            <span className="font-semibold text-slate-700 dark:text-slate-200">{progressPct}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-2.5 text-[11px] font-medium">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">{totalCount} total</span>
+                            <span className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">{completedCount} done</span>
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">{inProgressCount} in progress</span>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">{todoCount} to do</span>
+                        </div>
+                    </div>
+
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
                             <div className={`max-w-[88%] rounded-2xl p-3 shadow-sm flex gap-2.5 ${
