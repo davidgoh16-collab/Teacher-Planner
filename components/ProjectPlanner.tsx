@@ -3,6 +3,24 @@ import { Project, Category, Task } from '../types';
 import { fetchProjects, fetchCategories, fetchTasks, saveProject, deleteProject, fetchIdeas, deleteIdea, saveTask } from '../services/projectService';
 import ManageCategoriesModal from './ManageCategoriesModal';
 import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  closestCorners,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Plus,
   Search,
   Settings,
@@ -16,6 +34,8 @@ import {
   X,
   Lightbulb,
   RotateCw,
+  RotateCcw,
+  GripVertical,
   Edit2,
   CheckCircle2,
   Circle
@@ -41,6 +61,31 @@ interface ProjectPlannerProps {
   todaysLessons?: { period: string; subject: string; hasPlan: boolean }[];
   upcomingKeyDates?: { title: string; dateStr: string }[];
 }
+
+// Sortable wrapper for a draggable project card. Exposes drag-handle listeners
+// to its children so only the grip handle initiates a drag (the rest of the card
+// stays clickable to open the project).
+const SortableProjectCard: React.FC<{ id: string; children: (handleProps: Record<string, any>) => React.ReactNode }> = ({ id, children }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 20 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(listeners || {})}
+    </div>
+  );
+};
+
+// Droppable wrapper around a category group's grid so a card can be dropped into
+// the group even if it currently has no cards under the cursor.
+const DroppableGroup: React.FC<{ id: string; className?: string; children: React.ReactNode }> = ({ id, className, children }) => {
+  const { setNodeRef } = useDroppable({ id });
+  return <div ref={setNodeRef} className={className}>{children}</div>;
+};
 
 const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd, todaysLessons, upcomingKeyDates }) => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
@@ -160,6 +205,94 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
             setCardTask(task);
         }
         if (onTaskUpdate) onTaskUpdate(task);
+    }
+  };
+
+  const handleToggleProjectComplete = async (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isReadOnly) return;
+    const nextCompleted = !project.completed;
+    const updated: Project = {
+      ...project,
+      completed: nextCompleted,
+      completedAt: nextCompleted ? Date.now() : undefined,
+    };
+    setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
+    try {
+      await saveProject(updated);
+    } catch (err) {
+      console.error(err);
+      setProjects(prev => prev.map(p => p.id === project.id ? project : p)); // revert
+    }
+  };
+
+  // Drag-to-reorder (and move between categories) for active project cards.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleProjectDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (isReadOnly || !over || active.id === over.id) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // The droppable can be a project card (overId === project id) or an empty
+    // category container (overId === `container:<catKey>`).
+    const containerPrefix = 'container:';
+    const overContainer = overId.startsWith(containerPrefix);
+    const destCatKey = overContainer
+      ? overId.slice(containerPrefix.length)
+      : (projects.find(p => p.id === overId)?.categoryId || 'uncategorized');
+    if (!destCatKey) return;
+
+    const draggedProject = projects.find(p => p.id === activeId);
+    if (!draggedProject) return;
+
+    const destCategoryId = destCatKey === 'uncategorized' ? undefined : destCatKey;
+
+    // Build the active (non-completed) ordering, applying category reassignment.
+    const activeProjects = projects.filter(p => !p.completed);
+    const reassigned = activeProjects.map(p =>
+      p.id === activeId ? { ...p, categoryId: destCategoryId } : p
+    );
+
+    const oldIndex = reassigned.findIndex(p => p.id === activeId);
+    const newIndex = overContainer
+      ? reassigned.length - 1
+      : reassigned.findIndex(p => p.id === overId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(reassigned, oldIndex, newIndex);
+
+    // Reassign sequential order values across all active projects.
+    const orderMap = new Map<string, number>();
+    reordered.forEach((p, i) => orderMap.set(p.id, i));
+
+    const prevProjects = projects;
+    const updatedProjects = projects.map(p => {
+      if (orderMap.has(p.id)) {
+        const next: Project = { ...p, order: orderMap.get(p.id)! };
+        if (p.id === activeId) next.categoryId = destCategoryId;
+        return next;
+      }
+      return p;
+    });
+    // Keep array sorted by order so render reflects the new positions immediately.
+    updatedProjects.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+    setProjects(updatedProjects);
+
+    try {
+      const changed = updatedProjects.filter(p => {
+        const before = prevProjects.find(o => o.id === p.id);
+        return before && (before.order !== p.order || before.categoryId !== p.categoryId);
+      });
+      await Promise.all(changed.map(p => saveProject(p)));
+    } catch (err) {
+      console.error(err);
+      setProjects(prevProjects); // revert
     }
   };
 
@@ -614,13 +747,12 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                 return { ...project, _progress: progress, _totalTasks: totalTasks, _completedTasks: completedTasks, _projectTasks: projectTasks };
                             });
 
-                            // Sort by progress ascending (least completed first, most completed last)
-                            projectsWithProgress.sort((a, b) => a._progress - b._progress);
+                            // Keep the manual order from the service; completion is now
+                            // an explicit per-project flag, not derived from progress.
+                            const activeProjects = projectsWithProgress.filter(p => !p.completed);
+                            const completedProjects = projectsWithProgress.filter(p => p.completed);
 
-                            const activeProjects = projectsWithProgress.filter(p => !(p._progress === 100 && p._totalTasks > 0));
-                            const completedProjects = projectsWithProgress.filter(p => p._progress === 100 && p._totalTasks > 0);
-
-                            const renderProjectCard = (project: any) => {
+                            const renderProjectCard = (project: any, dragHandleProps?: Record<string, any>) => {
                                 const topTasks = project._projectTasks.filter(t => t.status !== 'Completed').sort((a, b) => {
                                     const pMap: any = { High: 3, Medium: 2, Low: 1 };
                                     const pDiff = (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
@@ -642,16 +774,38 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                     {/* Card Header with optional background color */}
                                     <div className={`p-5 pb-4 ${project.colorClass ? (project.colorClass.replace('bg-', 'bg-').replace('border-', 'border-b-') + ' border-b') : 'border-b border-slate-100 dark:border-slate-800'}`}>
                                         <div className="flex justify-between items-start gap-2 mb-2">
-                                            <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
-                                                {project.name}
-                                            </h3>
+                                            <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                                                {!isReadOnly && dragHandleProps && (
+                                                    <button
+                                                        {...dragHandleProps}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="mt-0.5 shrink-0 p-0.5 -ml-1 text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing touch-none"
+                                                        title="Drag to reorder"
+                                                        aria-label="Drag to reorder project"
+                                                    >
+                                                        <GripVertical size={16} />
+                                                    </button>
+                                                )}
+                                                <h3 className={`font-bold text-lg line-clamp-2 leading-tight ${project.colorClass ? getContrastTextColor(project.colorClass) : 'text-slate-900 dark:text-white'}`}>
+                                                    {project.name}
+                                                </h3>
+                                            </div>
                                             {!isReadOnly && (
-                                                <button
-                                                    onClick={(e) => handleDeleteProject(project.id, e)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all shrink-0"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        onClick={(e) => handleToggleProjectComplete(project, e)}
+                                                        className={`p-1.5 rounded-md transition-all hover:bg-white/50 dark:hover:bg-slate-800 ${project.completed ? 'text-green-500 hover:text-slate-400' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-green-500'}`}
+                                                        title={project.completed ? 'Reopen project' : 'Mark project complete'}
+                                                    >
+                                                        {project.completed ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteProject(project.id, e)}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getCategoryClass(project.categoryId)} ${getContrastTextColor(getCategoryClass(project.categoryId))}`}>
@@ -698,7 +852,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                 );
                             };
 
-                            const renderGroups = (projectsToRender: typeof projectsWithProgress) => {
+                            const renderGroups = (projectsToRender: typeof projectsWithProgress, draggable = false) => {
                                 const groups = new Map<string, typeof projectsToRender>();
                                 groups.set('uncategorized', []);
                                 projectCategories.forEach(c => groups.set(c.id, []));
@@ -714,6 +868,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                 return Array.from(groups.entries()).map(([catId, catProjects]) => {
                                     if (catProjects.length === 0) return null;
                                     const category = projectCategories.find(c => c.id === catId);
+                                    const gridClass = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6";
 
                                     return (
                                         <div key={catId} className="space-y-4">
@@ -731,9 +886,21 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                                 )}
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                                                {catProjects.map(project => renderProjectCard(project))}
-                                            </div>
+                                            {draggable && !isReadOnly ? (
+                                                <DroppableGroup id={`container:${catId}`} className={gridClass}>
+                                                    <SortableContext items={catProjects.map(p => p.id)} strategy={rectSortingStrategy}>
+                                                        {catProjects.map(project => (
+                                                            <SortableProjectCard key={project.id} id={project.id}>
+                                                                {(handleProps) => renderProjectCard(project, handleProps)}
+                                                            </SortableProjectCard>
+                                                        ))}
+                                                    </SortableContext>
+                                                </DroppableGroup>
+                                            ) : (
+                                                <div className={gridClass}>
+                                                    {catProjects.map(project => renderProjectCard(project))}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 });
@@ -741,7 +908,9 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
 
                             return (
                                 <>
-                                    {renderGroups(activeProjects)}
+                                    <DndContext sensors={dndSensors} collisionDetection={closestCorners} onDragEnd={handleProjectDragEnd}>
+                                        {renderGroups(activeProjects, true)}
+                                    </DndContext>
                                     {completedProjects.length > 0 && (
                                         <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
                                             <details className="group">
