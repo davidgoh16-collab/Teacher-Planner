@@ -437,6 +437,129 @@ export const extractTaskDetails = async (
     }
 };
 
+export interface VibeTaskDraft {
+    title: string;
+    description: string;
+    priority: 'High' | 'Medium' | 'Low';
+    scheduledDateStr: string;
+    deadlineDateStr: string;
+}
+
+export interface VibeProjectResult {
+    projectName: string;
+    description: string;
+    categorySelection: {
+        existingCategoryId: string; // "" if proposing a new category
+        newCategoryName: string;    // "" if using an existing category
+    };
+    tasks: VibeTaskDraft[];
+}
+
+const VIBE_PROJECT_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        projectName: { type: Type.STRING, description: "A concise, clear project title." },
+        description: { type: Type.STRING, description: "A 1-2 sentence summary of the project's goal." },
+        categorySelection: {
+            type: Type.OBJECT,
+            properties: {
+                existingCategoryId: { type: Type.STRING, description: "ID of the best-matching existing project category, or empty string if none fit well." },
+                newCategoryName: { type: Type.STRING, description: "A concise new category name to create ONLY if no existing category fits; otherwise empty string." },
+            },
+        },
+        tasks: {
+            type: Type.ARRAY,
+            description: "The list of actionable tasks needed to complete this project.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING, description: "Optional extra detail, or empty string." },
+                    priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                    scheduledDateStr: { type: Type.STRING, description: "YYYY-MM-DD or empty string." },
+                    deadlineDateStr: { type: Type.STRING, description: "YYYY-MM-DD or empty string." },
+                },
+                required: ["title", "priority"],
+            },
+        },
+    },
+    required: ["projectName", "tasks"],
+};
+
+/**
+ * Turns a free-text brain-dump into a structured project draft (name, description,
+ * a best-fit category selection, and a task list) for the "Vibe Project" generator.
+ * Returns null on failure so the caller can surface an error.
+ */
+export const generateVibeProject = async (
+    naturalLanguageInput: string,
+    categories?: { id: string; name: string }[],
+    todayISO?: string
+): Promise<VibeProjectResult | null> => {
+    try {
+        const ai = getAiClient();
+
+        const today = todayISO || new Date().toISOString().split('T')[0];
+        const categoriesStr = categories && categories.length > 0
+            ? `Existing project categories: ${categories.map(c => `"${c.name}" (ID: ${c.id})`).join(', ')}`
+            : "There are no existing categories yet.";
+
+        const prompt = `
+            You are a planning assistant for a teacher. Turn the following brain-dump into a single, well-structured project with a list of actionable tasks.
+
+            User's request: "${naturalLanguageInput}"
+
+            Today's date is ${today}. Use the format YYYY-MM-DD for any dates, and only set a date when the user clearly implies one (otherwise use "").
+
+            ${categoriesStr}
+
+            Category rules:
+            - Choose the single best-matching existing category and put its ID in 'categorySelection.existingCategoryId'.
+            - If (and only if) none of the existing categories is a good fit, leave 'existingCategoryId' empty and propose a concise new category name in 'categorySelection.newCategoryName' (e.g. "Assessment", "Trips", "Pastoral").
+            - Never fill in both fields.
+
+            Task rules:
+            - Break the work into clear, concrete tasks (typically 3-10). Each needs a short title.
+            - priority must be exactly "High", "Medium", or "Low".
+        `;
+
+        const response = await ai.models.generateContent({
+            model: TEXT_MODEL,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: VIBE_PROJECT_SCHEMA,
+            },
+        });
+
+        if (response.text) {
+            const parsed = extractAndParseJSON(response.text) as Partial<VibeProjectResult>;
+            if (!parsed.projectName || !Array.isArray(parsed.tasks)) return null;
+            return {
+                projectName: parsed.projectName,
+                description: parsed.description || "",
+                categorySelection: {
+                    existingCategoryId: parsed.categorySelection?.existingCategoryId || "",
+                    newCategoryName: parsed.categorySelection?.newCategoryName || "",
+                },
+                tasks: parsed.tasks
+                    .map((t): VibeTaskDraft => ({
+                        title: t.title || "",
+                        description: t.description || "",
+                        priority: (t.priority === 'High' || t.priority === 'Low') ? t.priority : 'Medium',
+                        scheduledDateStr: t.scheduledDateStr || "",
+                        deadlineDateStr: t.deadlineDateStr || "",
+                    }))
+                    .filter(t => t.title.trim().length > 0),
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error generating vibe project:", error);
+        return null;
+    }
+};
+
 export interface BriefingItem {
     kind: 'overdue' | 'due_today' | 'lesson' | 'suggestion';
     title: string;
