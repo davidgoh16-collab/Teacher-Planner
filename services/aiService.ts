@@ -359,6 +359,32 @@ export interface TaskExtractionContext {
     termEndISO?: string;
 }
 
+/**
+ * Builds a concrete relative-date scaffold so the model can resolve phrases like
+ * "today", "tomorrow", "Friday", or "next week" into exact YYYY-MM-DD values.
+ * Shared by the task extractor and the main chat assistant.
+ */
+export const buildDateContextBlock = (todayISO?: string, termEndISO?: string): string => {
+  const today = todayISO || new Date().toISOString().split('T')[0];
+  const todayDate = new Date(`${today}T00:00:00`);
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekday = weekdayNames[todayDate.getDay()];
+  const upcomingDays: string[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(todayDate);
+    d.setDate(d.getDate() + i);
+    upcomingDays.push(`${weekdayNames[d.getDay()]} = ${d.toISOString().split('T')[0]}`);
+  }
+  const termEndStr = termEndISO ? ` The current term ends on ${termEndISO} (use for phrases like "end of term").` : "";
+  return [
+    `- Today is ${weekday}, ${today}.`,
+    `- Upcoming days: ${upcomingDays.join('; ')}.`,
+    `- "tomorrow" = ${upcomingDays[0].split(' = ')[1]}. "next week" = roughly 7 days out.${termEndStr}`,
+    `- When the user names a weekday (e.g. "Friday", "next Tuesday"), resolve it to the nearest upcoming matching date above.`,
+    `- All dates passed to tools MUST be in YYYY-MM-DD format.`,
+  ].join('\n');
+};
+
 export const extractTaskDetails = async (
     naturalLanguageInput: string,
     projects?: { id: string; name: string }[],
@@ -434,6 +460,129 @@ export const extractTaskDetails = async (
     } catch (error) {
         console.error("Error extracting task details:", error);
         return { title: "", description: "", priority: "Medium", scheduledDateStr: "", deadlineDateStr: "", projectId: "", categoryId: "", confidence: 0 };
+    }
+};
+
+export interface VibeTaskDraft {
+    title: string;
+    description: string;
+    priority: 'High' | 'Medium' | 'Low';
+    scheduledDateStr: string;
+    deadlineDateStr: string;
+}
+
+export interface VibeProjectResult {
+    projectName: string;
+    description: string;
+    categorySelection: {
+        existingCategoryId: string; // "" if proposing a new category
+        newCategoryName: string;    // "" if using an existing category
+    };
+    tasks: VibeTaskDraft[];
+}
+
+const VIBE_PROJECT_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        projectName: { type: Type.STRING, description: "A concise, clear project title." },
+        description: { type: Type.STRING, description: "A 1-2 sentence summary of the project's goal." },
+        categorySelection: {
+            type: Type.OBJECT,
+            properties: {
+                existingCategoryId: { type: Type.STRING, description: "ID of the best-matching existing project category, or empty string if none fit well." },
+                newCategoryName: { type: Type.STRING, description: "A concise new category name to create ONLY if no existing category fits; otherwise empty string." },
+            },
+        },
+        tasks: {
+            type: Type.ARRAY,
+            description: "The list of actionable tasks needed to complete this project.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING, description: "Optional extra detail, or empty string." },
+                    priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                    scheduledDateStr: { type: Type.STRING, description: "YYYY-MM-DD or empty string." },
+                    deadlineDateStr: { type: Type.STRING, description: "YYYY-MM-DD or empty string." },
+                },
+                required: ["title", "priority"],
+            },
+        },
+    },
+    required: ["projectName", "tasks"],
+};
+
+/**
+ * Turns a free-text brain-dump into a structured project draft (name, description,
+ * a best-fit category selection, and a task list) for the "Vibe Project" generator.
+ * Returns null on failure so the caller can surface an error.
+ */
+export const generateVibeProject = async (
+    naturalLanguageInput: string,
+    categories?: { id: string; name: string }[],
+    todayISO?: string
+): Promise<VibeProjectResult | null> => {
+    try {
+        const ai = getAiClient();
+
+        const today = todayISO || new Date().toISOString().split('T')[0];
+        const categoriesStr = categories && categories.length > 0
+            ? `Existing project categories: ${categories.map(c => `"${c.name}" (ID: ${c.id})`).join(', ')}`
+            : "There are no existing categories yet.";
+
+        const prompt = `
+            You are a planning assistant for a teacher. Turn the following brain-dump into a single, well-structured project with a list of actionable tasks.
+
+            User's request: "${naturalLanguageInput}"
+
+            Today's date is ${today}. Use the format YYYY-MM-DD for any dates, and only set a date when the user clearly implies one (otherwise use "").
+
+            ${categoriesStr}
+
+            Category rules:
+            - Choose the single best-matching existing category and put its ID in 'categorySelection.existingCategoryId'.
+            - If (and only if) none of the existing categories is a good fit, leave 'existingCategoryId' empty and propose a concise new category name in 'categorySelection.newCategoryName' (e.g. "Assessment", "Trips", "Pastoral").
+            - Never fill in both fields.
+
+            Task rules:
+            - Break the work into clear, concrete tasks (typically 3-10). Each needs a short title.
+            - priority must be exactly "High", "Medium", or "Low".
+        `;
+
+        const response = await ai.models.generateContent({
+            model: TEXT_MODEL,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: VIBE_PROJECT_SCHEMA,
+            },
+        });
+
+        if (response.text) {
+            const parsed = extractAndParseJSON(response.text) as Partial<VibeProjectResult>;
+            if (!parsed.projectName || !Array.isArray(parsed.tasks)) return null;
+            return {
+                projectName: parsed.projectName,
+                description: parsed.description || "",
+                categorySelection: {
+                    existingCategoryId: parsed.categorySelection?.existingCategoryId || "",
+                    newCategoryName: parsed.categorySelection?.newCategoryName || "",
+                },
+                tasks: parsed.tasks
+                    .map((t): VibeTaskDraft => ({
+                        title: t.title || "",
+                        description: t.description || "",
+                        priority: (t.priority === 'High' || t.priority === 'Low') ? t.priority : 'Medium',
+                        scheduledDateStr: t.scheduledDateStr || "",
+                        deadlineDateStr: t.deadlineDateStr || "",
+                    }))
+                    .filter(t => t.title.trim().length > 0),
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error generating vibe project:", error);
+        return null;
     }
 };
 

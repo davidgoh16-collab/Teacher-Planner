@@ -38,11 +38,14 @@ import {
   GripVertical,
   Edit2,
   CheckCircle2,
-  Circle
+  Circle,
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
 import AIInsightsPanel from './AIInsightsPanel';
+import VibeProjectModal from './VibeProjectModal';
 import TaskEditModal from './TaskEditModal';
 import TaskCardModal from './TaskCardModal';
 import RoutineTasksView from './RoutineTasksView';
@@ -110,6 +113,8 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
   // Modals
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isVibeOpen, setIsVibeOpen] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -582,6 +587,26 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                 <Settings size={16} /> <span className="hidden sm:inline">Categories</span>
             </button>
 
+            {activeTab === 'projects' && !isReadOnly && (
+                <button
+                    onClick={() => setShowInsights(true)}
+                    disabled={allTasks.length === 0}
+                    className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-2 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={allTasks.length === 0 ? "Add tasks to generate insights" : "Generate AI insights"}
+                >
+                    <Sparkles size={16} /> <span className="hidden sm:inline">Generate Insights</span>
+                </button>
+            )}
+
+            {activeTab === 'projects' && !isReadOnly && (
+                <button
+                    onClick={() => setIsVibeOpen(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow"
+                >
+                    <Wand2 size={16} /> Vibe Project
+                </button>
+            )}
+
             {!isReadOnly && activeTab === 'projects' && (
                 <button
                     onClick={() => setIsCreateProjectOpen(true)}
@@ -681,15 +706,18 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
       ) : activeTab === 'projects' ? (
 
         <div className="flex flex-col flex-1 h-full min-h-0">
-            {/* AI Insights Panel */}
-            <AIInsightsPanel
-                contextType="all_tasks"
-                tasks={allTasks}
-                isReadOnly={isReadOnly}
-                onTaskUpdate={() => {
-        // Prevent refresh scroll jump, assume components handle local state
-    }}
-            />
+            {/* AI Insights Panel — only shown after the user clicks "Generate Insights" */}
+            {showInsights && (
+                <AIInsightsPanel
+                    contextType="all_tasks"
+                    tasks={allTasks}
+                    isReadOnly={isReadOnly}
+                    onClose={() => setShowInsights(false)}
+                    onTaskUpdate={() => {
+                        // Prevent refresh scroll jump, assume components handle local state
+                    }}
+                />
+            )}
 
             {/* Search and Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6 shrink-0">
@@ -1032,6 +1060,19 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
         onClose={() => setIsManageCategoriesOpen(false)}
         isReadOnly={isReadOnly}
         onCategoriesUpdated={() => loadData()}
+      />
+
+      <VibeProjectModal
+        isOpen={isVibeOpen}
+        onClose={() => setIsVibeOpen(false)}
+        categories={categories}
+        isReadOnly={isReadOnly}
+        onCreated={(project, tasks, newCategory) => {
+          if (newCategory) setCategories(prev => [...prev, newCategory]);
+          setProjects(prev => [project, ...prev]);
+          setAllTasks(prev => [...tasks, ...prev]);
+          tasks.forEach(t => { if (onTaskAdd) onTaskAdd(t); });
+        }}
       />
 
       <TaskEditModal

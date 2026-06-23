@@ -6,22 +6,21 @@ import { saveTask } from '../services/projectService';
 import AIContentModal from './AIContentModal';
 import ReviewTasksModal from './ReviewTasksModal';
 
-// Global cache for insights to avoid regenerating every time the component remounts
+// Global cache for insights to avoid regenerating every time the panel reopens
 const insightsCache: Record<string, AIInsight[]> = {};
-const dismissedCache: Set<string> = new Set();
 
 interface AIInsightsPanelProps {
     contextType: 'project' | 'all_tasks';
     tasks: Task[];
     project?: Project;
     isReadOnly: boolean;
+    onClose?: () => void;
     onTaskUpdate?: () => void;
 }
 
-export default function AIInsightsPanel({ contextType, tasks, project, isReadOnly, onTaskUpdate }: AIInsightsPanelProps) {
+export default function AIInsightsPanel({ contextType, tasks, project, isReadOnly, onClose, onTaskUpdate }: AIInsightsPanelProps) {
     const [insights, setInsights] = useState<AIInsight[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isDismissed, setIsDismissed] = useState(false);
 
     // Content Generation Modal State
     const [generatingAction, setGeneratingAction] = useState<AIInsight | null>(null);
@@ -38,17 +37,15 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const cacheKey = contextType === 'project' ? `project_${project?.id}` : 'all_tasks';
 
     useEffect(() => {
-        // Initialize from cache
-        if (dismissedCache.has(cacheKey)) {
-            setIsDismissed(true);
-            return;
-        }
-
+        // The panel is only mounted once the user opts in (via the toolbar button),
+        // so generate immediately — or hydrate instantly from a previous run.
         if (insightsCache[cacheKey]) {
             setInsights(insightsCache[cacheKey]);
-            return;
+        } else {
+            loadInsights();
         }
-    }, [contextType, project?.id, cacheKey]); // Refetch if project changes or context changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cacheKey]);
 
     const loadInsights = async () => {
         setIsLoading(true);
@@ -67,9 +64,8 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
         }
     };
 
-    const handleDismiss = () => {
-        setIsDismissed(true);
-        dismissedCache.add(cacheKey);
+    const handleClose = () => {
+        onClose?.();
     };
 
     const handleAcceptAction = async (insight: AIInsight) => {
@@ -121,35 +117,35 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
         }
     };
 
-    if (isDismissed) {
-        return null;
-    }
-
+    // Compact strip shown while generating, or if a run returned nothing.
     if (insights.length === 0) {
         return (
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 mb-6 flex items-center justify-between gap-3 text-slate-500 shadow-sm transition-all hover:shadow">
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 mb-6 flex items-center justify-between gap-3 text-slate-500 shadow-sm animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
                     <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg text-blue-600 dark:text-blue-400">
-                        <Sparkles size={18} />
+                        {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                     </div>
                     <div>
                         <h4 className="font-semibold text-slate-800 dark:text-slate-200">AI Project Insights</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Discover actionable suggestions and ideas based on your tasks.</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {isLoading ? 'Analysing your tasks…' : 'No insights to show right now.'}
+                        </p>
                     </div>
                 </div>
-                {!isReadOnly && (
-                    <button
-                        onClick={loadInsights}
-                        disabled={isLoading || tasks.length === 0}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shrink-0"
-                    >
-                        {isLoading ? (
-                            <><Loader2 size={16} className="animate-spin" /> Generating...</>
-                        ) : (
-                            <><Sparkles size={16} /> Generate Insights</>
-                        )}
+                <div className="flex items-center gap-2 shrink-0">
+                    {!isLoading && !isReadOnly && (
+                        <button
+                            onClick={loadInsights}
+                            disabled={tasks.length === 0}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        >
+                            <Sparkles size={14} /> Regenerate
+                        </button>
+                    )}
+                    <button onClick={handleClose} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" title="Close">
+                        <X size={18} />
                     </button>
-                )}
+                </div>
             </div>
         );
     }
@@ -171,7 +167,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                         <button onClick={loadInsights} disabled={isLoading} className="text-blue-600/60 hover:text-blue-800 dark:text-blue-400/60 dark:hover:text-blue-300 transition-colors p-1" title="Regenerate Insights">
                             <Loader2 size={18} className={isLoading ? "animate-spin" : ""} />
                         </button>
-                        <button onClick={handleDismiss} className="text-blue-600/60 hover:text-blue-800 dark:text-blue-400/60 dark:hover:text-blue-300 transition-colors p-1">
+                        <button onClick={handleClose} className="text-blue-600/60 hover:text-blue-800 dark:text-blue-400/60 dark:hover:text-blue-300 transition-colors p-1" title="Close">
                             <X size={18} />
                         </button>
                     </div>

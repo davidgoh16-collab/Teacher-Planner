@@ -26,9 +26,8 @@ import {
 import { getContrastTextColor } from '../utils/colorUtils';
 import { handleTaskRecurrence } from '../utils/taskUtils';
 import TaskEditModal from './TaskEditModal';
-import AIInsightsPanel from './AIInsightsPanel';
 import AIContentModal from './AIContentModal';
-import ProjectAskAIModal from './ProjectAskAIModal';
+import ProjectAssistantPanel from './ProjectAssistantPanel';
 import ReviewTasksModal from './ReviewTasksModal';
 import TaskCardModal from './TaskCardModal';
 import { Idea } from '../types';
@@ -191,8 +190,8 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
     // Review Tasks Modal State
     const [reviewTasksModalOpen, setReviewTasksModalOpen] = useState(false);
 
-    // Project Ask AI Modal State
-    const [isAskAiModalOpen, setIsAskAiModalOpen] = useState(false);
+    // Project Assistant side panel (open by default on desktop; collapsible).
+    const [assistantOpen, setAssistantOpen] = useState(true);
 
     // Task Card Modal State
     const [isCardModalOpen, setIsCardModalOpen] = useState(false);
@@ -1080,10 +1079,11 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                 <div className="flex items-center gap-2 shrink-0">
                     {!isReadOnly && (
                         <button
-                            onClick={() => setIsAskAiModalOpen(true)}
-                            className="p-2 rounded-lg transition-colors border shadow-sm flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                            onClick={() => setAssistantOpen(o => !o)}
+                            className={`p-2 rounded-lg transition-colors border shadow-sm flex items-center gap-2 ${assistantOpen ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300'}`}
+                            title="Toggle project assistant"
                         >
-                            <Bot size={18} /> <span className="hidden sm:inline text-sm font-medium">Ask AI / Upload</span>
+                            <Bot size={18} /> <span className="hidden sm:inline text-sm font-medium">Assistant</span>
                         </button>
                     )}
                     {!isReadOnly && (
@@ -1097,16 +1097,9 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                 </div>
             </div>
 
+            <div className="flex-1 flex overflow-hidden min-h-0">
             <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6">
-
-                    <AIInsightsPanel
-                        contextType="project"
-                        project={project}
-                        tasks={tasks}
-                        isReadOnly={isReadOnly}
-                        onTaskUpdate={() => {}} // Will be handled by state refresh if needed, or optimistic updates
-                    />
 
                     {/* Top Section: Settings / Description & Links */}
                     {isEditingSettings ? (
@@ -1898,6 +1891,20 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                 </div>
             </div>
 
+            {assistantOpen && !isReadOnly && (
+                <ProjectAssistantPanel
+                    project={project}
+                    tasks={tasks}
+                    allCategories={allCategories}
+                    isReadOnly={isReadOnly}
+                    onClose={() => setAssistantOpen(false)}
+                    onTaskAdded={(task) => { setTasks(prev => [task, ...prev]); if (onTaskAdded) onTaskAdded(task); }}
+                    onTaskUpdated={(task) => { setTasks(prev => prev.map(t => t.id === task.id ? task : t)); if (onTaskUpdated) onTaskUpdated(task); }}
+                    onTaskDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); if (onTaskDeleted) onTaskDeleted(id); }}
+                />
+            )}
+            </div>
+
             <TaskEditModal
                 projects={allProjects}
                 isOpen={isEditModalOpen}
@@ -1929,14 +1936,6 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                         }
                     }
                 }}
-            />
-
-            <ProjectAskAIModal
-                isOpen={isAskAiModalOpen}
-                onClose={() => setIsAskAiModalOpen(false)}
-                project={project}
-                onTaskAdded={(task) => setTasks(prev => [task, ...prev])}
-                isReadOnly={isReadOnly}
             />
 
             <TaskEditModal
