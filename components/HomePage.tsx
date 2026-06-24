@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { BookOpen, CheckCircle2, Circle, Clock, Star, Plus, Sparkles, ExternalLink, Link as LinkIcon, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
-import AIInsightsPanel from './AIInsightsPanel';
 import IconRenderer from './ui/IconRenderer';
 import { Task, AppItem, AppTab } from '../types';
 
@@ -237,7 +236,6 @@ const HomePage: React.FC<HomePageProps> = ({
           </div>
 
           <BriefingPanel tasks={globalTasks} todaysLessons={todaysLessons} upcomingKeyDates={upcomingKeyDates} />
-          <AIInsightsPanel contextType="all_tasks" tasks={globalTasks} isReadOnly={isReadOnly} onTaskUpdate={onTasksRefresh} />
 
           {/* Favourite apps */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
