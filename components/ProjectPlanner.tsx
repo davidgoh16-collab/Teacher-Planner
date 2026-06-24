@@ -540,7 +540,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
     <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-950 p-4 md:p-8 animate-in fade-in duration-300">
 
       {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
         <div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
                 <FolderKanban className="text-green-600 dark:text-green-400" />
@@ -614,6 +614,35 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                 >
                     <Plus size={16} /> New Project
                 </button>
+            )}
+
+            {activeTab === 'projects' && (
+                <>
+                    <div className="w-px h-8 bg-slate-300 dark:bg-slate-700 mx-1 hidden lg:block"></div>
+                    <div className="relative shrink-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={projectSearchQuery}
+                            onChange={(e) => setProjectSearchQuery(e.target.value)}
+                            className="w-40 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm"
+                        />
+                    </div>
+                    <div className="relative shrink-0">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select
+                            value={selectedProjectCategory}
+                            onChange={(e) => setSelectedProjectCategory(e.target.value)}
+                            className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm cursor-pointer"
+                        >
+                            <option value="All">All Categories</option>
+                            {projectCategories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </>
             )}
         </div>
       </div>
@@ -718,34 +747,6 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                     }}
                 />
             )}
-
-            {/* Search and Filter Bar */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6 shrink-0">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search projects..."
-                        value={projectSearchQuery}
-                        onChange={(e) => setProjectSearchQuery(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm"
-                    />
-                </div>
-
-                <div className="relative shrink-0">
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <select
-                        value={selectedProjectCategory}
-                        onChange={(e) => setSelectedProjectCategory(e.target.value)}
-                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 shadow-sm text-sm cursor-pointer min-w-[180px]"
-                    >
-                        <option value="All">All Categories</option>
-                        {projectCategories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
 
             {/* Projects Grid */}
             <div className="flex-1 overflow-y-auto pb-8 pr-2 custom-scrollbar">
