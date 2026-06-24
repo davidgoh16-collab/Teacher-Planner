@@ -130,16 +130,15 @@ const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, ...rest }
             <Menu size={20} />
           </button>
           <h2 className="font-bold text-base sm:text-lg shrink-0">{TITLES[rest.activeTab]}</h2>
-          <div className="flex-1" />
-          {search && <div className="w-full max-w-xs sm:max-w-sm">{search}</div>}
+          {topBar ? (
+            <div className="flex-1 flex items-center overflow-x-auto no-scrollbar">
+              {topBar}
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          {search && <div className="w-full max-w-xs sm:max-w-sm shrink-0">{search}</div>}
         </header>
-
-        {/* View-specific toolbar */}
-        {topBar && (
-          <div className="shrink-0 px-3 sm:px-4 py-1.5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-x-auto no-scrollbar flex items-center gap-2">
-            {topBar}
-          </div>
-        )}
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 overflow-auto">
