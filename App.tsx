@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { auth } from './firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
@@ -43,7 +43,7 @@ import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCate
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
-import { createAgentInteraction, getPendingFunctionCalls, buildAgentTools, AgentFunctionResult } from './services/agentService';
+import { createAgentInteraction, streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -75,6 +75,13 @@ type Theme = 'light' | 'dark' | 'system';
 
 // The specific user allowed to edit the planner
 const ADMIN_UID = 'oleZncmmoyNerACQDErqtfMcNYS2';
+
+// Live trace of an in-flight agent run, surfaced as the streamed "thought process".
+export interface AgentTrace {
+  reasoning: string;
+  activity: AgentActivityItem[];
+  answer: string;
+}
 
 const App: React.FC = () => {
   // --- Planner Context ---
@@ -143,6 +150,10 @@ const App: React.FC = () => {
   const [agentMode, setAgentMode] = useState(false);
   // Active agent sandbox/turn for the current conversation (multi-turn continuity).
   const [agentSession, setAgentSession] = useState<{ interactionId: string; environmentId: string } | null>(null);
+  // Live "thought process" of the in-flight agent run (reasoning + activity + streaming answer).
+  const [agentTrace, setAgentTrace] = useState<AgentTrace | null>(null);
+  // Mirror of agentTrace for synchronous reads after a stream finishes (state updates are async).
+  const traceRef = useRef<AgentTrace | null>(null);
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
   const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages });
@@ -972,30 +983,74 @@ const App: React.FC = () => {
     }
   };
 
+  // Format a finished run's live trace into a markdown "thought process" stored with the message.
+  const formatThoughts = (trace: AgentTrace | null): string | undefined => {
+    if (!trace) return undefined;
+    const parts: string[] = [];
+    if (trace.reasoning.trim()) {
+      parts.push(`**Reasoning**\n\n${trace.reasoning.trim()}`);
+    }
+    if (trace.activity.length > 0) {
+      const lines = trace.activity.map(a => `- ${a.label}${a.detail ? `: ${a.detail}` : ''}`).join('\n');
+      parts.push(`**Activity**\n\n${lines}`);
+    }
+    return parts.length ? parts.join('\n\n') : undefined;
+  };
+
+  // Stream callbacks that drive the live thought-process panel. We mutate traceRef (for a
+  // synchronous final read) and mirror it into agentTrace state (for rendering).
+  const makeStreamCallbacks = (): AgentStreamCallbacks => {
+    const sync = () => setAgentTrace(traceRef.current ? { ...traceRef.current } : null);
+    return {
+      onReasoning: (chunk) => {
+        const t = traceRef.current || { reasoning: '', activity: [], answer: '' };
+        traceRef.current = { ...t, reasoning: t.reasoning + chunk };
+        sync();
+      },
+      onAnswer: (chunk) => {
+        const t = traceRef.current || { reasoning: '', activity: [], answer: '' };
+        traceRef.current = { ...t, answer: t.answer + chunk };
+        sync();
+      },
+      onActivity: (item) => {
+        const t = traceRef.current || { reasoning: '', activity: [], answer: '' };
+        // Collapse consecutive duplicates (e.g. repeated "Thinking") to keep the feed readable.
+        const last = t.activity[t.activity.length - 1];
+        const activity = last && last.label === item.label ? t.activity : [...t.activity, item];
+        traceRef.current = { ...t, activity };
+        sync();
+      },
+    };
+  };
+
   // Render the result of an agent interaction: either surface pending planner mutations for
-  // confirmation, or print the agent's final answer.
-  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>) => {
+  // confirmation, or print the agent's final answer. `thoughts` is the collapsed trace to persist.
+  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>, thoughts?: string) => {
     const environmentId = interaction.environment_id || agentSession?.environmentId || 'remote';
     setAgentSession({ interactionId: interaction.id, environmentId });
 
-    if (interaction.status === 'requires_action' && pendingCalls.length > 0) {
+    // Trigger the confirmation flow whenever there are unresolved planner calls — the streamed
+    // status isn't always labelled 'requires_action', but pending calls are the real signal.
+    if (pendingCalls.length > 0) {
       if (isReadOnly) {
-        setChatMessages(prev => [...prev, { role: 'model', text: "The agent wants to change the planner, but you are in read-only mode so I can't apply it." }]);
+        setChatMessages(prev => [...prev, { role: 'model', text: "The agent wants to change the planner, but you are in read-only mode so I can't apply it.", thoughts }]);
         return;
       }
       const summary = describeFunctionCalls(pendingCalls);
       setPendingActions({ calls: pendingCalls, summary, agent: { interactionId: interaction.id, environmentId } });
-      setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent has prepared the following change(s). Please confirm to apply them." }]);
+      setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent has prepared the following change(s). Please confirm to apply them.", thoughts }]);
       return;
     }
 
-    setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent finished but returned no output." }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent finished but returned no output.", thoughts }]);
   };
 
   // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
   const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
+    traceRef.current = { reasoning: '', activity: [], answer: '' };
+    setAgentTrace({ reasoning: '', activity: [], answer: '' });
 
     try {
       if (!currentWeekData) throw new Error("No active week data");
@@ -1024,18 +1079,33 @@ const App: React.FC = () => {
         }
       }
 
-      const interaction = await createAgentInteraction({
+      const args = {
         input,
         environmentId: agentSession?.environmentId,
         previousInteractionId: agentSession?.interactionId,
         tools: buildAgentTools(isAdmin),
-      });
+      };
 
-      handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction));
+      // Prefer the streamed run (live thought process); fall back to the blocking call if the
+      // SSE stream can't be opened/read (e.g. proxy/CORS quirk).
+      let interaction;
+      let liveTrace: AgentTrace | null = null;
+      try {
+        interaction = await streamAgentInteraction(args, makeStreamCallbacks());
+        liveTrace = traceRef.current;
+      } catch (streamErr) {
+        console.warn("Agent stream failed, falling back to blocking call:", streamErr);
+        setAgentTrace(null);
+        interaction = await createAgentInteraction(args);
+      }
+
+      handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction), formatThoughts(liveTrace));
     } catch (error) {
       console.error("Agent Error:", error);
       setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, the agent run failed. This preview feature can be slow or rate-limited — please check the console and try again." }]);
     } finally {
+      traceRef.current = null;
+      setAgentTrace(null);
       setIsAiLoading(false);
     }
   };
@@ -1435,19 +1505,35 @@ const App: React.FC = () => {
             setChatMessages(prev => [...prev, { role: 'model', text: confirmText }]);
 
             // Agent mode: report the executed results back to the agent so it can continue its run
-            // (it may request further actions, or wrap up with a final summary).
+            // (it may request further actions, or wrap up with a final summary). Stream the
+            // continuation so its thought process shows live too.
             if (agentMeta) {
               const agentResults: AgentFunctionResult[] = functionResponses.map(r => ({
                 name: r.functionResponse?.name,
                 call_id: r.functionResponse?.id,
                 result: r.functionResponse?.response ?? {},
               }));
-              const next = await createAgentInteraction({
+              const continueArgs = {
                 previousInteractionId: agentMeta.interactionId,
                 environmentId: agentMeta.environmentId,
                 functionResults: agentResults,
-              });
-              handleAgentInteractionResult(next, getPendingFunctionCalls(next));
+              };
+              traceRef.current = { reasoning: '', activity: [], answer: '' };
+              setAgentTrace({ reasoning: '', activity: [], answer: '' });
+              let next;
+              let liveTrace: AgentTrace | null = null;
+              try {
+                next = await streamAgentInteraction(continueArgs, makeStreamCallbacks());
+                liveTrace = traceRef.current;
+              } catch (streamErr) {
+                console.warn("Agent continuation stream failed, falling back:", streamErr);
+                setAgentTrace(null);
+                next = await createAgentInteraction(continueArgs);
+              } finally {
+                traceRef.current = null;
+                setAgentTrace(null);
+              }
+              handleAgentInteractionResult(next, getPendingFunctionCalls(next), formatThoughts(liveTrace));
             }
     } catch (error) {
       console.error("AI Confirm Error:", error);
@@ -1604,6 +1690,7 @@ const App: React.FC = () => {
     isLoading: isAiLoading,
     agentMode,
     onToggleAgentMode: () => setAgentMode(m => !m),
+    agentTrace,
     pendingConfirmation: pendingActions,
     onConfirmActions: handleConfirmActions,
     onCancelActions: handleCancelActions,

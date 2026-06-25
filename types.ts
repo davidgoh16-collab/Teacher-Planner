@@ -128,6 +128,8 @@ export interface Project {
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
+  // Optional collapsed "thought process" trace (markdown) for agent-mode answers.
+  thoughts?: string;
 }
 
 export interface AIConversation {
