@@ -98,6 +98,11 @@ Rules for that HTML:
 - Emit multiple \`\`\`html blocks only when genuinely separate charts are needed.
 Always include a brief text summary (a sentence or two, or a few bullets) alongside the visualization so the key takeaways are clear without interacting.`;
 
+// Used when the user turns visualizations OFF — prioritise a fast, plain-text answer.
+const AGENT_NO_VIZ_INSTRUCTION = `
+--- OUTPUT FORMAT ---
+Respond concisely using plain text and markdown only. Do NOT generate charts, HTML, or iframes — prioritise a fast, clear textual answer. Use short markdown tables or bullet lists where they make the data easier to read.`;
+
 const App: React.FC = () => {
   // --- Planner Context ---
   const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId, terms, timetableWeek1, timetableWeek2, isPlannerDataLoading } = usePlannerData();
@@ -163,6 +168,8 @@ const App: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   // Agent mode routes messages to the Antigravity managed agent instead of the quick chat.
   const [agentMode, setAgentMode] = useState(false);
+  // Whether the agent should produce interactive visualizations. Off = faster, text-only answers.
+  const [vizEnabled, setVizEnabled] = useState(true);
   // Active agent sandbox/turn for the current conversation (multi-turn continuity).
   const [agentSession, setAgentSession] = useState<{ interactionId: string; environmentId: string } | null>(null);
   // Live "thought process" of the in-flight agent run (reasoning + activity + streaming answer).
@@ -1088,9 +1095,14 @@ const App: React.FC = () => {
       // user's task — burying it under the persona/rules/data block makes the agent treat the whole
       // thing as setup and reply with a generic greeting instead of acting. On follow-ups the
       // sandbox already holds the context, so we just send the task (plus a short viz reminder).
+      // Visualization guidance depends on the user's Visuals toggle.
+      const vizInstruction = vizEnabled ? AGENT_VIZ_INSTRUCTION : AGENT_NO_VIZ_INSTRUCTION;
       let input: string | any[];
       if (isContinuing) {
-        input = `${userMessage}\n\n(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`;
+        const reminder = vizEnabled
+          ? `(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`
+          : `(Reminder: respond concisely in plain text/markdown — no charts or HTML.)`;
+        input = `${userMessage}\n\n${reminder}`;
       } else {
         // Compact context keeps the prompt small so the agent is far less likely to hit mid-task
         // context compaction (which can derail its final answer).
@@ -1101,7 +1113,7 @@ const App: React.FC = () => {
           `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
           `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
           `IMPORTANT: Always finish by delivering the completed result for the task above. If your context is summarized or you receive a checkpoint/resume notice partway through, continue and still produce that result — never end with only a greeting or a request for more input.\n` +
-          `${AGENT_VIZ_INSTRUCTION}\n\n` +
+          `${vizInstruction}\n\n` +
           `--- PLANNER DATA & RULES (reference) ---\n${systemInstruction}`;
       }
 
@@ -1728,6 +1740,8 @@ const App: React.FC = () => {
     isLoading: isAiLoading,
     agentMode,
     onToggleAgentMode: () => setAgentMode(m => !m),
+    vizEnabled,
+    onToggleViz: () => setVizEnabled(v => !v),
     agentTrace,
     pendingConfirmation: pendingActions,
     onConfirmActions: handleConfirmActions,
