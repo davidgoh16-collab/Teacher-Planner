@@ -83,6 +83,21 @@ export interface AgentTrace {
   answer: string;
 }
 
+// Tells the agent to compute figures with code and present them as interactive visualizations.
+// The frontend renders any ```html block as a sandboxed interactive iframe (see ChatPanel VizFrame).
+const AGENT_VIZ_INSTRUCTION = `
+--- VISUALIZATION ---
+When your answer involves data, metrics, counts, breakdowns, comparisons, distributions, progress, schedules, or trends, do NOT just list it as text. Instead:
+1. Use the code execution tool to compute the exact figures from the planner data.
+2. Present the result as an INTERACTIVE VISUALIZATION by emitting ONE self-contained HTML document inside a single \`\`\`html fenced code block.
+Rules for that HTML:
+- Fully self-contained. You MAY load ONE charting library from a public CDN (Chart.js, Plotly, or D3). Do not reference local/sandbox files.
+- Inline all data directly as JavaScript arrays/objects (the chart renders in the user's browser, not your sandbox).
+- Responsive: width 100%; sensible height (~360px); readable on a dark background (use transparent or dark body, light text/gridlines).
+- Prefer interactive charts (hover tooltips, legends). For ranked lists use a horizontal bar chart; for parts-of-a-whole a donut; for time series a line chart. A compact sortable HTML table is fine when a chart doesn't fit.
+- Emit multiple \`\`\`html blocks only when genuinely separate charts are needed.
+Always include a brief text summary (a sentence or two, or a few bullets) alongside the visualization so the key takeaways are clear without interacting.`;
+
 const App: React.FC = () => {
   // --- Planner Context ---
   const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId, terms, timetableWeek1, timetableWeek2, isPlannerDataLoading } = usePlannerData();
@@ -1057,14 +1072,14 @@ const App: React.FC = () => {
 
       const isContinuing = !!agentSession;
       // On the first turn, give the agent the full planner context + instructions; on follow-ups
-      // the sandbox already has it, so just send the user's message.
+      // the sandbox already has it, so just send the user's message (plus a short viz reminder).
       let input: string | any[];
       if (isContinuing) {
-        input = userMessage;
+        input = `${userMessage}\n\n(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`;
       } else {
         const contextString = buildPlannerContextString(currentWeekData);
         const systemInstruction = buildAssistantSystemInstruction(contextString);
-        input = `${systemInstruction}\n\n--- USER REQUEST ---\n${userMessage}`;
+        input = `${systemInstruction}\n${AGENT_VIZ_INSTRUCTION}\n\n--- USER REQUEST ---\n${userMessage}`;
       }
 
       // Attach file content as a text part or an inline image, matching the chat handler.
