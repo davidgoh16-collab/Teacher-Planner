@@ -304,7 +304,11 @@ export const streamAgentInteraction = async (
           if (it.id) result.id = it.id;
           if (it.environment_id) result.environment_id = it.environment_id;
           if (it.status) result.status = it.status;
-          if (typeof it.output_text === 'string' && it.output_text) result.output_text = it.output_text;
+          // The completed payload is partial; only adopt its output_text if it's at least as
+          // complete as what we accumulated from text deltas (never clobber a fuller answer).
+          if (typeof it.output_text === 'string' && it.output_text.length >= (result.output_text || '').length) {
+            result.output_text = it.output_text;
+          }
           if (Array.isArray(it.steps) && it.steps.length) result.steps = it.steps;
           break;
         }
