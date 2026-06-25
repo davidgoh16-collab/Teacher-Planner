@@ -98,6 +98,9 @@ export interface ChatPanelProps {
   // Agent mode (Antigravity managed agent) toggle
   agentMode?: boolean;
   onToggleAgentMode?: () => void;
+  // Visualization toggle (agent mode only): off = faster, text-only answers.
+  vizEnabled?: boolean;
+  onToggleViz?: () => void;
   // Live thought process of the in-flight agent run (reasoning + activity + streaming answer).
   agentTrace?: AgentTrace | null;
 
@@ -142,6 +145,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   isLoading,
   agentMode,
   onToggleAgentMode,
+  vizEnabled,
+  onToggleViz,
   agentTrace,
   conversations,
   currentConversationId,
@@ -296,6 +301,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             aria-pressed={!!agentMode}
           >
             <Sparkles size={16} /> <span className="hidden sm:inline">Agent</span>
+          </button>
+        )}
+        {agentMode && onToggleViz && (
+          <button
+            onClick={onToggleViz}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${vizEnabled ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+            title={vizEnabled ? 'Visualizations on — the agent builds interactive charts. Click for faster, text-only answers.' : 'Visualizations off — faster, text-only answers. Click to let the agent build interactive charts.'}
+            aria-pressed={!!vizEnabled}
+          >
+            <BarChart3 size={16} /> <span className="hidden sm:inline">Visuals</span>
           </button>
         )}
         <div className="flex items-center gap-1 ml-auto">
