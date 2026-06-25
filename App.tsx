@@ -751,8 +751,16 @@ const App: React.FC = () => {
     return simple;
   };
 
-  // Build the full planner context block injected into both the quick chat and the agent.
-  const buildPlannerContextString = (week: WeekData): string => {
+  // Build the planner context block injected into the assistant.
+  //
+  // `compact` produces a much smaller payload for the AGENT: the managed agent runs an autonomous,
+  // multi-step loop and triggers context compaction (~135k tokens) when the prompt is large — and
+  // a mid-task compaction can derail its final answer. So for the agent we minify the JSON and drop
+  // the heaviest, rarely-needed sections (full historical lesson plans, colleague timetables, apps/
+  // ideas/routines), keeping the essentials (projects, tasks, key dates, timetables, current week).
+  // The single-turn chat passes compact=false and keeps the full, pretty-printed context.
+  const buildPlannerContextString = (week: WeekData, compact = false): string => {
+      const j = (v: any) => compact ? JSON.stringify(v) : JSON.stringify(v, null, 2);
       const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
       let contextString = `Current Week Context: ${week.displayString} (Week ${week.weekNumber}).\n`;
       contextString += `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n\n`;
@@ -770,66 +778,71 @@ const App: React.FC = () => {
 
       // Add Master Timetables
       contextString += `\n--- MASTER TIMETABLE DEFINITIONS ---\n`;
-      contextString += `(Week 1 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek1), null, 2)}\n`;
-      contextString += `(Week 2 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek2), null, 2)}\n\n`;
+      contextString += `(Week 1 Schedule)\n${j(getSimplifiedTimetable(timetableWeek1))}\n`;
+      contextString += `(Week 2 Schedule)\n${j(getSimplifiedTimetable(timetableWeek2))}\n\n`;
 
-      // Add Colleague Timetables
-      contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
-      contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
-      INITIAL_COLLEAGUES.forEach(colleague => {
-        contextString += `\n${colleague.name}:\n`;
-        contextString += `Week 1: ${JSON.stringify(colleague.week1, null, 2)}\n`;
-        contextString += `Week 2: ${JSON.stringify(colleague.week2, null, 2)}\n`;
-      });
-      contextString += `\n----------------------------\n\n`;
+      // Colleague timetables — heavy and niche; omit from the compact (agent) context.
+      if (!compact) {
+        contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
+        contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
+        INITIAL_COLLEAGUES.forEach(colleague => {
+          contextString += `\n${colleague.name}:\n`;
+          contextString += `Week 1: ${j(colleague.week1)}\n`;
+          contextString += `Week 2: ${j(colleague.week2)}\n`;
+        });
+        contextString += `\n----------------------------\n\n`;
+      }
 
       contextString += `\n--- APP TASKS & PROJECTS ---\n`;
-      contextString += `Projects: ${JSON.stringify(projects.map(p => ({id: p.id, name: p.name, desc: p.description})), null, 2)}\n`;
-      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, priority: t.priority, scheduled: t.scheduledDateStr, deadline: t.deadlineDateStr, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
+      contextString += `Projects: ${j(projects.map(p => ({id: p.id, name: p.name, desc: p.description})))}\n`;
+      contextString += `Tasks: ${j(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, priority: t.priority, scheduled: t.scheduledDateStr, deadline: t.deadlineDateStr, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})))}\n`;
       contextString += `\n----------------------------\n\n`;
 
-      contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
-      contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
+      contextString += `\n--- ${compact ? 'KEY DATES' : 'ENTIRE DATABASE CONTENT'} ---\n`;
+      if (!compact) {
+        contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
+        contextString += `App Categories: ${j(appCategories)}\n`;
+        contextString += `Apps: ${j(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})))}\n`;
+        contextString += `Project Categories: ${j(categories.map(c => ({id: c.id, name: c.name})))}\n`;
+        contextString += `Ideas: ${j(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})))}\n`;
+        contextString += `Routine Tasks: ${j(routineTasks.map(r => ({title: r.title, type: r.type})))}\n`;
+      }
+      contextString += `Key Dates: ${j(keyDates)}\n`;
 
-      contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
-      contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
-      contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
-      contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
-      contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
-      contextString += `Key Dates: ${JSON.stringify(keyDates, null, 2)}\n`;
+      // Full historical+future lesson plans are the single largest section — include only in the
+      // full (chat) context. The agent can ask a follow-up if it needs lesson-level detail.
+      if (!compact) {
+        const computedLessonPlans = Object.values(lessonPlans).map(p => {
+            const dateObj = new Date(p.dateStr);
+            const weekIdx = allWeeksInYear.findIndex(w => {
+                const end = addDays(w.startDate, 7);
+                return dateObj >= w.startDate && dateObj < end;
+            });
 
-      // Compute subjects for all lesson plans to make it easy for the AI
-      const computedLessonPlans = Object.values(lessonPlans).map(p => {
-          const dateObj = new Date(p.dateStr);
-          const weekIdx = allWeeksInYear.findIndex(w => {
-              const end = addDays(w.startDate, 7);
-              return dateObj >= w.startDate && dateObj < end;
-          });
-
-          let subject = "Unknown";
-          if (weekIdx !== -1) {
-              const wk = allWeeksInYear[weekIdx];
-              const dayIndex = dateObj.getDay();
-              const dayStr = DAYS[dayIndex - 1]; // 0=Sunday, so -1 for Monday index if using DAYS
-              if (dayStr) {
-                  const tt = wk.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
-                  const entry = tt[dayStr]?.[p.periodLabel];
-                  if (entry) {
-                      subject = entry.subject;
-                  }
-              }
-          }
-          return {
-              date: p.dateStr,
-              period: p.periodLabel,
-              subject: subject,
-              title: p.title,
-              type: p.type,
-              notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
-          };
-      });
-
-      contextString += `Lesson Plans (All historical and future): ${JSON.stringify(computedLessonPlans, null, 2)}\n`;
+            let subject = "Unknown";
+            if (weekIdx !== -1) {
+                const wk = allWeeksInYear[weekIdx];
+                const dayIndex = dateObj.getDay();
+                const dayStr = DAYS[dayIndex - 1]; // 0=Sunday, so -1 for Monday index if using DAYS
+                if (dayStr) {
+                    const tt = wk.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+                    const entry = tt[dayStr]?.[p.periodLabel];
+                    if (entry) {
+                        subject = entry.subject;
+                    }
+                }
+            }
+            return {
+                date: p.dateStr,
+                period: p.periodLabel,
+                subject: subject,
+                title: p.title,
+                type: p.type,
+                notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
+            };
+        });
+        contextString += `Lesson Plans (All historical and future): ${j(computedLessonPlans)}\n`;
+      }
       contextString += `\n----------------------------\n\n`;
 
       contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
@@ -1071,15 +1084,25 @@ const App: React.FC = () => {
       if (!currentWeekData) throw new Error("No active week data");
 
       const isContinuing = !!agentSession;
-      // On the first turn, give the agent the full planner context + instructions; on follow-ups
-      // the sandbox already has it, so just send the user's message (plus a short viz reminder).
+      // The Antigravity agent already has its own system prompt, so the input must LEAD with the
+      // user's task — burying it under the persona/rules/data block makes the agent treat the whole
+      // thing as setup and reply with a generic greeting instead of acting. On follow-ups the
+      // sandbox already holds the context, so we just send the task (plus a short viz reminder).
       let input: string | any[];
       if (isContinuing) {
         input = `${userMessage}\n\n(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`;
       } else {
-        const contextString = buildPlannerContextString(currentWeekData);
+        // Compact context keeps the prompt small so the agent is far less likely to hit mid-task
+        // context compaction (which can derail its final answer).
+        const contextString = buildPlannerContextString(currentWeekData, true);
         const systemInstruction = buildAssistantSystemInstruction(contextString);
-        input = `${systemInstruction}\n${AGENT_VIZ_INSTRUCTION}\n\n--- USER REQUEST ---\n${userMessage}`;
+        input =
+          `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${userMessage}\n\n` +
+          `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
+          `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
+          `IMPORTANT: Always finish by delivering the completed result for the task above. If your context is summarized or you receive a checkpoint/resume notice partway through, continue and still produce that result — never end with only a greeting or a request for more input.\n` +
+          `${AGENT_VIZ_INSTRUCTION}\n\n` +
+          `--- PLANNER DATA & RULES (reference) ---\n${systemInstruction}`;
       }
 
       // Attach file content as a text part or an inline image, matching the chat handler.
