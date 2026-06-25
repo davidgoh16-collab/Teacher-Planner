@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
@@ -22,6 +22,68 @@ const activityIcon = (kind: AgentActivityItem['kind']) => {
     default: return <Sparkles size={13} />;
   }
 };
+
+/**
+ * Render an agent-generated interactive visualization (a self-contained HTML document) inside a
+ * sandboxed iframe. `sandbox="allow-scripts"` lets charting libraries run but isolates the frame
+ * from the app — no same-origin access, so it cannot reach cookies, the DOM, or Firebase.
+ */
+const VizFrame: React.FC<{ html: string }> = ({ html }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [showSource, setShowSource] = useState(false);
+  return (
+    <div className="my-2 rounded-xl border border-slate-700 overflow-hidden bg-white dark:bg-slate-950">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-700">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-primary-300">
+          <BarChart3 size={13} /> Interactive view
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowSource(s => !s)}
+            className="p-1 text-slate-400 hover:text-slate-100 rounded transition-colors"
+            title={showSource ? 'Show chart' : 'View source'}
+          >
+            <Code size={14} />
+          </button>
+          <button
+            onClick={() => {
+              const w = window.open('', '_blank');
+              if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+            }}
+            className="p-1 text-slate-400 hover:text-slate-100 rounded transition-colors"
+            title="Open in new tab"
+          >
+            <ExternalLink size={14} />
+          </button>
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="p-1 text-slate-400 hover:text-slate-100 rounded transition-colors"
+            title={expanded ? 'Shrink' : 'Expand'}
+          >
+            {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+        </div>
+      </div>
+      {showSource ? (
+        <pre className="bg-slate-950 p-3 overflow-x-auto text-xs font-mono text-slate-300 max-h-[60vh]">{html}</pre>
+      ) : (
+        <iframe
+          title="Agent visualization"
+          sandbox="allow-scripts allow-popups"
+          srcDoc={html}
+          className={`w-full bg-white transition-all ${expanded ? 'h-[80vh]' : 'h-[420px]'}`}
+        />
+      )}
+    </div>
+  );
+};
+
+// A streamed answer may contain a not-yet-closed ```html block; show a placeholder until it closes.
+const VizBuilding: React.FC = () => (
+  <div className="my-2 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-xs text-slate-400">
+    <Loader2 size={14} className="animate-spin" /> Building interactive visualization…
+  </div>
+);
 
 export type ChatPanelLayout = 'embedded' | 'floating' | 'fullscreen';
 
@@ -127,6 +189,42 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     th: ({node, ...props}: any) => <th className="px-3 py-2 bg-slate-900 text-left text-xs font-medium text-slate-300 uppercase tracking-wider border-b border-slate-700" {...props} />,
     td: ({node, ...props}: any) => <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-300 border-b border-slate-800" {...props} />,
   }), []);
+
+  const mdClass = "prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700";
+  const mdBlock = (text: string, key?: number) => (
+    <div key={key} className={mdClass}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>{text}</ReactMarkdown>
+    </div>
+  );
+
+  // Render a model answer, extracting agent-generated ```html visualizations into sandboxed
+  // iframes (VizFrame) and rendering the surrounding prose as markdown. Handles a partially
+  // streamed (unclosed) ```html block by showing a "building…" placeholder.
+  const renderRich = (text: string): React.ReactNode => {
+    if (!text.includes('```html')) return mdBlock(text);
+    const nodes: React.ReactNode[] = [];
+    const re = /```html\s*\n?([\s\S]*?)```/gi;
+    let lastIndex = 0;
+    let m: RegExpExecArray | null;
+    let key = 0;
+    while ((m = re.exec(text)) !== null) {
+      const before = text.slice(lastIndex, m.index);
+      if (before.trim()) nodes.push(mdBlock(before, key++));
+      nodes.push(<VizFrame key={key++} html={m[1]} />);
+      lastIndex = re.lastIndex;
+    }
+    const rest = text.slice(lastIndex);
+    const openIdx = rest.indexOf('```html');
+    if (openIdx !== -1) {
+      // An unterminated visualization is still streaming in.
+      const beforeOpen = rest.slice(0, openIdx);
+      if (beforeOpen.trim()) nodes.push(mdBlock(beforeOpen, key++));
+      nodes.push(<VizBuilding key={key++} />);
+    } else if (rest.trim()) {
+      nodes.push(mdBlock(rest, key++));
+    }
+    return <>{nodes}</>;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -318,11 +416,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                         </div>
                       </details>
                     )}
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
-                      <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
-                        {msg.text}
-                      </ReactMarkdown>
-                    </div>
+                    {renderRich(msg.text)}
                   </>
                 )}
               </div>
@@ -363,12 +457,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   </div>
                 )}
 
-                {/* Streaming answer */}
+                {/* Streaming answer (with live-rendered visualizations) */}
                 {agentTrace.answer.trim() && (
-                  <div className="pt-1 border-t border-slate-700/60 prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
-                    <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
-                      {agentTrace.answer}
-                    </ReactMarkdown>
+                  <div className="pt-1 border-t border-slate-700/60">
+                    {renderRich(agentTrace.answer)}
                   </div>
                 )}
               </div>
