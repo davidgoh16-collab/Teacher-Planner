@@ -146,6 +146,196 @@ export const createAgentInteraction = async ({
   }
 };
 
+/** A single human-facing activity item shown live while the agent works. */
+export interface AgentActivityItem {
+  kind: 'thinking' | 'code' | 'search' | 'tool' | 'status';
+  label: string;
+  detail?: string;
+}
+
+/** Callbacks invoked as streamed SSE events arrive, to drive the live "thought process" UI. */
+export interface AgentStreamCallbacks {
+  onMeta?: (id: string, environmentId: string) => void;
+  onReasoning?: (textChunk: string) => void;
+  onActivity?: (item: AgentActivityItem) => void;
+  onAnswer?: (textChunk: string) => void;
+}
+
+/** Pull plain text out of a streamed Content object (defensive about shape). */
+const extractText = (content: any): string => {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  if (typeof content.text === 'string') return content.text;
+  if (Array.isArray(content.parts)) {
+    return content.parts.map((p: any) => (typeof p === 'string' ? p : p?.text || '')).join('');
+  }
+  if (Array.isArray(content)) {
+    return content.map((p: any) => (typeof p === 'string' ? p : p?.text || '')).join('');
+  }
+  return '';
+};
+
+/** Map a starting step to a live activity item, or null if it carries no user-facing signal. */
+const stepToActivity = (step: any): AgentActivityItem | null => {
+  switch (step?.type) {
+    case 'thought':
+      return { kind: 'thinking', label: 'Thinking' };
+    case 'code_execution_call':
+      return { kind: 'code', label: 'Running code' };
+    case 'code_execution_result':
+      return { kind: 'code', label: 'Got code result' };
+    case 'function_call':
+      return { kind: 'tool', label: `Calling ${step.name || 'a tool'}` };
+    case 'web_search':
+    case 'google_search':
+    case 'url_context':
+      return { kind: 'search', label: 'Searching the web' };
+    default:
+      return null;
+  }
+};
+
+/**
+ * Stream an agent interaction over SSE, invoking callbacks as reasoning/activity/answer arrive.
+ * Returns a fully-assembled {@link Interaction} (same shape as the blocking call) so the existing
+ * function-call confirmation flow keeps working unchanged.
+ */
+export const streamAgentInteraction = async (
+  { input, environmentId, previousInteractionId, functionResults, tools }: CreateInteractionArgs,
+  callbacks: AgentStreamCallbacks = {},
+): Promise<Interaction> => {
+  const apiKey = getApiKey();
+
+  const body: Record<string, any> = {
+    agent: AGENT,
+    environment: environmentId || "remote",
+    stream: true,
+  };
+  if (previousInteractionId) body.previous_interaction_id = previousInteractionId;
+  if (tools) body.tools = tools;
+  if (functionResults && functionResults.length > 0) {
+    body.input = functionResults.map(fr => ({
+      type: "function_result",
+      name: fr.name,
+      call_id: fr.call_id,
+      result: fr.result,
+    }));
+  } else if (input !== undefined) {
+    body.input = input;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  // Assembled interaction we return once the stream ends.
+  const result: Interaction = { id: '', status: 'in_progress', output_text: '', steps: [] };
+
+  try {
+    const response = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`Agent stream failed (${response.status}): ${errText.slice(0, 500)}`);
+    }
+    if (!response.body) {
+      throw new Error("Agent stream returned no body");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const handleEvent = (raw: string) => {
+      // An SSE frame may contain multiple `data:` lines; concatenate them.
+      const dataLines = raw
+        .split('\n')
+        .filter(line => line.startsWith('data:'))
+        .map(line => line.slice(5).trim());
+      if (dataLines.length === 0) return;
+      const payload = dataLines.join('\n');
+      if (!payload || payload === '[DONE]') return;
+
+      let evt: any;
+      try { evt = JSON.parse(payload); } catch { return; }
+
+      switch (evt.event_type) {
+        case 'interaction.created': {
+          const it = evt.interaction || evt;
+          if (it?.id) result.id = it.id;
+          if (it?.environment_id) result.environment_id = it.environment_id;
+          if (result.id) callbacks.onMeta?.(result.id, result.environment_id || environmentId || 'remote');
+          break;
+        }
+        case 'step.start': {
+          if (evt.step) (result.steps as InteractionStep[]).push(evt.step as InteractionStep);
+          const activity = stepToActivity(evt.step);
+          if (activity) callbacks.onActivity?.(activity);
+          break;
+        }
+        case 'step.delta': {
+          const delta = evt.delta;
+          if (!delta) break;
+          if (delta.type === 'thought_summary') {
+            const txt = extractText(delta.content);
+            if (txt) callbacks.onReasoning?.(txt);
+          } else if (delta.type === 'text') {
+            if (delta.text) {
+              result.output_text = (result.output_text || '') + delta.text;
+              callbacks.onAnswer?.(delta.text);
+            }
+          }
+          break;
+        }
+        case 'interaction.status_update': {
+          if (evt.status) result.status = evt.status;
+          break;
+        }
+        case 'interaction.completed': {
+          const it = evt.interaction || {};
+          if (it.id) result.id = it.id;
+          if (it.environment_id) result.environment_id = it.environment_id;
+          if (it.status) result.status = it.status;
+          if (typeof it.output_text === 'string' && it.output_text) result.output_text = it.output_text;
+          if (Array.isArray(it.steps) && it.steps.length) result.steps = it.steps;
+          break;
+        }
+        case 'error': {
+          throw new Error(`Agent stream error: ${JSON.stringify(evt.error || evt).slice(0, 300)}`);
+        }
+      }
+    };
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep: number;
+      // SSE frames are separated by a blank line.
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        handleEvent(frame);
+      }
+    }
+    if (buffer.trim()) handleEvent(buffer);
+
+    if (result.status === 'in_progress') result.status = 'completed';
+    return result;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 /**
  * Return the function calls the agent is still waiting on — `function_call` steps with no matching
  * `function_result`. Filesystem/built-in tools also surface as function_calls but are executed by

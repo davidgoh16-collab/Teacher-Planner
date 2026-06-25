@@ -1,9 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
+import { AgentActivityItem } from '../services/agentService';
 import { readFileContent } from '../utils/fileUtils';
+
+/** Live trace of an in-flight agent run, surfaced as the streamed "thought process". */
+export interface AgentTrace {
+  reasoning: string;
+  activity: AgentActivityItem[];
+  answer: string;
+}
+
+const activityIcon = (kind: AgentActivityItem['kind']) => {
+  switch (kind) {
+    case 'search': return <Search size={13} />;
+    case 'code': return <Code size={13} />;
+    case 'tool': return <Wrench size={13} />;
+    case 'thinking': return <Brain size={13} />;
+    default: return <Sparkles size={13} />;
+  }
+};
 
 export type ChatPanelLayout = 'embedded' | 'floating' | 'fullscreen';
 
@@ -18,6 +36,8 @@ export interface ChatPanelProps {
   // Agent mode (Antigravity managed agent) toggle
   agentMode?: boolean;
   onToggleAgentMode?: () => void;
+  // Live thought process of the in-flight agent run (reasoning + activity + streaming answer).
+  agentTrace?: AgentTrace | null;
 
   // Conversation management (from useChatConversations — usually spread in)
   conversations: AIConversation[];
@@ -60,6 +80,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   isLoading,
   agentMode,
   onToggleAgentMode,
+  agentTrace,
   conversations,
   currentConversationId,
   editingConvId,
@@ -284,16 +305,75 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 {msg.role === 'user' ? (
                   msg.text
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
+                  <>
+                    {msg.thoughts && (
+                      <details className="mb-2 group">
+                        <summary className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200 select-none list-none">
+                          <Brain size={13} /> Show thinking
+                        </summary>
+                        <div className="mt-2 pl-2 border-l-2 border-slate-700 prose prose-xs dark:prose-invert max-w-none text-slate-400 prose-p:my-1 prose-headings:text-slate-300 prose-headings:text-xs">
+                          <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+                            {msg.thoughts}
+                          </ReactMarkdown>
+                        </div>
+                      </details>
+                    )}
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
+                      <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && agentMode && agentTrace ? (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full flex items-center justify-center shrink-0">
+                <Sparkles size={14} />
+              </div>
+              <div className="bg-slate-800 dark:bg-slate-900 text-slate-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm max-w-[85%] w-full space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-primary-300">
+                  <Loader2 size={14} className="animate-spin" /> Agent working…
+                </div>
+
+                {/* Activity feed — what the agent is doing right now */}
+                {agentTrace.activity.length > 0 && (
+                  <ul className="space-y-1">
+                    {agentTrace.activity.map((item, i) => {
+                      const isLast = i === agentTrace.activity.length - 1;
+                      return (
+                        <li key={i} className={`flex items-center gap-1.5 text-xs ${isLast ? 'text-slate-200' : 'text-slate-500'}`}>
+                          <span className="shrink-0">{activityIcon(item.kind)}</span>
+                          <span>{item.label}{item.detail ? `: ${item.detail}` : ''}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {/* Streaming reasoning summary */}
+                {agentTrace.reasoning.trim() && (
+                  <div className="pt-1 border-t border-slate-700/60">
+                    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500 mb-1">
+                      <Brain size={12} /> Reasoning
+                    </div>
+                    <div className="text-xs text-slate-400 whitespace-pre-wrap max-h-40 overflow-y-auto">{agentTrace.reasoning}</div>
+                  </div>
+                )}
+
+                {/* Streaming answer */}
+                {agentTrace.answer.trim() && (
+                  <div className="pt-1 border-t border-slate-700/60 prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-700">
                     <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
-                      {msg.text}
+                      {agentTrace.answer}
                     </ReactMarkdown>
                   </div>
                 )}
               </div>
             </div>
-          ))}
-          {isLoading && (
+          ) : isLoading ? (
             <div className="flex gap-3">
               <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full flex items-center justify-center shrink-0">
                 <Bot size={14} />
@@ -303,7 +383,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 <span className="text-xs">{agentMode ? 'Agent working… this can take a minute' : 'Thinking...'}</span>
               </div>
             </div>
-          )}
+          ) : null}
 
           {pendingConfirmation && (
             <div className="flex gap-3">
