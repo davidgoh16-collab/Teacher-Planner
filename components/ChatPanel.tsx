@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
@@ -14,6 +14,10 @@ export interface ChatPanelProps {
   messages: ChatMessage[];
   onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
   isLoading: boolean;
+
+  // Agent mode (Antigravity managed agent) toggle
+  agentMode?: boolean;
+  onToggleAgentMode?: () => void;
 
   // Conversation management (from useChatConversations — usually spread in)
   conversations: AIConversation[];
@@ -54,6 +58,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   onSendMessage,
   isLoading,
+  agentMode,
+  onToggleAgentMode,
   conversations,
   currentConversationId,
   editingConvId,
@@ -163,7 +169,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         >
           <List size={16} /> <span className="hidden sm:inline">Conversations</span>
         </button>
-        <div className="flex items-center gap-1">
+        {onToggleAgentMode && (
+          <button
+            onClick={onToggleAgentMode}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${agentMode ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+            title={agentMode ? 'Agent mode on — runs autonomous, multi-step tasks (web, code, files). Click to switch back to quick chat.' : 'Turn on Agent mode for autonomous, multi-step tasks (web research, document generation).'}
+            aria-pressed={!!agentMode}
+          >
+            <Sparkles size={16} /> <span className="hidden sm:inline">Agent</span>
+          </button>
+        )}
+        <div className="flex items-center gap-1 ml-auto">
           {onToggleFullScreen && (
             <button
               onClick={onToggleFullScreen}
@@ -284,7 +300,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               </div>
               <div className="bg-slate-800 dark:bg-slate-900 text-white rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" />
-                <span className="text-xs">Thinking...</span>
+                <span className="text-xs">{agentMode ? 'Agent working… this can take a minute' : 'Thinking...'}</span>
               </div>
             </div>
           )}
@@ -346,7 +362,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me to add a lesson or extract actions..."
+            placeholder={agentMode ? 'Give the agent a task — research, draft, multi-step…' : 'Ask me to add a lesson or extract actions...'}
             /* Security: limit input length to prevent excessive token usage */
             maxLength={2000}
             className="flex-1 min-w-0 bg-transparent text-slate-800 dark:text-slate-100 py-2 text-sm focus:outline-none"

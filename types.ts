@@ -135,6 +135,10 @@ export interface AIConversation {
   title: string;
   messages: ChatMessage[];
   updatedAt: number;
+  // Agent mode (Antigravity managed agent) session continuity.
+  mode?: 'chat' | 'agent';
+  agentInteractionId?: string;
+  agentEnvironmentId?: string;
 }
 
 export interface AppCategory {

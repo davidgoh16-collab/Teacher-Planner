@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { GoogleGenAI, Type, FunctionDeclaration, Chat } from "@google/genai";
+import { GoogleGenAI, Chat } from "@google/genai";
 import { auth } from './firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { 
@@ -42,6 +42,8 @@ import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/l
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
+import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
+import { createAgentInteraction, getPendingFunctionCalls, buildAgentTools, AgentFunctionResult } from './services/agentService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -137,9 +139,18 @@ const App: React.FC = () => {
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  // Agent mode routes messages to the Antigravity managed agent instead of the quick chat.
+  const [agentMode, setAgentMode] = useState(false);
+  // Active agent sandbox/turn for the current conversation (multi-turn continuity).
+  const [agentSession, setAgentSession] = useState<{ interactionId: string; environmentId: string } | null>(null);
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
   const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages });
+  // Reset the agent sandbox/turn whenever the conversation changes (new chat or loaded history),
+  // so a fresh agent run does not continue a stale, unrelated sandbox.
+  useEffect(() => {
+    setAgentSession(null);
+  }, [chatConv.currentConversationId]);
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
   const [expandedRoutineDays, setExpandedRoutineDays] = useState<Record<string, boolean>>({});
@@ -149,7 +160,7 @@ const App: React.FC = () => {
   const [aiActionHistory, setAiActionHistory] = useState<Array<{ type: string, previousState: any }>>([]);
 
   // Pending AI actions awaiting user confirmation before they mutate the planner.
-  const [pendingActions, setPendingActions] = useState<{ calls: any[]; summary: string } | null>(null);
+  const [pendingActions, setPendingActions] = useState<{ calls: any[]; summary: string; agent?: { interactionId: string; environmentId: string } } | null>(null);
 
   // --- Initialize state after context load ---
   useEffect(() => {
@@ -714,6 +725,138 @@ const App: React.FC = () => {
     return simple;
   };
 
+  // Build the full planner context block injected into both the quick chat and the agent.
+  const buildPlannerContextString = (week: WeekData): string => {
+      const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+      let contextString = `Current Week Context: ${week.displayString} (Week ${week.weekNumber}).\n`;
+      contextString += `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n\n`;
+
+      // Add Entire Academic Year Calendar Context
+      contextString += `--- ACADEMIC YEAR CALENDAR ---\n`;
+      let allWeeksInYear: WeekData[] = [];
+      terms.forEach(term => {
+          allWeeksInYear = allWeeksInYear.concat(generateWeeksForTerm(term));
+      });
+      allWeeksInYear.forEach(w => {
+        const end = addDays(w.startDate, 4);
+        contextString += `Week ${w.weekNumber}: ${toISODate(w.startDate)} to ${toISODate(end)}\n`;
+      });
+
+      // Add Master Timetables
+      contextString += `\n--- MASTER TIMETABLE DEFINITIONS ---\n`;
+      contextString += `(Week 1 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek1), null, 2)}\n`;
+      contextString += `(Week 2 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek2), null, 2)}\n\n`;
+
+      // Add Colleague Timetables
+      contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
+      contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
+      INITIAL_COLLEAGUES.forEach(colleague => {
+        contextString += `\n${colleague.name}:\n`;
+        contextString += `Week 1: ${JSON.stringify(colleague.week1, null, 2)}\n`;
+        contextString += `Week 2: ${JSON.stringify(colleague.week2, null, 2)}\n`;
+      });
+      contextString += `\n----------------------------\n\n`;
+
+      contextString += `\n--- APP TASKS & PROJECTS ---\n`;
+      contextString += `Projects: ${JSON.stringify(projects.map(p => ({id: p.id, name: p.name, desc: p.description})), null, 2)}\n`;
+      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, priority: t.priority, scheduled: t.scheduledDateStr, deadline: t.deadlineDateStr, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
+      contextString += `\n----------------------------\n\n`;
+
+      contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
+      contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
+
+      contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
+      contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
+      contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
+      contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
+      contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
+      contextString += `Key Dates: ${JSON.stringify(keyDates, null, 2)}\n`;
+
+      // Compute subjects for all lesson plans to make it easy for the AI
+      const computedLessonPlans = Object.values(lessonPlans).map(p => {
+          const dateObj = new Date(p.dateStr);
+          const weekIdx = allWeeksInYear.findIndex(w => {
+              const end = addDays(w.startDate, 7);
+              return dateObj >= w.startDate && dateObj < end;
+          });
+
+          let subject = "Unknown";
+          if (weekIdx !== -1) {
+              const wk = allWeeksInYear[weekIdx];
+              const dayIndex = dateObj.getDay();
+              const dayStr = DAYS[dayIndex - 1]; // 0=Sunday, so -1 for Monday index if using DAYS
+              if (dayStr) {
+                  const tt = wk.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
+                  const entry = tt[dayStr]?.[p.periodLabel];
+                  if (entry) {
+                      subject = entry.subject;
+                  }
+              }
+          }
+          return {
+              date: p.dateStr,
+              period: p.periodLabel,
+              subject: subject,
+              title: p.title,
+              type: p.type,
+              notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
+          };
+      });
+
+      contextString += `Lesson Plans (All historical and future): ${JSON.stringify(computedLessonPlans, null, 2)}\n`;
+      contextString += `\n----------------------------\n\n`;
+
+      contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
+      DAYS.forEach((day, idx) => {
+        const date = addDays(week.startDate, idx);
+        const dateStr = toISODate(date);
+        contextString += `${day} (${dateStr}):\n`;
+        PERIOD_LABELS.forEach(period => {
+           const entry = timetable[day][period];
+           const subject = entry ? entry.subject : "Free Period";
+           const existingPlan = lessonPlans[getLessonKey(dateStr, period)];
+           const status = existingPlan ? `(${existingPlan.type || 'Lesson'} Planned: "${existingPlan.title}")` : "(No plan)";
+           contextString += `  - ${period}: ${subject} ${status}\n`;
+        });
+      });
+      contextString += `\n----------------------------\n\n`;
+
+      return contextString;
+  };
+
+  // Shared system instruction for the teacher's assistant (used by chat and agent).
+  const buildAssistantSystemInstruction = (contextString: string): string => {
+      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, manage project tasks, and handle key calendar dates.
+
+           CRITICAL INSTRUCTIONS ON CAPABILITIES & TOOL USAGE:
+           - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
+           - You CAN search by class name or subject. Look at the "Lesson Plans (All historical and future)" list in the context below. It includes the "subject" (which is the class name, e.g., "10B", "Year 12 Maths") and the date for every single lesson.
+           - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
+           - DANGER: DO NOT USE THE \`updateLesson\` or \`addRecurringLesson\` TOOLS UNLESS EXPLICITLY TOLD TO ADD, CREATE, OR CHANGE A LESSON. If a user says "do it again", "tell me what I have", or "I have updated some so do it again", they are asking you to read the context and reply with text. Do NOT modify the database on their behalf unless they say "add these to my planner" or "create a lesson".
+           - NEVER fill in empty periods, supervised study, or revision sessions on your own initiative. ONLY create lessons when strictly requested.
+
+           TOOL TRIGGERS — only call a mutating tool when the user uses an explicit create/change verb such as "add", "create", "schedule", "update", "change", "delete", or "remove". For any other request (questions, summaries, "what do I have", "tell me", "do it again" without a clear new instruction), reply with TEXT ONLY and call no tools. The user will be asked to confirm before any change is applied, so never assume consent.
+
+           RULES:
+           1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
+           2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
+           3. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
+           4. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
+           5. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
+           6. To create NEW tasks, ALWAYS use the 'addTasksToProject' tool and pass ALL requested tasks in its 'tasks' array in ONE call — whether the user asks for a single task or many. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, include EVERY action item as a separate entry in that same 'tasks' array (choosing the relevant project from the context).
+           7. To CHANGE an EXISTING task — reschedule, rename, re-prioritise, move project, or mark it complete — use the 'updateTasks' tool with the task's exact id from the Tasks context. Set status to 'Completed' to complete it; set scheduledDateStr and/or deadlineDateStr to reschedule it. NEVER use 'addTasksToProject' to modify a task that already exists — that creates a duplicate.
+           8. To remove existing tasks, use the 'deleteTasks' tool with their ids.
+           9. Use the DATE CONTEXT section to convert relative dates — "today", "tomorrow", named weekdays (e.g. "Friday"), and "next week" — into exact YYYY-MM-DD values for every tool.
+           10. If a request is ambiguous, garbled, or does not clearly map to a planner action (a lesson, task, or key date), DO NOT invent or guess a task/lesson. Reply with TEXT asking the user to clarify what they mean, and call no tools.
+
+           ${contextString}`;
+
+      if (isReadOnly) {
+          systemInstruction += `\n\nNOTE: The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks. You can only view and analyze the data.`;
+      }
+      return systemInstruction;
+  };
+
   const handleUndoLastAiAction = async () => {
     if (aiActionHistory.length === 0 || isReadOnly) return;
 
@@ -763,278 +906,10 @@ const App: React.FC = () => {
 
       const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
-      
-      // Build context about the current week's timetable
-      const timetable = currentWeekData.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
-      let contextString = `Current Week Context: ${currentWeekData.displayString} (Week ${currentWeekData.weekNumber}).\n`;
-      contextString += `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n\n`;
-      
-      // Add Entire Academic Year Calendar Context
-      contextString += `--- ACADEMIC YEAR CALENDAR ---\n`;
-      let allWeeksInYear: WeekData[] = [];
-      terms.forEach(term => {
-          allWeeksInYear = allWeeksInYear.concat(generateWeeksForTerm(term));
-      });
-      allWeeksInYear.forEach(w => {
-        const end = addDays(w.startDate, 4);
-        contextString += `Week ${w.weekNumber}: ${toISODate(w.startDate)} to ${toISODate(end)}\n`;
-      });
 
-      // Add Master Timetables
-      contextString += `\n--- MASTER TIMETABLE DEFINITIONS ---\n`;
-      contextString += `(Week 1 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek1), null, 2)}\n`;
-      contextString += `(Week 2 Schedule)\n${JSON.stringify(getSimplifiedTimetable(timetableWeek2), null, 2)}\n\n`;
-
-      // Add Colleague Timetables
-      contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
-      contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
-      INITIAL_COLLEAGUES.forEach(colleague => {
-        contextString += `\n${colleague.name}:\n`;
-        contextString += `Week 1: ${JSON.stringify(colleague.week1, null, 2)}\n`;
-        contextString += `Week 2: ${JSON.stringify(colleague.week2, null, 2)}\n`;
-      });
-      contextString += `\n----------------------------\n\n`;
-
-      contextString += `\n--- APP TASKS & PROJECTS ---\n`;
-      contextString += `Projects: ${JSON.stringify(projects.map(p => ({id: p.id, name: p.name, desc: p.description})), null, 2)}\n`;
-      contextString += `Tasks: ${JSON.stringify(globalTasks.map(t => ({id: t.id, title: t.title, status: t.status, priority: t.priority, scheduled: t.scheduledDateStr, deadline: t.deadlineDateStr, desc: t.description, project: projects.find(p=>p.id===t.projectId)?.name})), null, 2)}\n`;
-      contextString += `\n----------------------------\n\n`;
-
-      contextString += `\n--- ENTIRE DATABASE CONTENT ---\n`;
-      contextString += `This section contains ALL historical, current, and future data from the teacher planner database across all collections. You can use this to answer questions about any time period.\n\n`;
-      
-      contextString += `App Categories: ${JSON.stringify(appCategories, null, 2)}\n`;
-      contextString += `Apps: ${JSON.stringify(apps.map(a => ({name: a.name, category: appCategories.find(c=>c.id===a.categoryId)?.name})), null, 2)}\n`;
-      contextString += `Project Categories: ${JSON.stringify(categories.map(c => ({id: c.id, name: c.name})), null, 2)}\n`;
-      contextString += `Ideas: ${JSON.stringify(ideas.map(i => ({text: i.text, project: projects.find(p=>p.id===i.projectId)?.name})), null, 2)}\n`;
-      contextString += `Routine Tasks: ${JSON.stringify(routineTasks.map(r => ({title: r.title, type: r.type})), null, 2)}\n`;
-      contextString += `Key Dates: ${JSON.stringify(keyDates, null, 2)}\n`;
-
-      // Compute subjects for all lesson plans to make it easy for the AI
-      const computedLessonPlans = Object.values(lessonPlans).map(p => {
-          const dateObj = new Date(p.dateStr);
-          const weekIdx = allWeeksInYear.findIndex(w => {
-              const end = addDays(w.startDate, 7);
-              return dateObj >= w.startDate && dateObj < end;
-          });
-
-          let subject = "Unknown";
-          if (weekIdx !== -1) {
-              const week = allWeeksInYear[weekIdx];
-              const dayIndex = dateObj.getDay();
-              const dayStr = DAYS[dayIndex - 1]; // 0=Sunday, so -1 for Monday index if using DAYS
-              if (dayStr) {
-                  const tt = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
-                  const entry = tt[dayStr]?.[p.periodLabel];
-                  if (entry) {
-                      subject = entry.subject;
-                  }
-              }
-          }
-          return {
-              date: p.dateStr,
-              period: p.periodLabel,
-              subject: subject,
-              title: p.title,
-              type: p.type,
-              notes: p.notes ? p.notes.substring(0, 50) + "..." : undefined
-          };
-      });
-
-      contextString += `Lesson Plans (All historical and future): ${JSON.stringify(computedLessonPlans, null, 2)}\n`;
-      contextString += `\n----------------------------\n\n`;
-
-      contextString += `--- CURRENT WEEK EXISTING PLANS ---\n`;
-      DAYS.forEach((day, idx) => {
-        const date = addDays(currentWeekData.startDate, idx);
-        const dateStr = toISODate(date);
-        contextString += `${day} (${dateStr}):\n`;
-        PERIOD_LABELS.forEach(period => {
-           const entry = timetable[day][period];
-           const subject = entry ? entry.subject : "Free Period";
-           const existingPlan = lessonPlans[getLessonKey(dateStr, period)];
-           const status = existingPlan ? `(${existingPlan.type || 'Lesson'} Planned: "${existingPlan.title}")` : "(No plan)";
-           contextString += `  - ${period}: ${subject} ${status}\n`;
-        });
-      });
-      contextString += `\n----------------------------\n\n`;
-
-      // Define Function Tool (Only for Admins)
-      const updateLessonTool: FunctionDeclaration = {
-        name: 'updateLesson',
-        description: 'Add or update a single lesson plan or meeting for a specific date.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            dateStr: { type: Type.STRING, description: 'YYYY-MM-DD format.' },
-            periodLabel: { type: Type.STRING, description: 'Exact period label, e.g., "Period 2".' },
-            type: { type: Type.STRING, enum: ['lesson', 'meeting'], description: 'Defaults to lesson.' },
-            title: { type: Type.STRING },
-            notes: { type: Type.STRING },
-            links: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-          required: ['dateStr', 'periodLabel', 'title'],
-        },
-      };
-
-      const addRecurringLessonTool: FunctionDeclaration = {
-        name: 'addRecurringLesson',
-        description: 'Add a lesson or meeting repeatedly (e.g., every Monday, every Week 1 Friday) for the entire academic year (all terms).',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            dayOfWeek: { type: Type.STRING, enum: DAYS, description: 'Monday, Tuesday, Wednesday, Thursday, or Friday' },
-            periodLabel: { type: Type.STRING, description: 'Exact period label, e.g., "Period 1"' },
-            title: { type: Type.STRING },
-            type: { type: Type.STRING, enum: ['lesson', 'meeting'] },
-            weekCycle: { type: Type.STRING, enum: ['all', 'week1', 'week2'], description: 'Apply to all weeks, only Week 1s, or only Week 2s. Default is all.' },
-            notes: { type: Type.STRING },
-          },
-          required: ['dayOfWeek', 'periodLabel', 'title']
-        }
-      };
-
-      const addTasksToProjectTool: FunctionDeclaration = {
-        name: 'addTasksToProject',
-        description: 'Create one OR MORE tasks in a single call. ALWAYS use this for task creation: pass an array with a single item for one task, or multiple items when the user asks for several tasks at once. Never call this more than once per request — include every requested task in the `tasks` array.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            tasks: {
-              type: Type.ARRAY,
-              description: 'The list of tasks to create.',
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  projectId: { type: Type.STRING, description: 'The ID of the project to add the task to. Pick the most relevant existing project from the context.' },
-                  title: { type: Type.STRING, description: 'Task title.' },
-                  description: { type: Type.STRING, description: 'Optional task notes or description.' },
-                  priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'], description: 'Default is Medium.' },
-                  deadlineDateStr: { type: Type.STRING, description: 'Optional deadline in YYYY-MM-DD format.' },
-                  scheduledDateStr: { type: Type.STRING, description: 'Optional scheduled/start date in YYYY-MM-DD format.' },
-                },
-                required: ['projectId', 'title'],
-              },
-            },
-          },
-          required: ['tasks'],
-        },
-      };
-
-      const updateTasksTool: FunctionDeclaration = {
-        name: 'updateTasks',
-        description: "Update, reschedule, re-prioritise, rename, move, or COMPLETE one or more EXISTING tasks. Use this (NOT addTasksToProject) whenever the user refers to a task that already exists in the Tasks context. To mark a task done, set status to 'Completed'. To reschedule, set scheduledDateStr and/or deadlineDateStr.",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            updates: {
-              type: Type.ARRAY,
-              description: 'Each item MUST contain the exact id of an existing task plus only the fields to change.',
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING, description: 'The exact id of the existing task (from the Tasks context).' },
-                  title: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  priority: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
-                  status: { type: Type.STRING, enum: ['Uncompleted', 'In Progress', 'Completed'] },
-                  projectId: { type: Type.STRING, description: 'Move the task to a different project (use a project id from context).' },
-                  scheduledDateStr: { type: Type.STRING, description: 'Scheduled/start date in YYYY-MM-DD format.' },
-                  deadlineDateStr: { type: Type.STRING, description: 'Deadline in YYYY-MM-DD format.' },
-                },
-                required: ['id'],
-              },
-            },
-          },
-          required: ['updates'],
-        },
-      };
-
-      const deleteTasksTool: FunctionDeclaration = {
-        name: 'deleteTasks',
-        description: 'Delete one or more EXISTING tasks by their ids (from the Tasks context).',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            taskIds: { type: Type.ARRAY, description: 'The ids of the tasks to delete.', items: { type: Type.STRING } },
-          },
-          required: ['taskIds'],
-        },
-      };
-
-      const addKeyDateTool: FunctionDeclaration = {
-        name: 'addKeyDate',
-        description: 'Add a new key date to the calendar.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: 'Title or name of the key date event.' },
-            dateStr: { type: Type.STRING, description: 'The date in YYYY-MM-DD format.' },
-            time: { type: Type.STRING, description: 'Optional time for the event (e.g. 14:00).' },
-            isAllDay: { type: Type.BOOLEAN, description: 'Whether the event is an all day event.' },
-            notes: { type: Type.STRING, description: 'Optional notes for the event.' }
-          },
-          required: ['title', 'dateStr']
-        }
-      };
-
-      const editKeyDateTool: FunctionDeclaration = {
-        name: 'editKeyDate',
-        description: 'Edit an existing key date on the calendar.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING, description: 'The ID of the key date to edit.' },
-            title: { type: Type.STRING, description: 'Title or name of the key date event.' },
-            dateStr: { type: Type.STRING, description: 'The date in YYYY-MM-DD format.' },
-            time: { type: Type.STRING, description: 'Optional time for the event (e.g. 14:00).' },
-            isAllDay: { type: Type.BOOLEAN, description: 'Whether the event is an all day event.' },
-            notes: { type: Type.STRING, description: 'Optional notes for the event.' }
-          },
-          required: ['id']
-        }
-      };
-
-      const deleteKeyDateTool: FunctionDeclaration = {
-        name: 'deleteKeyDate',
-        description: 'Delete an existing key date from the calendar.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING, description: 'The ID of the key date to delete.' }
-          },
-          required: ['id']
-        }
-      };
-
-      let systemInstruction = `You are an expert teacher's assistant. You help plan lessons, meetings, manage project tasks, and handle key calendar dates.
-           
-           CRITICAL INSTRUCTIONS ON CAPABILITIES & TOOL USAGE:
-           - You HAVE FULL ACCESS to ALL historical, current, and future lesson plans in the database.
-           - You CAN search by class name or subject. Look at the "Lesson Plans (All historical and future)" list in the context below. It includes the "subject" (which is the class name, e.g., "10B", "Year 12 Maths") and the date for every single lesson.
-           - DO NOT ever say you cannot access future plans or search by class name. You have all the data you need.
-           - DANGER: DO NOT USE THE \`updateLesson\` or \`addRecurringLesson\` TOOLS UNLESS EXPLICITLY TOLD TO ADD, CREATE, OR CHANGE A LESSON. If a user says "do it again", "tell me what I have", or "I have updated some so do it again", they are asking you to read the context and reply with text. Do NOT modify the database on their behalf unless they say "add these to my planner" or "create a lesson".
-           - NEVER fill in empty periods, supervised study, or revision sessions on your own initiative. ONLY create lessons when strictly requested.
-
-           TOOL TRIGGERS — only call a mutating tool when the user uses an explicit create/change verb such as "add", "create", "schedule", "update", "change", "delete", or "remove". For any other request (questions, summaries, "what do I have", "tell me", "do it again" without a clear new instruction), reply with TEXT ONLY and call no tools. The user will be asked to confirm before any change is applied, so never assume consent.
-
-           RULES:
-           1. You have access to ALL historical, current, and future lesson plans, tasks, projects, ideas, and routines in the database.
-           2. Default to planning for the Current Week unless the user explicitly mentions "next week", "future weeks", or specific dates.
-           3. If the user asks for a "Meeting", set the 'type' parameter to 'meeting'.
-           4. If the user asks to plan for the "whole year", "every week", "rest of the term", or "entire academic year", and they EXPLICITLY want you to create them, you MUST use the 'addRecurringLesson' tool. Do NOT try to call 'updateLesson' 40 times.
-           5. 'addRecurringLesson' handles all date calculations for you. Just pass the day (e.g. "Monday"), the period, and the cycle (all/week1/week2).
-           6. To create NEW tasks, ALWAYS use the 'addTasksToProject' tool and pass ALL requested tasks in its 'tasks' array in ONE call — whether the user asks for a single task or many. If the user uploads a document (e.g., meeting notes, email) and asks you to extract action items, include EVERY action item as a separate entry in that same 'tasks' array (choosing the relevant project from the context).
-           7. To CHANGE an EXISTING task — reschedule, rename, re-prioritise, move project, or mark it complete — use the 'updateTasks' tool with the task's exact id from the Tasks context. Set status to 'Completed' to complete it; set scheduledDateStr and/or deadlineDateStr to reschedule it. NEVER use 'addTasksToProject' to modify a task that already exists — that creates a duplicate.
-           8. To remove existing tasks, use the 'deleteTasks' tool with their ids.
-           9. Use the DATE CONTEXT section to convert relative dates — "today", "tomorrow", named weekdays (e.g. "Friday"), and "next week" — into exact YYYY-MM-DD values for every tool.
-           10. If a request is ambiguous, garbled, or does not clearly map to a planner action (a lesson, task, or key date), DO NOT invent or guess a task/lesson. Reply with TEXT asking the user to clarify what they mean, and call no tools.
-
-           ${contextString}`;
-
-      if (isReadOnly) {
-          systemInstruction += `\n\nNOTE: The current user is in READ-ONLY mode. You CANNOT add, update, or delete any plans or tasks. You can only view and analyze the data.`;
-      }
+      // Build the full planner context + system instruction (shared with agent mode).
+      const contextString = buildPlannerContextString(currentWeekData);
+      const systemInstruction = buildAssistantSystemInstruction(contextString);
 
       // Prior conversation (recent window) as history so follow-ups like
       // "change that task" / "reschedule it" retain context. Gemini requires the
@@ -1050,7 +925,7 @@ const App: React.FC = () => {
         config: {
           systemInstruction: systemInstruction,
           // Only provide tools if user is admin
-          tools: isAdmin ? [{ functionDeclarations: [updateLessonTool, addRecurringLessonTool, addTasksToProjectTool, updateTasksTool, deleteTasksTool, addKeyDateTool, editKeyDateTool, deleteKeyDateTool] }] : undefined
+          tools: isAdmin ? [{ functionDeclarations: PLANNER_TOOL_DECLARATIONS }] : undefined
         },
         history: chatHistory
       });
@@ -1092,6 +967,74 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("AI Error:", error);
       setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to Gemini. Please check console for details." }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // Render the result of an agent interaction: either surface pending planner mutations for
+  // confirmation, or print the agent's final answer.
+  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>) => {
+    const environmentId = interaction.environment_id || agentSession?.environmentId || 'remote';
+    setAgentSession({ interactionId: interaction.id, environmentId });
+
+    if (interaction.status === 'requires_action' && pendingCalls.length > 0) {
+      if (isReadOnly) {
+        setChatMessages(prev => [...prev, { role: 'model', text: "The agent wants to change the planner, but you are in read-only mode so I can't apply it." }]);
+        return;
+      }
+      const summary = describeFunctionCalls(pendingCalls);
+      setPendingActions({ calls: pendingCalls, summary, agent: { interactionId: interaction.id, environmentId } });
+      setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent has prepared the following change(s). Please confirm to apply them." }]);
+      return;
+    }
+
+    setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent finished but returned no output." }]);
+  };
+
+  // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
+  const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
+    setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
+    setIsAiLoading(true);
+
+    try {
+      if (!currentWeekData) throw new Error("No active week data");
+
+      const isContinuing = !!agentSession;
+      // On the first turn, give the agent the full planner context + instructions; on follow-ups
+      // the sandbox already has it, so just send the user's message.
+      let input: string | any[];
+      if (isContinuing) {
+        input = userMessage;
+      } else {
+        const contextString = buildPlannerContextString(currentWeekData);
+        const systemInstruction = buildAssistantSystemInstruction(contextString);
+        input = `${systemInstruction}\n\n--- USER REQUEST ---\n${userMessage}`;
+      }
+
+      // Attach file content as a text part or an inline image, matching the chat handler.
+      if (fileData) {
+        if (fileData.isBase64) {
+          input = [
+            { type: 'text', text: typeof input === 'string' ? input : userMessage },
+            { type: 'image', data: fileData.text, mime_type: fileData.mimeType },
+          ];
+        } else {
+          input = `${typeof input === 'string' ? input : userMessage}\n\nAttached Document Content:\n${fileData.text}`;
+        }
+      }
+
+      const interaction = await createAgentInteraction({
+        input,
+        environmentId: agentSession?.environmentId,
+        previousInteractionId: agentSession?.interactionId,
+        tools: buildAgentTools(isAdmin),
+      });
+
+      handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction));
+    } catch (error) {
+      console.error("Agent Error:", error);
+      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, the agent run failed. This preview feature can be slow or rate-limited — please check the console and try again." }]);
     } finally {
       setIsAiLoading(false);
     }
@@ -1152,6 +1095,7 @@ const App: React.FC = () => {
   const handleConfirmActions = async () => {
     if (!pendingActions || isReadOnly) return;
     const functionCalls = pendingActions.calls;
+    const agentMeta = pendingActions.agent;
     setPendingActions(null);
     setIsAiLoading(true);
     try {
@@ -1489,6 +1433,22 @@ const App: React.FC = () => {
             if (!confirmText) confirmText = "No changes were applied.";
 
             setChatMessages(prev => [...prev, { role: 'model', text: confirmText }]);
+
+            // Agent mode: report the executed results back to the agent so it can continue its run
+            // (it may request further actions, or wrap up with a final summary).
+            if (agentMeta) {
+              const agentResults: AgentFunctionResult[] = functionResponses.map(r => ({
+                name: r.functionResponse?.name,
+                call_id: r.functionResponse?.id,
+                result: r.functionResponse?.response ?? {},
+              }));
+              const next = await createAgentInteraction({
+                previousInteractionId: agentMeta.interactionId,
+                environmentId: agentMeta.environmentId,
+                functionResults: agentResults,
+              });
+              handleAgentInteractionResult(next, getPendingFunctionCalls(next));
+            }
     } catch (error) {
       console.error("AI Confirm Error:", error);
       setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, something went wrong applying those changes. Please check the console." }]);
@@ -1640,8 +1600,10 @@ const App: React.FC = () => {
   // Shared chat props for the embedded Home chat and the floating launcher (one conversation).
   const chatBag = {
     messages: chatMessages,
-    onSendMessage: handleAiSendMessage,
+    onSendMessage: agentMode ? handleAgentSendMessage : handleAiSendMessage,
     isLoading: isAiLoading,
+    agentMode,
+    onToggleAgentMode: () => setAgentMode(m => !m),
     pendingConfirmation: pendingActions,
     onConfirmActions: handleConfirmActions,
     onCancelActions: handleCancelActions,
