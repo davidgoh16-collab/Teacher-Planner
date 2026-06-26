@@ -168,8 +168,9 @@ const App: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   // Agent mode routes messages to the Antigravity managed agent instead of the quick chat.
   const [agentMode, setAgentMode] = useState(false);
-  // Whether the agent should produce interactive visualizations. Off = faster, text-only answers.
-  const [vizEnabled, setVizEnabled] = useState(true);
+  // Whether the agent should produce interactive visualizations. Off by default (the default agent
+  // response is fast, text-only); the user opts in to charts via the Visuals toggle.
+  const [vizEnabled, setVizEnabled] = useState(false);
   // Active agent sandbox/turn for the current conversation (multi-turn continuity).
   const [agentSession, setAgentSession] = useState<{ interactionId: string; environmentId: string } | null>(null);
   // Live "thought process" of the in-flight agent run (reasoning + activity + streaming answer).
