@@ -895,6 +895,7 @@ const App: React.FC = () => {
            8. To remove existing tasks, use the 'deleteTasks' tool with their ids.
            9. Use the DATE CONTEXT section to convert relative dates — "today", "tomorrow", named weekdays (e.g. "Friday"), and "next week" — into exact YYYY-MM-DD values for every tool.
            10. If a request is ambiguous, garbled, or does not clearly map to a planner action (a lesson, task, or key date), DO NOT invent or guess a task/lesson. Reply with TEXT asking the user to clarify what they mean, and call no tools.
+           11. UPLOADED FILES (spreadsheets, CSVs, timetables, documents, slides): when "Attached Document Content" is present, read it carefully and use it as the source of truth for the request. Spreadsheets/CSVs arrive as text — each tab is marked "### Sheet: <name>" and rows are comma-separated, so reconstruct the grid (header row = columns, first column often = periods/times, other columns = days). For a TIMETABLE, map each entry to the correct day and period: match the timetable's period/time label to the planner's exact period labels from the context, convert the day to the right YYYY-MM-DD, and only when the user asks you to add it, call 'updateLesson' (one session) or 'addRecurringLesson' (a weekly slot). If the user supplies a lesson/meeting link (e.g. a Zoom/Teams/Google Meet URL) for a session, pass it in the 'links' array of 'updateLesson'. Still obey the TOOL TRIGGERS above — only mutate when the user explicitly asks you to add/create/schedule.
 
            ${contextString}`;
 
@@ -944,7 +945,7 @@ const App: React.FC = () => {
     setChatMessages(prev => [...prev, { role: 'model', text: 'I have undone my last changes to your planner.' }]);
   };
 
-  const handleAiSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
+  const handleAiSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
 
@@ -979,13 +980,14 @@ const App: React.FC = () => {
 
       let finalMessage: any = userMessage;
       if (fileData) {
+         const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
          if (fileData.isBase64) {
              finalMessage = [
-                 userMessage,
+                 `${userMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}`,
                  { inlineData: { data: fileData.text, mimeType: fileData.mimeType } }
              ];
          } else {
-             finalMessage = `User Message: ${userMessage}\n\nAttached Document Content:\n${fileData.text}`;
+             finalMessage = `User Message: ${userMessage}\n\nAttached Document Content${fileLabel}:\n${fileData.text}`;
          }
       }
       
@@ -1082,7 +1084,7 @@ const App: React.FC = () => {
   };
 
   // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
-  const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => {
+  const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
     traceRef.current = { reasoning: '', activity: [], answer: '' };
@@ -1120,13 +1122,14 @@ const App: React.FC = () => {
 
       // Attach file content as a text part or an inline image, matching the chat handler.
       if (fileData) {
+        const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
         if (fileData.isBase64) {
           input = [
-            { type: 'text', text: typeof input === 'string' ? input : userMessage },
+            { type: 'text', text: `${typeof input === 'string' ? input : userMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}` },
             { type: 'image', data: fileData.text, mime_type: fileData.mimeType },
           ];
         } else {
-          input = `${typeof input === 'string' ? input : userMessage}\n\nAttached Document Content:\n${fileData.text}`;
+          input = `${typeof input === 'string' ? input : userMessage}\n\nAttached Document Content${fileLabel}:\n${fileData.text}`;
         }
       }
 

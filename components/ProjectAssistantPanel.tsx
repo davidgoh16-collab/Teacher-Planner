@@ -386,7 +386,7 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
                         onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
                         className="flex items-end gap-2 bg-slate-100 dark:bg-slate-800 rounded-xl p-1.5 focus-within:ring-2 focus-within:ring-blue-500 border border-transparent dark:border-slate-700"
                     >
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.docx,.txt,image/*" />
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.docx,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.pptx,.txt,.md,.json,image/*" />
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
