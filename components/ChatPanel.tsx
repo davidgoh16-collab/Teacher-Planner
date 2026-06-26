@@ -92,7 +92,7 @@ export interface ChatPanelProps {
 
   // Chat data
   messages: ChatMessage[];
-  onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean }) => void;
+  onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => void;
   isLoading: boolean;
 
   // Agent mode (Antigravity managed agent) toggle
@@ -534,7 +534,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".pdf,.docx,.txt,image/*"
+            accept=".pdf,.docx,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.pptx,.txt,.md,.json,image/*"
           />
           <button
             type="button"
