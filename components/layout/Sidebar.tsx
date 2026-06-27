@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Home, CalendarDays, Users, FolderKanban, LayoutGrid, CalendarClock,
-  Settings, LogOut, Download, Star, ChevronDown, PanelLeftClose, PanelLeftOpen, BookOpen,
+  Settings, LogOut, Download, Star, ChevronDown, PanelLeftClose, PanelLeftOpen, BookOpen, Share2,
 } from 'lucide-react';
 import { AppTab, AppItem, AcademicYear } from '../../types';
 import IconRenderer from '../ui/IconRenderer';
@@ -43,6 +43,7 @@ const NAV: { id: AppTab; label: string; icon: React.ComponentType<{ size?: numbe
   { id: 'projects', label: 'Project Planner', icon: FolderKanban },
   { id: 'apps', label: 'Apps', icon: LayoutGrid },
   { id: 'keyDates', label: 'Key Dates', icon: CalendarClock },
+  { id: 'shared', label: 'Shared', icon: Share2 },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({

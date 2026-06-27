@@ -11,7 +11,7 @@ declare global {
 export type WeekType = 1 | 2;
 
 // Top-level navigable sections (left sidebar).
-export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates';
+export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared';
 
 export interface LessonPlan {
   id: string;

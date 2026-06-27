@@ -40,7 +40,8 @@ import {
   CheckCircle2,
   Circle,
   Sparkles,
-  Wand2
+  Wand2,
+  Share2
 } from 'lucide-react';
 import ProjectView from './ProjectView';
 import GlobalTasksView from './GlobalTasksView';
@@ -63,6 +64,7 @@ interface ProjectPlannerProps {
   onTaskAdd?: (task: Task) => void;
   todaysLessons?: { period: string; subject: string; hasPlan: boolean }[];
   upcomingKeyDates?: { title: string; dateStr: string }[];
+  onShareProject?: (projectId: string, projectName: string) => void;
 }
 
 // Sortable wrapper for a draggable project card. Exposes drag-handle listeners
@@ -90,7 +92,7 @@ const DroppableGroup: React.FC<{ id: string; className?: string; children: React
   return <div ref={setNodeRef} className={className}>{children}</div>;
 };
 
-const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd, todaysLessons, upcomingKeyDates }) => {
+const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks, externalSelectedProjectId, onClearExternalProject, onTaskUpdate, onTaskDelete, onTaskAdd, todaysLessons, upcomingKeyDates, onShareProject }) => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'ideas' | 'routines'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -821,6 +823,15 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                             </div>
                                             {!isReadOnly && (
                                                 <div className="flex items-center gap-1 shrink-0">
+                                                    {onShareProject && (
+                                                      <button
+                                                        onClick={(e) => { e.stopPropagation(); onShareProject(project.id, project.name); }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-primary-600 hover:bg-white/50 dark:hover:bg-slate-800 rounded-md transition-all"
+                                                        title="Share project"
+                                                      >
+                                                        <Share2 size={16} />
+                                                      </button>
+                                                    )}
                                                     <button
                                                         onClick={(e) => handleToggleProjectComplete(project, e)}
                                                         className={`p-1.5 rounded-md transition-all hover:bg-white/50 dark:hover:bg-slate-800 ${project.completed ? 'text-green-500 hover:text-slate-400' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-green-500'}`}

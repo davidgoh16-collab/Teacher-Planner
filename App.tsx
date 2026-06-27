@@ -10,7 +10,9 @@ import {
 import { usePlannerData } from './src/context/PlannerContext';
 import SettingsModal from './components/SettingsModal';
 import OnboardingModal from './components/OnboardingModal';
-import { Settings } from 'lucide-react';
+import SharedView from './components/SharedView';
+import ShareDialog from './components/ShareDialog';
+import { Settings, Share2 } from 'lucide-react';
 import { 
   LessonPlan, 
   WeekData, 
@@ -120,6 +122,7 @@ const App: React.FC = () => {
   const [hasInitializedState, setHasInitializedState] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'years' | 'terms' | 'timetables' | 'appearance' | undefined>(undefined);
+  const [shareTarget, setShareTarget] = useState<{ type: 'timetable' | 'project'; resourceId: string; resourceName: string } | null>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('eduPlan_theme');
     return (saved as Theme) || 'system';
@@ -1895,6 +1898,13 @@ const App: React.FC = () => {
           <ChevronRight size={18} />
         </button>
       </div>
+      <button
+        onClick={() => setShareTarget({ type: 'timetable', resourceId: 'timetable', resourceName: 'My timetable' })}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 shrink-0"
+        title="Share your timetable"
+      >
+        <Share2 size={15} /> <span className="hidden lg:inline">Share</span>
+      </button>
     </div>
   );
 
@@ -2613,6 +2623,7 @@ const App: React.FC = () => {
                 }}
                 todaysLessons={todaysLessons}
                 upcomingKeyDates={upcomingKeyDates}
+                onShareProject={(id, name) => setShareTarget({ type: 'project', resourceId: id, resourceName: name })}
             />
           ) : activeTab === 'keyDates' ? (
             <KeyDatesView
@@ -2622,6 +2633,10 @@ const App: React.FC = () => {
               onEditKeyDate={handleEditKeyDate}
               onDeleteKeyDate={handleDeleteKeyDate}
             />
+          ) : activeTab === 'shared' ? (
+            <div className="max-w-7xl mx-auto md:p-8 p-4">
+              <SharedView uid={user?.uid || ''} myWeek1={timetableWeek1} myWeek2={timetableWeek2} />
+            </div>
           ) : (
             <AppsHub
               isReadOnly={actualIsReadOnly}
@@ -2659,6 +2674,17 @@ const App: React.FC = () => {
         onThemeColorChange={handleSetThemeColor}
         onFinish={handleFinishOnboarding}
       />
+
+      {shareTarget && user && (
+        <ShareDialog
+          isOpen={!!shareTarget}
+          onClose={() => setShareTarget(null)}
+          owner={{ uid: user.uid, email: user.email || '', displayName: user.displayName || user.email || 'User' }}
+          type={shareTarget.type}
+          resourceId={shareTarget.resourceId}
+          resourceName={shareTarget.resourceName}
+        />
+      )}
 
       <TaskCardModal
         isOpen={isCardModalOpen}
