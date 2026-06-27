@@ -9,6 +9,7 @@ import {
 } from './constants';
 import { usePlannerData } from './src/context/PlannerContext';
 import SettingsModal from './components/SettingsModal';
+import OnboardingModal from './components/OnboardingModal';
 import { Settings } from 'lucide-react';
 import { 
   LessonPlan, 
@@ -23,6 +24,7 @@ import {
   getMonday
 } from './utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
+import { applyThemeColor, DEFAULT_THEME_COLOR } from './utils/themeColor';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatLauncher from './components/layout/ChatLauncher';
@@ -39,6 +41,7 @@ import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
 import { bootstrapUser } from './services/migrationService';
+import { getProfile, updatePreferences, UserProfile } from './services/userService';
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
@@ -116,10 +119,16 @@ const App: React.FC = () => {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(0);
   const [hasInitializedState, setHasInitializedState] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'years' | 'terms' | 'timetables' | 'appearance' | undefined>(undefined);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('eduPlan_theme');
     return (saved as Theme) || 'system';
   });
+  // App-wide accent colour (Pillar 3). Seeded from localStorage for instant paint, then synced
+  // from the user's Firestore preferences after login.
+  const [themeColor, setThemeColor] = useState<string>(() => localStorage.getItem('eduPlan_themeColor') || DEFAULT_THEME_COLOR);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
@@ -336,6 +345,12 @@ const App: React.FC = () => {
       try {
         // Ensure the user profile exists + any one-time migration ran before loading their data.
         await bootstrapUser(user);
+        const prof = await getProfile(user.uid);
+        if (prof) {
+          setProfile(prof);
+          if (prof.preferences?.themeColor) setThemeColor(prof.preferences.themeColor);
+          setShowOnboarding(!prof.preferences?.onboardingComplete);
+        }
         const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories, fetchedKeyDates] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
@@ -394,6 +409,33 @@ const App: React.FC = () => {
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, [theme]);
+
+  // --- Accent colour (Pillar 3) ---
+  useEffect(() => {
+    applyThemeColor(themeColor);
+    localStorage.setItem('eduPlan_themeColor', themeColor);
+  }, [themeColor]);
+
+  const handleSetThemeColor = async (hex: string) => {
+    setThemeColor(hex);
+    if (user) {
+      try { await updatePreferences(user.uid, { themeColor: hex }); } catch (e) { console.error('Failed to save theme colour', e); }
+    }
+  };
+
+  const handleCompleteOnboarding = async () => {
+    setShowOnboarding(false);
+    if (user) {
+      try { await updatePreferences(user.uid, { onboardingComplete: true }); } catch (e) { console.error('Failed to mark onboarding complete', e); }
+    }
+  };
+
+  const handleFinishOnboarding = async (action?: 'timetable' | 'meetings' | 'terms') => {
+    await handleCompleteOnboarding();
+    if (action === 'timetable') { setSettingsInitialTab('timetables'); setIsSettingsOpen(true); }
+    else if (action === 'terms') { setSettingsInitialTab('terms'); setIsSettingsOpen(true); }
+    else if (action === 'meetings') { setActiveTab('meetings'); }
+  };
 
   // --- Handlers ---
 
@@ -2604,6 +2646,18 @@ const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         isReadOnly={actualIsReadOnly}
+        themeColor={themeColor}
+        onThemeColorChange={handleSetThemeColor}
+        onReplayOnboarding={() => { setIsSettingsOpen(false); setShowOnboarding(true); }}
+        initialTab={settingsInitialTab}
+      />
+
+      <OnboardingModal
+        isOpen={showOnboarding && !!user}
+        userName={profile?.displayName || user?.displayName || undefined}
+        themeColor={themeColor}
+        onThemeColorChange={handleSetThemeColor}
+        onFinish={handleFinishOnboarding}
       />
 
       <TaskCardModal

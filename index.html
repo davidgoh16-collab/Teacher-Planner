@@ -18,11 +18,21 @@
             },
             // Brand green exposed as a semantic `primary` scale so new components
             // use bg-primary-600 etc. 600 == #16a34a, matching existing green-* usage.
+            // Driven by --primary-* CSS variables so the accent can be re-themed at runtime
+            // (see utils/themeColor.ts). Defaults below in :root keep the original brand green.
             colors: {
               primary: {
-                50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
-                400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
-                800: '#166534', 900: '#14532d', 950: '#052e16',
+                50: 'rgb(var(--primary-50) / <alpha-value>)',
+                100: 'rgb(var(--primary-100) / <alpha-value>)',
+                200: 'rgb(var(--primary-200) / <alpha-value>)',
+                300: 'rgb(var(--primary-300) / <alpha-value>)',
+                400: 'rgb(var(--primary-400) / <alpha-value>)',
+                500: 'rgb(var(--primary-500) / <alpha-value>)',
+                600: 'rgb(var(--primary-600) / <alpha-value>)',
+                700: 'rgb(var(--primary-700) / <alpha-value>)',
+                800: 'rgb(var(--primary-800) / <alpha-value>)',
+                900: 'rgb(var(--primary-900) / <alpha-value>)',
+                950: 'rgb(var(--primary-950) / <alpha-value>)',
               },
             },
             borderRadius: {
@@ -36,8 +46,32 @@
         }
       }
     </script>
+    <script>
+      /* Apply the user's cached accent ramp before first paint to avoid a colour flash. */
+      try {
+        var tpVars = localStorage.getItem('eduPlan_themeVars');
+        if (tpVars) {
+          var tpScale = JSON.parse(tpVars);
+          for (var tpK in tpScale) document.documentElement.style.setProperty('--primary-' + tpK, tpScale[tpK]);
+        }
+      } catch (e) {}
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      /* Default accent ramp (brand green). Overridden at runtime via utils/themeColor.ts. */
+      :root {
+        --primary-50: 240 253 244;
+        --primary-100: 220 252 231;
+        --primary-200: 187 247 208;
+        --primary-300: 134 239 172;
+        --primary-400: 74 222 128;
+        --primary-500: 34 197 94;
+        --primary-600: 22 163 74;
+        --primary-700: 21 128 61;
+        --primary-800: 22 101 52;
+        --primary-900: 20 83 45;
+        --primary-950: 5 46 22;
+      }
       body {
         font-family: 'Inter', sans-serif;
       }

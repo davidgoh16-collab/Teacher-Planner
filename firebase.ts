@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, initializeFirestore } from 'firebase/firestore';
-import { getAuth, OAuthProvider } from 'firebase/auth';
+import { getAuth, OAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 
 /**
  * FIREBASE CONFIGURATION
@@ -41,5 +41,12 @@ export const auth = getAuth(app);
 export const microsoftProvider = new OAuthProvider('microsoft.com');
 microsoftProvider.setCustomParameters({
   // Force account selection prompt
+  prompt: 'select_account',
+});
+
+// Initialize Google Provider (email/password uses the auth instance directly).
+// NOTE: enable Google + Email/Password providers in the Firebase console for these to work.
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
