@@ -534,7 +534,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            accept=".pdf,.docx,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.pptx,.txt,.md,.json,image/*"
+            accept=".pdf,.docx,.xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.pptx,.txt,.md,.json,image/*"
           />
           <button
             type="button"
