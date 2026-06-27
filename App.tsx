@@ -177,6 +177,11 @@ const App: React.FC = () => {
   const [agentTrace, setAgentTrace] = useState<AgentTrace | null>(null);
   // Mirror of agentTrace for synchronous reads after a stream finishes (state updates are async).
   const traceRef = useRef<AgentTrace | null>(null);
+  // Agent function-call ids we've already surfaced for confirmation, executed, or cancelled.
+  // Continuing an interaction (previous_interaction_id) replays the whole step history, so an
+  // earlier unresolved planner call would otherwise be re-detected as "pending" on every later
+  // turn and re-prompt the user. Tracking handled ids keeps each call to a single confirmation.
+  const handledAgentCallIdsRef = useRef<Set<string>>(new Set());
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
   const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages });
@@ -184,6 +189,8 @@ const App: React.FC = () => {
   // so a fresh agent run does not continue a stale, unrelated sandbox.
   useEffect(() => {
     setAgentSession(null);
+    setPendingActions(null);
+    handledAgentCallIdsRef.current = new Set();
   }, [chatConv.currentConversationId]);
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
@@ -1067,15 +1074,20 @@ const App: React.FC = () => {
     const environmentId = interaction.environment_id || agentSession?.environmentId || 'remote';
     setAgentSession({ interactionId: interaction.id, environmentId });
 
+    // Continuing an interaction replays the full step history, so drop any planner call we've
+    // already surfaced/handled on a previous turn — only act on calls produced by THIS turn.
+    const freshCalls = pendingCalls.filter(c => !handledAgentCallIdsRef.current.has(c.id));
+
     // Trigger the confirmation flow whenever there are unresolved planner calls — the streamed
     // status isn't always labelled 'requires_action', but pending calls are the real signal.
-    if (pendingCalls.length > 0) {
+    if (freshCalls.length > 0) {
+      freshCalls.forEach(c => handledAgentCallIdsRef.current.add(c.id));
       if (isReadOnly) {
         setChatMessages(prev => [...prev, { role: 'model', text: "The agent wants to change the planner, but you are in read-only mode so I can't apply it.", thoughts }]);
         return;
       }
-      const summary = describeFunctionCalls(pendingCalls);
-      setPendingActions({ calls: pendingCalls, summary, agent: { interactionId: interaction.id, environmentId } });
+      const summary = describeFunctionCalls(freshCalls);
+      setPendingActions({ calls: freshCalls, summary, agent: { interactionId: interaction.id, environmentId } });
       setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent has prepared the following change(s). Please confirm to apply them.", thoughts }]);
       return;
     }
@@ -1085,6 +1097,10 @@ const App: React.FC = () => {
 
   // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
   const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
+    // Sending a new task means the user moved on from any unconfirmed planner change — drop the
+    // stale confirmation so the new turn starts clean (its calls are already marked handled, so
+    // they won't be re-surfaced when the next interaction replays the step history).
+    setPendingActions(null);
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
     traceRef.current = { reasoning: '', activity: [], answer: '' };
