@@ -171,7 +171,7 @@ export interface AIInsight {
  * Robustly parses a JSON string, handling potential markdown wrappers
  * or trailing conversational text from the AI response.
  */
-function extractAndParseJSON(jsonStr: string): any {
+export function extractAndParseJSON(jsonStr: string): any {
   let text = jsonStr.trim();
 
   // Try standard parse first

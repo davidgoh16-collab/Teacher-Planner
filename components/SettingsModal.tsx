@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2, Upload, FileText, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, Save, Plus, Trash2, Upload, FileText, Loader2, CheckCircle2, Sparkles, Link2 } from 'lucide-react';
 import { usePlannerData } from '../src/context/PlannerContext';
 import { saveAcademicYear, deleteAcademicYear, saveTerm, deleteTerm, saveTimetable } from '../services/plannerDataService';
 import { AcademicYear, Term, WeeklyTimetable, TimetableEntry } from '../types';
 import { toISODate } from '../utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from '../utils/colorUtils';
 import { parseMasterTimetableAndTerms } from '../services/aiService';
+import { extractTermsFromUrl } from '../services/termImportService';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
 
@@ -28,6 +29,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   // Terms state
   const [localTerms, setLocalTerms] = useState<Term[]>([]);
+
+  // Term-from-URL import state
+  const [termUrl, setTermUrl] = useState('');
+  const [termUrlImporting, setTermUrlImporting] = useState(false);
+  const [termUrlError, setTermUrlError] = useState<string | null>(null);
+  const [termUrlSuccess, setTermUrlSuccess] = useState<number>(0);
 
   // Import State
   const [isImporting, setIsImporting] = useState(false);
@@ -147,6 +154,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
       startDate: new Date(),
       endDate: new Date(),
     }]);
+  };
+
+  const handleImportTermsFromUrl = async () => {
+    if (!termUrl.trim() || !selectedAcademicYearId) return;
+    setTermUrlImporting(true);
+    setTermUrlError(null);
+    setTermUrlSuccess(0);
+    try {
+      const extracted = await extractTermsFromUrl(termUrl.trim());
+      const imported: Term[] = extracted.map((t, i) => ({
+        id: `term_${Date.now()}_${i}`,
+        academicYearId: selectedAcademicYearId,
+        name: t.name,
+        startDate: new Date(t.startDate),
+        endDate: new Date(t.endDate),
+        halfTermStart: t.halfTermStart ? new Date(t.halfTermStart) : undefined,
+        halfTermEnd: t.halfTermEnd ? new Date(t.halfTermEnd) : undefined,
+      }));
+      setLocalTerms(imported); // replace with the imported set for review before saving
+      setTermUrlSuccess(imported.length);
+    } catch (e: any) {
+      setTermUrlError(e?.message || 'Failed to import term dates.');
+    } finally {
+      setTermUrlImporting(false);
+    }
   };
 
   const updateTerm = (id: string, field: keyof Term, value: any) => {
@@ -448,6 +480,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                   </button>
                 )}
               </div>
+
+              {!isReadOnly && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2 bg-slate-50 dark:bg-slate-800/50">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Link2 size={16} className="text-primary-600 dark:text-primary-400" /> Import term dates from your school's website
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    <input
+                      type="url"
+                      value={termUrl}
+                      onChange={(e) => setTermUrl(e.target.value)}
+                      placeholder="https://yourschool.sch.uk/term-dates"
+                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                    />
+                    <button
+                      onClick={handleImportTermsFromUrl}
+                      disabled={termUrlImporting || !termUrl.trim()}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {termUrlImporting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                      {termUrlImporting ? 'Reading…' : 'Import'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">The assistant reads the page and fills in the terms below for you to review, then click “Save Terms”.</p>
+                  {termUrlError && <p className="text-xs text-red-600 dark:text-red-400">{termUrlError}</p>}
+                  {termUrlSuccess > 0 && <p className="text-xs text-green-600 dark:text-green-400">Found {termUrlSuccess} term{termUrlSuccess === 1 ? '' : 's'} — review below and save.</p>}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {localTerms.map((term, idx) => (
