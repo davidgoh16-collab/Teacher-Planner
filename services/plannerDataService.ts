@@ -1,7 +1,5 @@
-import { db } from '../firebase';
-import { getDocs, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { AcademicYear, Term, WeeklyTimetable } from '../types';
-import { TERMS } from '../constants';
 import { userCol, userDocRef } from './userScope';
 
 const ACADEMIC_YEARS_COLLECTION = 'teacher_planner_academic_years';
@@ -123,41 +121,8 @@ export const saveTimetable = async (academicYearId: string, weekId: 'week1' | 'w
 };
 
 /**
- * Seed a brand-new user with a default academic year + term dates so the planner is usable
- * immediately. Timetables start EMPTY — the user fills them in (or imports them) during onboarding.
- * No-op once the user already has at least one academic year (e.g. the migrated owner).
+ * New users start with a completely empty planner — no academic year, terms, or timetables are
+ * seeded. They create these during onboarding (or in Settings); the migrated original owner keeps
+ * their real data via migrationService. Kept as a no-op so PlannerContext's call site is unchanged.
  */
-export const migrateInitialDataIfNeeded = async (): Promise<boolean> => {
-  try {
-    const academicYears = await fetchAcademicYears();
-    if (academicYears.length > 0) return false;
-
-    const batch = writeBatch(db);
-    const defaultYearId = 'academic_year_2025_2026';
-
-    batch.set(userDocRef(ACADEMIC_YEARS_COLLECTION, defaultYearId), {
-        name: '2025/2026',
-        isDefault: true
-    });
-
-    TERMS.forEach(term => {
-      batch.set(userDocRef(ACADEMIC_YEARS_COLLECTION, defaultYearId, TERMS_COLLECTION, term.id), {
-        name: term.name,
-        startDate: term.startDate,
-        endDate: term.endDate,
-        halfTermStart: term.halfTermStart || null,
-        halfTermEnd: term.halfTermEnd || null,
-      });
-    });
-
-    // Empty timetables — the user populates these themselves.
-    batch.set(userDocRef(ACADEMIC_YEARS_COLLECTION, defaultYearId, TIMETABLES_COLLECTION, 'week1'), {});
-    batch.set(userDocRef(ACADEMIC_YEARS_COLLECTION, defaultYearId, TIMETABLES_COLLECTION, 'week2'), {});
-
-    await batch.commit();
-    return true;
-  } catch (error) {
-    console.error("Error during initial data seeding:", error);
-    return false;
-  }
-};
+export const migrateInitialDataIfNeeded = async (): Promise<boolean> => false;
