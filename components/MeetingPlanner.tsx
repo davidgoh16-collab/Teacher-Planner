@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Colleague, WeeklyTimetable } from '../types';
 import { fetchColleagues, saveColleague, deleteColleague } from '../services/colleagueService';
 import { parseTimetableImage, parseTimetableText } from '../services/aiService';
+import { importTimetableFile, ParsedImport } from '../services/timetableImportService';
 import { PERIOD_LABELS, DAYS } from '../constants';
-import { Users, Upload, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText } from 'lucide-react';
+import { Users, Upload, UploadCloud, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText, GraduationCap, Pencil } from 'lucide-react';
 
 interface MeetingPlannerProps {
   initialWeekNumber: number; // 1 or 2
@@ -32,6 +33,16 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
   // Viewing Timetable State
   const [viewingColleague, setViewingColleague] = useState<Colleague | null>(null);
+
+  // Staff vs Students roster (Pillar 4)
+  const [activeRoster, setActiveRoster] = useState<'staff' | 'student'>('staff');
+
+  // Batch import state
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [importResults, setImportResults] = useState<ParsedImport[]>([]);
+  const [savingImport, setSavingImport] = useState(false);
 
   useEffect(() => {
     loadColleagues();
@@ -202,7 +213,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
     try {
       const newColleague: Omit<Colleague, 'id'> = {
         name: newName,
-        type: 'staff',
+        type: activeRoster,
         week1: parsedWeek1,
         week2: parsedWeek2,
         timetableImage: uploadedFileBase64 || undefined,
@@ -218,6 +229,64 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       setUploadError("Failed to save colleague. The file might be too large.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const switchRoster = (r: 'staff' | 'student') => {
+    setActiveRoster(r);
+    setSelectedColleagueIds(new Set());
+  };
+
+  const handleBatchFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setImporting(true);
+    setImportResults([]);
+    setImportProgress({ done: 0, total: files.length });
+    const results: ParsedImport[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const res = await importTimetableFile(files[i], activeRoster);
+      results.push(res);
+      setImportProgress({ done: i + 1, total: files.length });
+      setImportResults([...results]);
+    }
+    setImporting(false);
+    e.target.value = '';
+  };
+
+  const updateImportRow = (idx: number, patch: Partial<ParsedImport>) =>
+    setImportResults(prev => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  const removeImportRow = (idx: number) =>
+    setImportResults(prev => prev.filter((_, i) => i !== idx));
+
+  const closeImport = () => {
+    setIsImportOpen(false);
+    setImportResults([]);
+    setImportProgress({ done: 0, total: 0 });
+  };
+
+  const handleSaveImports = async () => {
+    const valid = importResults.filter(r => !r.error && r.name.trim());
+    if (!valid.length) return;
+    setSavingImport(true);
+    try {
+      for (const r of valid) {
+        await saveColleague({
+          name: r.name.trim(),
+          type: r.type,
+          week1: r.week1,
+          week2: r.week2,
+          timetableImage: r.base64 || undefined,
+          timetableMimeType: r.base64 ? r.mimeType : undefined,
+        });
+      }
+      closeImport();
+      loadColleagues();
+    } catch (err) {
+      console.error('Failed to save imported timetables', err);
+    } finally {
+      setSavingImport(false);
     }
   };
 
@@ -297,49 +366,78 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
   };
 
   const comparisonSlots = getCommonFreeSlots();
+  const rosterColleagues = colleagues.filter(c => c.type === activeRoster);
+  const rosterLabel = activeRoster === 'staff' ? 'staff' : 'students';
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Meeting Planner
-        </h2>
-        <div className="flex items-center gap-4">
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Meeting Planner
+          </h2>
           <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
             <button
               onClick={() => setCurrentWeek(1)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 1 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 1 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
             >
               Week 1
             </button>
             <button
               onClick={() => setCurrentWeek(2)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 2 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 2 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
             >
               Week 2
             </button>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Colleague
-          </button>
+        </div>
+
+        <div className="flex justify-between items-center gap-3 flex-wrap">
+          <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+            <button
+              onClick={() => switchRoster('staff')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'staff' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+            >
+              <Users className="w-4 h-4" /> Staff
+            </button>
+            <button
+              onClick={() => switchRoster('student')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'student' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+            >
+              <GraduationCap className="w-4 h-4" /> Students
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsImportOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <UploadCloud className="w-4 h-4" />
+              Import timetables
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add manually
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Colleague Selection */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
-          Select Colleagues to Compare
+          Select {activeRoster === 'staff' ? 'Staff' : 'Students'} to Compare
         </h3>
         <div className="flex flex-wrap gap-3">
-          {colleagues.length === 0 && !loading && (
-            <p className="text-sm text-gray-400 italic">No colleagues added yet.</p>
+          {rosterColleagues.length === 0 && !loading && (
+            <p className="text-sm text-gray-400 italic">No {rosterLabel} added yet. Use “Import timetables” to add several at once.</p>
           )}
-          {colleagues.map(colleague => (
+          {rosterColleagues.map(colleague => (
             <div
               key={colleague.id}
               onClick={() => toggleColleagueSelection(colleague.id)}
@@ -387,7 +485,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
             <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-              Common Free Slots (Week {currentWeek})
+              Common Free Slots — you &amp; selected {rosterLabel} (Week {currentWeek})
             </h3>
           </div>
           <div className="overflow-x-auto">
@@ -504,12 +602,90 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
         </div>
       )}
 
+      {/* Batch Import Modal */}
+      {isImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+              <div>
+                <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Import {activeRoster === 'staff' ? 'staff' : 'student'} timetables</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Upload several files at once — names are detected automatically. Review before saving.</p>
+              </div>
+              <button onClick={closeImport} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
+                <UploadCloud className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Choose timetable files</span>
+                <span className="text-xs text-gray-400">Images or PDFs · select multiple</span>
+                <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleBatchFiles} disabled={importing} />
+              </label>
+
+              {importing && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Reading timetables… {importProgress.done}/{importProgress.total}
+                </div>
+              )}
+
+              {importResults.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Review &amp; confirm</p>
+                  {importResults.map((row, idx) => (
+                    <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg border ${row.error ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-gray-200 dark:border-slate-700'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Pencil className="w-3 h-3 text-gray-400 shrink-0" />
+                          <input
+                            value={row.name}
+                            onChange={(e) => updateImportRow(idx, { name: e.target.value })}
+                            placeholder="Name"
+                            className="w-full bg-transparent text-sm font-medium text-gray-800 dark:text-gray-100 focus:outline-none border-b border-transparent focus:border-primary-400"
+                          />
+                        </div>
+                        <p className="text-[11px] text-gray-400 truncate pl-5">{row.fileName}{row.error ? ` · ${row.error}` : ''}</p>
+                      </div>
+                      <select
+                        value={row.type}
+                        onChange={(e) => updateImportRow(idx, { type: e.target.value as 'staff' | 'student' })}
+                        className="text-xs rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-gray-700 dark:text-gray-200"
+                      >
+                        <option value="staff">Staff</option>
+                        <option value="student">Student</option>
+                      </select>
+                      <button onClick={() => removeImportRow(idx)} className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30" title="Remove">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
+              <button onClick={closeImport} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">Cancel</button>
+              <button
+                onClick={handleSaveImports}
+                disabled={savingImport || importing || importResults.filter(r => !r.error && r.name.trim()).length === 0}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingImport && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save {importResults.filter(r => !r.error && r.name.trim()).length || ''} {importResults.filter(r => !r.error && r.name.trim()).length === 1 ? 'timetable' : 'timetables'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Colleague Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-              <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Add New Colleague</h3>
+              <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Add {activeRoster === 'staff' ? 'Staff' : 'Student'} Manually</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <X className="w-5 h-5" />
               </button>
