@@ -10,7 +10,6 @@ import {
 import { usePlannerData } from './src/context/PlannerContext';
 import SettingsModal from './components/SettingsModal';
 import { Settings } from 'lucide-react';
-import { INITIAL_COLLEAGUES } from './src/data/initialColleagues';
 import { 
   LessonPlan, 
   WeekData, 
@@ -39,6 +38,7 @@ import AppsHub from './components/AppsHub';
 import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
+import { bootstrapUser } from './services/migrationService';
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
@@ -253,7 +253,8 @@ const App: React.FC = () => {
   const currentTerm = terms.find(t => t.id === selectedTermId) || terms[0];
   const weeksInTerm = useMemo(() => currentTerm ? generateWeeksForTerm(currentTerm) : [], [currentTerm]);
   
-  const isAdmin = user?.uid === ADMIN_UID;
+  // In the multi-tenant product every signed-in user owns — and can edit — their own data.
+  const isAdmin = !!user;
   const isReadOnly = !isAdmin;
 
   // Extract all unique subjects for the filter dropdown
@@ -333,6 +334,8 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
+        // Ensure the user profile exists + any one-time migration ran before loading their data.
+        await bootstrapUser(user);
         const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories, fetchedKeyDates] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
@@ -796,17 +799,8 @@ const App: React.FC = () => {
       contextString += `(Week 1 Schedule)\n${j(getSimplifiedTimetable(timetableWeek1))}\n`;
       contextString += `(Week 2 Schedule)\n${j(getSimplifiedTimetable(timetableWeek2))}\n\n`;
 
-      // Colleague timetables — heavy and niche; omit from the compact (agent) context.
-      if (!compact) {
-        contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
-        contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
-        INITIAL_COLLEAGUES.forEach(colleague => {
-          contextString += `\n${colleague.name}:\n`;
-          contextString += `Week 1: ${j(colleague.week1)}\n`;
-          contextString += `Week 2: ${j(colleague.week2)}\n`;
-        });
-        contextString += `\n----------------------------\n\n`;
-      }
+      // Colleague/student timetables live per-user in the meeting planner now; they are no longer
+      // injected from a shared hardcoded list (that would leak one user's data into everyone's context).
 
       contextString += `\n--- APP TASKS & PROJECTS ---\n`;
       contextString += `Projects: ${j(projects.map(p => ({id: p.id, name: p.name, desc: p.description})))}\n`;

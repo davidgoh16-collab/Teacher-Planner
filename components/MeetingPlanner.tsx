@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Colleague, WeeklyTimetable } from '../types';
-import { fetchColleagues, saveColleague, deleteColleague, seedDatabase } from '../services/colleagueService';
+import { fetchColleagues, saveColleague, deleteColleague } from '../services/colleagueService';
 import { parseTimetableImage, parseTimetableText } from '../services/aiService';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { Users, Upload, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText } from 'lucide-react';
@@ -39,7 +39,6 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
   const loadColleagues = async () => {
     setLoading(true);
-    await seedDatabase(); // Ensure initial colleagues exist
     const data = await fetchColleagues();
     setColleagues(data);
     setLoading(false);
@@ -203,6 +202,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
     try {
       const newColleague: Omit<Colleague, 'id'> = {
         name: newName,
+        type: 'staff',
         week1: parsedWeek1,
         week2: parsedWeek2,
         timetableImage: uploadedFileBase64 || undefined,

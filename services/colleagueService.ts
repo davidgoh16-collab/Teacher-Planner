@@ -1,39 +1,26 @@
-import { db } from '../firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc, query, where } from 'firebase/firestore';
+import { doc, getDocs, setDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { Colleague, WeeklyTimetable } from '../types';
-import { INITIAL_COLLEAGUES } from '../src/data/initialColleagues';
+import { userCol, userDocRef } from './userScope';
 
 const COLLECTION_NAME = 'colleagues';
 
-export const seedDatabase = async (): Promise<void> => {
-  try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    
-    for (const colleague of INITIAL_COLLEAGUES) {
-        const exists = querySnapshot.docs.some(d => d.data().name === colleague.name);
-        if (!exists) {
-            console.log(`Adding missing hardcoded colleague: ${colleague.name}`);
-            await addDoc(collection(db, COLLECTION_NAME), colleague);
-        }
-    }
-  } catch (error) {
-    console.error("Error seeding database:", error);
-  }
-};
+/**
+ * Colleague seeding is intentionally a no-op now: each user starts with an empty roster and adds
+ * their own staff/student timetables. (The original owner's colleagues arrive via the one-time
+ * legacy migration in migrationService.ts.)
+ */
+export const seedDatabase = async (): Promise<void> => {};
 
 export const fetchColleagues = async (): Promise<Colleague[]> => {
   const colleagues: Colleague[] = [];
   try {
-    // Ensure seed is run or checked before fetching? 
-    // Better to call seedDatabase explicitly in the component, but we can do a quick check here or just fetch.
-    // Let's just fetch. The component will handle seeding on mount.
-    
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const querySnapshot = await getDocs(userCol(COLLECTION_NAME));
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       colleagues.push({
         id: docSnap.id,
         name: data.name,
+        type: data.type === 'student' ? 'student' : 'staff',
         week1: data.week1 as WeeklyTimetable,
         week2: data.week2 as WeeklyTimetable,
         timetableImage: data.timetableImage,
@@ -50,19 +37,14 @@ export const saveColleague = async (colleague: Omit<Colleague, 'id'>): Promise<v
   try {
     const dataToSave: any = {
       name: colleague.name,
+      type: colleague.type || 'staff',
       week1: colleague.week1,
       week2: colleague.week2,
     };
-    
-    if (colleague.timetableImage) {
-      dataToSave.timetableImage = colleague.timetableImage;
-    }
-    if (colleague.timetableMimeType) {
-      dataToSave.timetableMimeType = colleague.timetableMimeType;
-    }
+    if (colleague.timetableImage) dataToSave.timetableImage = colleague.timetableImage;
+    if (colleague.timetableMimeType) dataToSave.timetableMimeType = colleague.timetableMimeType;
 
-    // Use addDoc to let Firestore generate a unique ID
-    await addDoc(collection(db, COLLECTION_NAME), dataToSave);
+    await addDoc(userCol(COLLECTION_NAME), dataToSave);
   } catch (error) {
     console.error("Error saving colleague:", error);
     throw error;
@@ -71,7 +53,7 @@ export const saveColleague = async (colleague: Omit<Colleague, 'id'>): Promise<v
 
 export const deleteColleague = async (id: string): Promise<void> => {
   try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
+    await deleteDoc(userDocRef(COLLECTION_NAME, id));
   } catch (error) {
     console.error("Error deleting colleague:", error);
     throw error;

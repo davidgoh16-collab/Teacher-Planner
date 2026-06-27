@@ -62,6 +62,7 @@ export interface WeekData {
 export interface Colleague {
   id: string;
   name: string;
+  type: 'staff' | 'student'; // which tab they belong to in the meeting planner
   week1: WeeklyTimetable;
   week2: WeeklyTimetable;
   timetableImage?: string; // Base64 string

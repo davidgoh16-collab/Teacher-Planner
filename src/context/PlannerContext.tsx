@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { AcademicYear, Term, WeeklyTimetable } from '../../types';
 import { fetchAcademicYears, fetchTerms, fetchTimetables, migrateInitialDataIfNeeded } from '../../services/plannerDataService';
-import { TERMS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2 } from '../../constants';
+import { bootstrapUser } from '../../services/migrationService';
 import { auth } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -21,16 +21,23 @@ const PlannerContext = createContext<PlannerContextProps | undefined>(undefined)
 export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string | null>(null);
-  const [terms, setTerms] = useState<Term[]>(TERMS);
-  const [timetableWeek1, setTimetableWeek1] = useState<WeeklyTimetable>(TIMETABLE_WEEK_1);
-  const [timetableWeek2, setTimetableWeek2] = useState<WeeklyTimetable>(TIMETABLE_WEEK_2);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [timetableWeek1, setTimetableWeek1] = useState<WeeklyTimetable>({});
+  const [timetableWeek2, setTimetableWeek2] = useState<WeeklyTimetable>({});
   const [isPlannerDataLoading, setIsPlannerDataLoading] = useState<boolean>(true);
 
   const lastFetchedYearId = useRef<string | null>(null);
 
   const loadData = async (yearIdToLoad?: string | null) => {
+    const user = auth.currentUser;
+    if (!user) {
+      setIsPlannerDataLoading(false);
+      return;
+    }
     setIsPlannerDataLoading(true);
     try {
+      // Ensure the profile exists + any one-time migration has run before touching planner data.
+      await bootstrapUser(user);
       await migrateInitialDataIfNeeded();
 
       const fetchedYears = await fetchAcademicYears();
@@ -38,7 +45,6 @@ export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       let targetYearId = yearIdToLoad;
       if (!targetYearId && fetchedYears.length > 0) {
-        // default to active/first
         const defaultYear = fetchedYears.find(y => y.isDefault) || fetchedYears[0];
         targetYearId = defaultYear.id;
         setSelectedAcademicYearId(targetYearId);
@@ -51,8 +57,8 @@ export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children })
         ]);
 
         setTerms(fetchedTerms);
-        setTimetableWeek1(fetchedTimetables.week1 || TIMETABLE_WEEK_1);
-        setTimetableWeek2(fetchedTimetables.week2 || TIMETABLE_WEEK_2);
+        setTimetableWeek1(fetchedTimetables.week1 || {});
+        setTimetableWeek2(fetchedTimetables.week2 || {});
       }
 
     } catch (error) {
@@ -63,16 +69,17 @@ export const PlannerProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   useEffect(() => {
-    // If not using auth/bypass, trigger initial load
-    const isTestBypass = window.location.search.includes('bypass_login=true');
-    if (isTestBypass) {
-        loadData(selectedAcademicYearId);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         loadData(selectedAcademicYearId);
-      } else if (!isTestBypass) {
+      } else {
+        // Signed out: clear any previous user's data and stop loading.
+        setAcademicYears([]);
+        setTerms([]);
+        setTimetableWeek1({});
+        setTimetableWeek2({});
+        setSelectedAcademicYearId(null);
+        lastFetchedYearId.current = null;
         setIsPlannerDataLoading(false);
       }
     });
