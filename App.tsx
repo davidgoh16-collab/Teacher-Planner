@@ -9,8 +9,10 @@ import {
 } from './constants';
 import { usePlannerData } from './src/context/PlannerContext';
 import SettingsModal from './components/SettingsModal';
-import { Settings } from 'lucide-react';
-import { INITIAL_COLLEAGUES } from './src/data/initialColleagues';
+import OnboardingModal from './components/OnboardingModal';
+import SharedView from './components/SharedView';
+import ShareDialog from './components/ShareDialog';
+import { Settings, Share2 } from 'lucide-react';
 import { 
   LessonPlan, 
   WeekData, 
@@ -24,6 +26,7 @@ import {
   getMonday
 } from './utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
+import { applyThemeColor, DEFAULT_THEME_COLOR } from './utils/themeColor';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatLauncher from './components/layout/ChatLauncher';
@@ -39,6 +42,8 @@ import AppsHub from './components/AppsHub';
 import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
+import { bootstrapUser } from './services/migrationService';
+import { getProfile, updatePreferences, UserProfile } from './services/userService';
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
@@ -116,10 +121,17 @@ const App: React.FC = () => {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(0);
   const [hasInitializedState, setHasInitializedState] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'years' | 'terms' | 'timetables' | 'appearance' | undefined>(undefined);
+  const [shareTarget, setShareTarget] = useState<{ type: 'timetable' | 'project'; resourceId: string; resourceName: string } | null>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('eduPlan_theme');
     return (saved as Theme) || 'system';
   });
+  // App-wide accent colour (Pillar 3). Seeded from localStorage for instant paint, then synced
+  // from the user's Firestore preferences after login.
+  const [themeColor, setThemeColor] = useState<string>(() => localStorage.getItem('eduPlan_themeColor') || DEFAULT_THEME_COLOR);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Filter State
   const [viewFilter, setViewFilter] = useState('All');
@@ -253,7 +265,8 @@ const App: React.FC = () => {
   const currentTerm = terms.find(t => t.id === selectedTermId) || terms[0];
   const weeksInTerm = useMemo(() => currentTerm ? generateWeeksForTerm(currentTerm) : [], [currentTerm]);
   
-  const isAdmin = user?.uid === ADMIN_UID;
+  // In the multi-tenant product every signed-in user owns — and can edit — their own data.
+  const isAdmin = !!user;
   const isReadOnly = !isAdmin;
 
   // Extract all unique subjects for the filter dropdown
@@ -333,6 +346,14 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsDataLoading(true);
       try {
+        // Ensure the user profile exists + any one-time migration ran before loading their data.
+        await bootstrapUser(user);
+        const prof = await getProfile(user.uid);
+        if (prof) {
+          setProfile(prof);
+          if (prof.preferences?.themeColor) setThemeColor(prof.preferences.themeColor);
+          setShowOnboarding(!prof.preferences?.onboardingComplete);
+        }
         const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories, fetchedKeyDates] = await Promise.all([
             fetchLessonPlans(),
             fetchTasks(),
@@ -391,6 +412,33 @@ const App: React.FC = () => {
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, [theme]);
+
+  // --- Accent colour (Pillar 3) ---
+  useEffect(() => {
+    applyThemeColor(themeColor);
+    localStorage.setItem('eduPlan_themeColor', themeColor);
+  }, [themeColor]);
+
+  const handleSetThemeColor = async (hex: string) => {
+    setThemeColor(hex);
+    if (user) {
+      try { await updatePreferences(user.uid, { themeColor: hex }); } catch (e) { console.error('Failed to save theme colour', e); }
+    }
+  };
+
+  const handleCompleteOnboarding = async () => {
+    setShowOnboarding(false);
+    if (user) {
+      try { await updatePreferences(user.uid, { onboardingComplete: true }); } catch (e) { console.error('Failed to mark onboarding complete', e); }
+    }
+  };
+
+  const handleFinishOnboarding = async (action?: 'timetable' | 'meetings' | 'terms') => {
+    await handleCompleteOnboarding();
+    if (action === 'timetable') { setSettingsInitialTab('timetables'); setIsSettingsOpen(true); }
+    else if (action === 'terms') { setSettingsInitialTab('terms'); setIsSettingsOpen(true); }
+    else if (action === 'meetings') { setActiveTab('meetings'); }
+  };
 
   // --- Handlers ---
 
@@ -796,17 +844,8 @@ const App: React.FC = () => {
       contextString += `(Week 1 Schedule)\n${j(getSimplifiedTimetable(timetableWeek1))}\n`;
       contextString += `(Week 2 Schedule)\n${j(getSimplifiedTimetable(timetableWeek2))}\n\n`;
 
-      // Colleague timetables — heavy and niche; omit from the compact (agent) context.
-      if (!compact) {
-        contextString += `\n--- COLLEAGUE TIMETABLES ---\n`;
-        contextString += `Use this data when the user asks about colleague availability or meeting times.\n`;
-        INITIAL_COLLEAGUES.forEach(colleague => {
-          contextString += `\n${colleague.name}:\n`;
-          contextString += `Week 1: ${j(colleague.week1)}\n`;
-          contextString += `Week 2: ${j(colleague.week2)}\n`;
-        });
-        contextString += `\n----------------------------\n\n`;
-      }
+      // Colleague/student timetables live per-user in the meeting planner now; they are no longer
+      // injected from a shared hardcoded list (that would leak one user's data into everyone's context).
 
       contextString += `\n--- APP TASKS & PROJECTS ---\n`;
       contextString += `Projects: ${j(projects.map(p => ({id: p.id, name: p.name, desc: p.description})))}\n`;
@@ -1859,6 +1898,13 @@ const App: React.FC = () => {
           <ChevronRight size={18} />
         </button>
       </div>
+      <button
+        onClick={() => setShareTarget({ type: 'timetable', resourceId: 'timetable', resourceName: 'My timetable' })}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 shrink-0"
+        title="Share your timetable"
+      >
+        <Share2 size={15} /> <span className="hidden lg:inline">Share</span>
+      </button>
     </div>
   );
 
@@ -1908,6 +1954,25 @@ const App: React.FC = () => {
               userName={user?.displayName || undefined}
             />
           ) : activeTab === 'timetable' ? (
+            (!isPlannerDataLoading && (academicYears.length === 0 || terms.length === 0)) ? (
+            <div className="max-w-xl mx-auto md:p-8 p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 text-center shadow-sm mt-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 mb-4">
+                  <CalendarDays size={28} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">Let's set up your planner</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">Add your academic year, term dates and timetable to get started.</p>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <button onClick={() => setShowOnboarding(true)} className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors">
+                    Start setup
+                  </button>
+                  <button onClick={() => setIsSettingsOpen(true)} className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
+                    Open Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+            ) : (
             <div className="min-w-[1600px] mx-auto md:p-8 p-4">
             
                 {/* Grid Header - Sticky Top */}
@@ -2552,6 +2617,7 @@ const App: React.FC = () => {
                     })()}
                 </div>
             </div>
+            )
           ) : activeTab === 'meetings' ? (
             <div className="max-w-7xl mx-auto md:p-8 p-4">
               <MeetingPlanner 
@@ -2577,6 +2643,7 @@ const App: React.FC = () => {
                 }}
                 todaysLessons={todaysLessons}
                 upcomingKeyDates={upcomingKeyDates}
+                onShareProject={(id, name) => setShareTarget({ type: 'project', resourceId: id, resourceName: name })}
             />
           ) : activeTab === 'keyDates' ? (
             <KeyDatesView
@@ -2586,6 +2653,10 @@ const App: React.FC = () => {
               onEditKeyDate={handleEditKeyDate}
               onDeleteKeyDate={handleDeleteKeyDate}
             />
+          ) : activeTab === 'shared' ? (
+            <div className="max-w-7xl mx-auto md:p-8 p-4">
+              <SharedView uid={user?.uid || ''} myWeek1={timetableWeek1} myWeek2={timetableWeek2} />
+            </div>
           ) : (
             <AppsHub
               isReadOnly={actualIsReadOnly}
@@ -2610,7 +2681,30 @@ const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         isReadOnly={actualIsReadOnly}
+        themeColor={themeColor}
+        onThemeColorChange={handleSetThemeColor}
+        onReplayOnboarding={() => { setIsSettingsOpen(false); setShowOnboarding(true); }}
+        initialTab={settingsInitialTab}
       />
+
+      <OnboardingModal
+        isOpen={showOnboarding && !!user}
+        userName={profile?.displayName || user?.displayName || undefined}
+        themeColor={themeColor}
+        onThemeColorChange={handleSetThemeColor}
+        onFinish={handleFinishOnboarding}
+      />
+
+      {shareTarget && user && (
+        <ShareDialog
+          isOpen={!!shareTarget}
+          onClose={() => setShareTarget(null)}
+          owner={{ uid: user.uid, email: user.email || '', displayName: user.displayName || user.email || 'User' }}
+          type={shareTarget.type}
+          resourceId={shareTarget.resourceId}
+          resourceName={shareTarget.resourceName}
+        />
+      )}
 
       <TaskCardModal
         isOpen={isCardModalOpen}

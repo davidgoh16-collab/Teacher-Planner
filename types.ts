@@ -11,7 +11,7 @@ declare global {
 export type WeekType = 1 | 2;
 
 // Top-level navigable sections (left sidebar).
-export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates';
+export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared';
 
 export interface LessonPlan {
   id: string;
@@ -62,6 +62,7 @@ export interface WeekData {
 export interface Colleague {
   id: string;
   name: string;
+  type: 'staff' | 'student'; // which tab they belong to in the meeting planner
   week1: WeeklyTimetable;
   week2: WeeklyTimetable;
   timetableImage?: string; // Base64 string

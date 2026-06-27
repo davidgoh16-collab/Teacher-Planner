@@ -1,20 +1,20 @@
 import { LessonPlan } from '../types';
-import { db } from '../firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { userCol, userDocRef } from './userScope';
 
 const COLLECTION_NAME = 'lessonPlans';
 
 /**
- * Fetches all lesson plans from Firebase Firestore.
+ * Fetches all lesson plans for the current user.
  */
 export const fetchLessonPlans = async (): Promise<Record<string, LessonPlan>> => {
   const plans: Record<string, LessonPlan> = {};
-  
+
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const querySnapshot = await getDocs(userCol(COLLECTION_NAME));
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      
+
       // Backward compatibility: Handle legacy 'link' field
       let links: string[] = [];
       if (Array.isArray(data.links)) {
@@ -23,7 +23,6 @@ export const fetchLessonPlans = async (): Promise<Record<string, LessonPlan>> =>
         links = [data.link];
       }
 
-      // Construct a clean object
       const plan: LessonPlan = {
         id: docSnap.id,
         dateStr: data.dateStr,
@@ -40,18 +39,16 @@ export const fetchLessonPlans = async (): Promise<Record<string, LessonPlan>> =>
     });
   } catch (error) {
     console.error("Error fetching lesson plans from Firebase:", error);
-    // Fallback or empty on error
   }
-  
+
   return plans;
 };
 
 /**
- * Saves or updates a single lesson plan in Firebase Firestore.
+ * Saves or updates a single lesson plan for the current user.
  */
 export const saveLessonPlan = async (lesson: LessonPlan): Promise<void> => {
   try {
-    // Sanitize data to ensure no undefined values are passed (though ignored by db config now, better safe)
     const dataToSave = {
         id: lesson.id,
         dateStr: lesson.dateStr,
@@ -63,8 +60,7 @@ export const saveLessonPlan = async (lesson: LessonPlan): Promise<void> => {
         type: lesson.type || 'lesson'
     };
 
-    // We use setDoc to create or overwrite the document with the specific ID
-    await setDoc(doc(db, COLLECTION_NAME, lesson.id), dataToSave);
+    await setDoc(userDocRef(COLLECTION_NAME, lesson.id), dataToSave);
   } catch (error) {
     console.error("Error saving lesson plan to Firebase:", error);
     throw error;
@@ -72,11 +68,11 @@ export const saveLessonPlan = async (lesson: LessonPlan): Promise<void> => {
 };
 
 /**
- * Deletes a lesson plan from Firebase Firestore.
+ * Deletes a lesson plan for the current user.
  */
 export const deleteLessonPlan = async (id: string): Promise<void> => {
   try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
+    await deleteDoc(userDocRef(COLLECTION_NAME, id));
   } catch (error) {
     console.error("Error deleting lesson plan from Firebase:", error);
     throw error;

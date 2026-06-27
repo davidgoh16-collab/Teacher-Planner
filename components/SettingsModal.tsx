@@ -1,28 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2, Upload, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Save, Plus, Trash2, Upload, FileText, Loader2, CheckCircle2, Sparkles, Link2 } from 'lucide-react';
 import { usePlannerData } from '../src/context/PlannerContext';
 import { saveAcademicYear, deleteAcademicYear, saveTerm, deleteTerm, saveTimetable } from '../services/plannerDataService';
 import { AcademicYear, Term, WeeklyTimetable, TimetableEntry } from '../types';
 import { toISODate } from '../utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from '../utils/colorUtils';
 import { parseMasterTimetableAndTerms } from '../services/aiService';
+import { extractTermsFromUrl } from '../services/termImportService';
 import { PERIOD_LABELS, DAYS } from '../constants';
+import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   isReadOnly?: boolean;
+  themeColor?: string;
+  onThemeColorChange?: (hex: string) => void;
+  onReplayOnboarding?: () => void;
+  initialTab?: 'years' | 'terms' | 'timetables' | 'appearance';
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOnly }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOnly, themeColor, onThemeColorChange, onReplayOnboarding, initialTab }) => {
   const { academicYears, selectedAcademicYearId, terms, timetableWeek1, timetableWeek2, refreshPlannerData, setSelectedAcademicYearId } = usePlannerData();
-  const [activeTab, setActiveTab] = useState<'years' | 'terms' | 'timetables'>('years');
+  const [activeTab, setActiveTab] = useState<'years' | 'terms' | 'timetables' | 'appearance'>('years');
 
   // Academic Years state
   const [localYears, setLocalYears] = useState<AcademicYear[]>([]);
 
   // Terms state
   const [localTerms, setLocalTerms] = useState<Term[]>([]);
+
+  // Term-from-URL import state
+  const [termUrl, setTermUrl] = useState('');
+  const [termUrlImporting, setTermUrlImporting] = useState(false);
+  const [termUrlError, setTermUrlError] = useState<string | null>(null);
+  const [termUrlSuccess, setTermUrlSuccess] = useState<number>(0);
 
   // Import State
   const [isImporting, setIsImporting] = useState(false);
@@ -52,6 +64,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
       setImportError(null);
     }
   }, [isOpen, academicYears, terms, timetableWeek1, timetableWeek2]);
+
+  useEffect(() => {
+    if (isOpen && initialTab) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -138,6 +154,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
       startDate: new Date(),
       endDate: new Date(),
     }]);
+  };
+
+  const handleImportTermsFromUrl = async () => {
+    if (!termUrl.trim() || !selectedAcademicYearId) return;
+    setTermUrlImporting(true);
+    setTermUrlError(null);
+    setTermUrlSuccess(0);
+    try {
+      const extracted = await extractTermsFromUrl(termUrl.trim());
+      const imported: Term[] = extracted.map((t, i) => ({
+        id: `term_${Date.now()}_${i}`,
+        academicYearId: selectedAcademicYearId,
+        name: t.name,
+        startDate: new Date(t.startDate),
+        endDate: new Date(t.endDate),
+        halfTermStart: t.halfTermStart ? new Date(t.halfTermStart) : undefined,
+        halfTermEnd: t.halfTermEnd ? new Date(t.halfTermEnd) : undefined,
+      }));
+      setLocalTerms(imported); // replace with the imported set for review before saving
+      setTermUrlSuccess(imported.length);
+    } catch (e: any) {
+      setTermUrlError(e?.message || 'Failed to import term dates.');
+    } finally {
+      setTermUrlImporting(false);
+    }
   };
 
   const updateTerm = (id: string, field: keyof Term, value: any) => {
@@ -301,9 +342,75 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
           >
             Timetables {selectedAcademicYearId ? '' : '(Select Year First)'}
           </button>
+          <button
+            onClick={() => setActiveTab('appearance')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'appearance' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Appearance
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {activeTab === 'appearance' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Appearance</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Pick an accent colour — it applies across the whole app.</p>
+              </div>
+
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
+                {THEME_PRESETS.map(preset => {
+                  const selected = (themeColor || DEFAULT_THEME_COLOR).toLowerCase() === preset.hex.toLowerCase();
+                  return (
+                    <button
+                      key={preset.hex}
+                      title={preset.name}
+                      onClick={() => onThemeColorChange?.(preset.hex)}
+                      className={`h-10 w-10 rounded-full border-2 transition-transform hover:scale-110 ${selected ? 'border-slate-900 dark:border-white ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ring-slate-400' : 'border-transparent'}`}
+                      style={{ backgroundColor: preset.hex }}
+                      aria-label={preset.name}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Custom colour</label>
+                <input
+                  type="color"
+                  value={isValidHex(themeColor || '') ? (themeColor as string) : DEFAULT_THEME_COLOR}
+                  onChange={(e) => onThemeColorChange?.(e.target.value)}
+                  className="h-9 w-14 rounded cursor-pointer bg-transparent border border-slate-300 dark:border-slate-700"
+                />
+                <button
+                  onClick={() => onThemeColorChange?.(DEFAULT_THEME_COLOR)}
+                  className="text-sm text-slate-500 dark:text-slate-400 hover:underline"
+                >
+                  Reset to default
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Preview</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm">Primary button</span>
+                  <span className="px-3 py-1.5 rounded-lg bg-primary-100 text-primary-800 text-sm">Soft accent</span>
+                  <span className="text-primary-600 dark:text-primary-400 text-sm font-medium">Accent text</span>
+                </div>
+              </div>
+
+              {onReplayOnboarding && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    onClick={onReplayOnboarding}
+                    className="flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    <Sparkles size={16} /> Replay the setup guide
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {activeTab === 'years' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -373,6 +480,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                   </button>
                 )}
               </div>
+
+              {!isReadOnly && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2 bg-slate-50 dark:bg-slate-800/50">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Link2 size={16} className="text-primary-600 dark:text-primary-400" /> Import term dates from your school's website
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    <input
+                      type="url"
+                      value={termUrl}
+                      onChange={(e) => setTermUrl(e.target.value)}
+                      placeholder="https://yourschool.sch.uk/term-dates"
+                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                    />
+                    <button
+                      onClick={handleImportTermsFromUrl}
+                      disabled={termUrlImporting || !termUrl.trim()}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {termUrlImporting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                      {termUrlImporting ? 'Reading…' : 'Import'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">The assistant reads the page and fills in the terms below for you to review, then click “Save Terms”.</p>
+                  {termUrlError && <p className="text-xs text-red-600 dark:text-red-400">{termUrlError}</p>}
+                  {termUrlSuccess > 0 && <p className="text-xs text-green-600 dark:text-green-400">Found {termUrlSuccess} term{termUrlSuccess === 1 ? '' : 's'} — review below and save.</p>}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {localTerms.map((term, idx) => (

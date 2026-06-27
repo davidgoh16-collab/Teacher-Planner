@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// Security rules for the multi-tenant Teacher Planner.
+//
+// Model:
+//  - All planner data lives under users/{uid}/... and is private to that user.
+//  - users/{uid} profile docs are readable by any signed-in user so sharing-by-email lookups work
+//    (keep them minimal — no sensitive data).
+//  - Sharing grants live at users/{ownerUid}/grants/{recipientUid} and authorise a recipient to read
+//    the owner's timetable and read/edit specific projects.
+//  - shares/{id} is the registry that drives the "Shared with me" UI.
+//  - The original (pre-multi-tenant) global collections remain readable by the original owner so the
+//    one-time client-side migration can copy them into their user space.
+//
+// NOTE: validate with the Firestore emulator before deploying to production.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isLegacyOwner() { return isSignedIn() && request.auth.uid == 'oleZncmmoyNerACQDErqtfMcNYS2'; }
+
+    function hasGrant(ownerUid) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/grants/$(request.auth.uid));
+    }
+    function grant(ownerUid) {
+      return get(/databases/$(database)/documents/users/$(ownerUid)/grants/$(request.auth.uid)).data;
+    }
+    function projectPerm(ownerUid, projectId) {
+      return grant(ownerUid).projects.get(projectId, '');
+    }
+
+    // ---- User profile + private per-user data ----
+    match /users/{uid} {
+      allow read: if isSignedIn();                      // minimal profile, for email lookup
+      allow create, update, delete: if request.auth.uid == uid;
+
+      // Default: everything under a user is private to that user.
+      match /{document=**} {
+        allow read, write: if request.auth.uid == uid;
+      }
+    }
+
+    // ---- Shared timetable (live, read-only): recipient may read the owner's academic-year subtree ----
+    match /users/{ownerUid}/teacher_planner_academic_years/{doc=**} {
+      allow read: if request.auth.uid == ownerUid
+        || (hasGrant(ownerUid) && grant(ownerUid).timetable == true);
+    }
+
+    // ---- Shared projects: recipient may read (and edit when granted 'edit') ----
+    match /users/{ownerUid}/teacher_planner_projects/{projectId} {
+      allow read: if request.auth.uid == ownerUid
+        || (hasGrant(ownerUid) && projectPerm(ownerUid, projectId) in ['view', 'edit']);
+      allow write: if request.auth.uid == ownerUid
+        || (hasGrant(ownerUid) && projectPerm(ownerUid, projectId) == 'edit');
+    }
+    // Tasks of a shared project follow the project's grant.
+    match /users/{ownerUid}/teacher_planner_tasks/{taskId} {
+      allow read: if request.auth.uid == ownerUid
+        || (hasGrant(ownerUid)
+            && projectPerm(ownerUid, resource.data.projectId) in ['view', 'edit']);
+      allow write: if request.auth.uid == ownerUid
+        || (hasGrant(ownerUid)
+            && projectPerm(ownerUid,
+                 (request.resource != null ? request.resource.data.projectId : resource.data.projectId)) == 'edit');
+    }
+
+    // ---- Shares registry (drives the "Shared with me" lists) ----
+    match /shares/{shareId} {
+      allow read: if isSignedIn()
+        && (resource.data.ownerUid == request.auth.uid || resource.data.recipientUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ---- Legacy global collections: original owner read-only, for one-time migration ----
+    match /colleagues/{d} { allow read: if isLegacyOwner(); }
+    match /lessonPlans/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_projects/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_tasks/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_categories/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_ideas/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_key_dates/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_routine_tasks/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_apps/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_app_categories/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_ai_conversations/{d} { allow read: if isLegacyOwner(); }
+    match /teacher_planner_academic_years/{y} {
+      allow read: if isLegacyOwner();
+      match /{sub=**} { allow read: if isLegacyOwner(); }
+    }
+  }
+}

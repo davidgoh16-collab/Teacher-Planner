@@ -122,6 +122,19 @@ const TIMETABLE_SCHEMA = {
   },
 };
 
+const TIMETABLE_WITH_NAME_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    name: {
+      type: Type.STRING,
+      nullable: true,
+      description: "The full name of the person this timetable belongs to (teacher or student), if printed on the document. Null if not found.",
+    },
+    week1: TIMETABLE_SCHEMA.properties.week1,
+    week2: TIMETABLE_SCHEMA.properties.week2,
+  },
+};
+
 const MASTER_IMPORT_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -158,7 +171,7 @@ export interface AIInsight {
  * Robustly parses a JSON string, handling potential markdown wrappers
  * or trailing conversational text from the AI response.
  */
-function extractAndParseJSON(jsonStr: string): any {
+export function extractAndParseJSON(jsonStr: string): any {
   let text = jsonStr.trim();
 
   // Try standard parse first
@@ -850,6 +863,67 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
     throw new Error("No response text from Gemini");
   } catch (error) {
     console.error("Error parsing timetable:", error);
+    throw error;
+  }
+};
+
+/**
+ * Like parseTimetableImage but ALSO extracts the person's name from the document (used by the
+ * meeting planner's batch import to identify whose timetable each file is). `filenameHint` lets the
+ * model fall back to the uploaded file's name when the document itself doesn't print a name.
+ */
+export const parseTimetableImageWithName = async (
+  base64Data: string,
+  mimeType: string = "image/png",
+  filenameHint?: string,
+): Promise<{ name: string | null, week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
+  try {
+    const prompt = `
+      Analyze this document (a person's school timetable). It may contain one or multiple pages.
+
+      FIRST, identify the NAME of the person this timetable belongs to — look for a teacher or student
+      name printed on the page (a header, title, or "Name:" field).${filenameHint ? `\n      The uploaded file was named "${filenameHint}"; use it as a hint if the document itself is unclear.` : ''}
+      Put it in the "name" field (full name if available). If you genuinely cannot find a name, return null.
+
+      THEN extract the schedule for Week 1 and Week 2.
+      Look for headers like "Week 1" / "Week 2"; if only one week is present, populate it and leave the other empty.
+      Rows are periods (P1, P2, P3A-D, P4, P5A-C, P6); columns are days (Mon-Fri).
+      For each slot extract the subject/activity; if empty return null.
+      Map periods to keys:
+      - "Period 1": P1
+      - "Period 2": P2
+      - "Period 3": the first non-empty of P3A/P3B/P3C/P3D
+      - "Period 4": P4
+      - "Period 5": the first non-empty of P5A/P5B/P5C
+      - "Period 6": P6
+      Ignore "Morning Mtg"/"Afternoon Mtg" unless explicitly stated.
+
+      IMPORTANT: Do NOT hallucinate. Empty slots MUST be null. Do NOT fill in default values.
+      Assign a colorClass per subject using Tailwind classes like "bg-blue-100 text-blue-800".
+    `;
+
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: {
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType, data: base64Data } },
+        ],
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: TIMETABLE_WITH_NAME_SCHEMA,
+      },
+    });
+
+    if (response.text) {
+      const result = extractAndParseJSON(response.text);
+      return { name: result.name || null, week1: result.week1 || {}, week2: result.week2 || {} };
+    }
+    throw new Error("No response text from Gemini");
+  } catch (error) {
+    console.error("Error parsing timetable with name:", error);
     throw error;
   }
 };

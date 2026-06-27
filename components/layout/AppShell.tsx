@@ -37,6 +37,7 @@ const TITLES: Record<AppTab, string> = {
   projects: 'Project Planner',
   apps: 'Apps',
   keyDates: 'Key Dates',
+  shared: 'Shared',
 };
 
 /**

@@ -1,7 +1,6 @@
-import { db } from '../firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getDocs, deleteDoc, setDoc } from 'firebase/firestore';
 import { AcademicYear, Term, WeeklyTimetable } from '../types';
-import { TERMS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2 } from '../constants';
+import { userCol, userDocRef } from './userScope';
 
 const ACADEMIC_YEARS_COLLECTION = 'teacher_planner_academic_years';
 const TERMS_COLLECTION = 'teacher_planner_terms';
@@ -10,7 +9,7 @@ const TIMETABLES_COLLECTION = 'teacher_planner_timetables';
 export const fetchAcademicYears = async (): Promise<AcademicYear[]> => {
   const years: AcademicYear[] = [];
   try {
-    const querySnapshot = await getDocs(collection(db, ACADEMIC_YEARS_COLLECTION));
+    const querySnapshot = await getDocs(userCol(ACADEMIC_YEARS_COLLECTION));
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       years.push({
@@ -22,13 +21,12 @@ export const fetchAcademicYears = async (): Promise<AcademicYear[]> => {
   } catch (error) {
     console.error("Error fetching academic years:", error);
   }
-  // Sort alphabetically descending (e.g. 2026/2027 before 2025/2026) or ascending based on preference
   return years.sort((a, b) => b.name.localeCompare(a.name));
 };
 
 export const saveAcademicYear = async (year: AcademicYear): Promise<void> => {
   try {
-    await setDoc(doc(db, ACADEMIC_YEARS_COLLECTION, year.id), {
+    await setDoc(userDocRef(ACADEMIC_YEARS_COLLECTION, year.id), {
       name: year.name,
       isDefault: year.isDefault
     });
@@ -40,7 +38,7 @@ export const saveAcademicYear = async (year: AcademicYear): Promise<void> => {
 
 export const deleteAcademicYear = async (id: string): Promise<void> => {
   try {
-    await deleteDoc(doc(db, ACADEMIC_YEARS_COLLECTION, id));
+    await deleteDoc(userDocRef(ACADEMIC_YEARS_COLLECTION, id));
   } catch (error) {
     console.error("Error deleting academic year:", error);
     throw error;
@@ -51,10 +49,7 @@ export const deleteAcademicYear = async (id: string): Promise<void> => {
 export const fetchTerms = async (academicYearId: string): Promise<Term[]> => {
   const terms: Term[] = [];
   try {
-    // Ideally we should use query(collection, where('academicYearId', '==', academicYearId))
-    // but a simple filter works since collection is small, or we can construct a path:
-    const termsRef = collection(db, `${ACADEMIC_YEARS_COLLECTION}/${academicYearId}/${TERMS_COLLECTION}`);
-    const querySnapshot = await getDocs(termsRef);
+    const querySnapshot = await getDocs(userCol(ACADEMIC_YEARS_COLLECTION, academicYearId, TERMS_COLLECTION));
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       terms.push({
@@ -82,8 +77,7 @@ export const saveTerm = async (term: Term): Promise<void> => {
       halfTermStart: term.halfTermStart || null,
       halfTermEnd: term.halfTermEnd || null,
     };
-    const termRef = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${term.academicYearId}/${TERMS_COLLECTION}`, term.id);
-    await setDoc(termRef, dataToSave);
+    await setDoc(userDocRef(ACADEMIC_YEARS_COLLECTION, term.academicYearId, TERMS_COLLECTION, term.id), dataToSave);
   } catch (error) {
     console.error("Error saving term:", error);
     throw error;
@@ -92,8 +86,7 @@ export const saveTerm = async (term: Term): Promise<void> => {
 
 export const deleteTerm = async (academicYearId: string, id: string): Promise<void> => {
   try {
-    const termRef = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${academicYearId}/${TERMS_COLLECTION}`, id);
-    await deleteDoc(termRef);
+    await deleteDoc(userDocRef(ACADEMIC_YEARS_COLLECTION, academicYearId, TERMS_COLLECTION, id));
   } catch (error) {
     console.error("Error deleting term:", error);
     throw error;
@@ -104,8 +97,7 @@ export const fetchTimetables = async (academicYearId: string): Promise<{ week1: 
   let week1: WeeklyTimetable | null = null;
   let week2: WeeklyTimetable | null = null;
   try {
-    const tablesRef = collection(db, `${ACADEMIC_YEARS_COLLECTION}/${academicYearId}/${TIMETABLES_COLLECTION}`);
-    const querySnapshot = await getDocs(tablesRef);
+    const querySnapshot = await getDocs(userCol(ACADEMIC_YEARS_COLLECTION, academicYearId, TIMETABLES_COLLECTION));
     querySnapshot.forEach((docSnap) => {
       if (docSnap.id === 'week1') {
         week1 = docSnap.data() as WeeklyTimetable;
@@ -121,56 +113,16 @@ export const fetchTimetables = async (academicYearId: string): Promise<{ week1: 
 
 export const saveTimetable = async (academicYearId: string, weekId: 'week1' | 'week2', timetable: WeeklyTimetable): Promise<void> => {
   try {
-    const tableRef = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${academicYearId}/${TIMETABLES_COLLECTION}`, weekId);
-    await setDoc(tableRef, timetable);
+    await setDoc(userDocRef(ACADEMIC_YEARS_COLLECTION, academicYearId, TIMETABLES_COLLECTION, weekId), timetable);
   } catch (error) {
     console.error(`Error saving timetable ${weekId}:`, error);
     throw error;
   }
 };
 
-export const migrateInitialDataIfNeeded = async (): Promise<boolean> => {
-  try {
-    const academicYears = await fetchAcademicYears();
-
-    if (academicYears.length > 0) return false;
-
-    console.log("Migrating static Data to nested Firestore Academic Years...");
-
-    const batch = writeBatch(db);
-    const defaultYearId = 'academic_year_2025_2026';
-
-    // 1. Create Default Academic Year
-    const yearRef = doc(db, ACADEMIC_YEARS_COLLECTION, defaultYearId);
-    batch.set(yearRef, {
-        name: '2025/2026',
-        isDefault: true
-    });
-
-    // 2. Migrate Terms into this Year
-    TERMS.forEach(term => {
-      const termRef = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${defaultYearId}/${TERMS_COLLECTION}`, term.id);
-      batch.set(termRef, {
-        name: term.name,
-        startDate: term.startDate,
-        endDate: term.endDate,
-        halfTermStart: term.halfTermStart || null,
-        halfTermEnd: term.halfTermEnd || null,
-      });
-    });
-
-    // 3. Migrate Timetables into this Year
-    const week1Ref = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${defaultYearId}/${TIMETABLES_COLLECTION}`, 'week1');
-    batch.set(week1Ref, TIMETABLE_WEEK_1);
-
-    const week2Ref = doc(db, `${ACADEMIC_YEARS_COLLECTION}/${defaultYearId}/${TIMETABLES_COLLECTION}`, 'week2');
-    batch.set(week2Ref, TIMETABLE_WEEK_2);
-
-    await batch.commit();
-    console.log("Initial structure migration complete.");
-    return true;
-  } catch (error) {
-    console.error("Error during initial data migration:", error);
-    return false;
-  }
-};
+/**
+ * New users start with a completely empty planner — no academic year, terms, or timetables are
+ * seeded. They create these during onboarding (or in Settings); the migrated original owner keeps
+ * their real data via migrationService. Kept as a no-op so PlannerContext's call site is unchanged.
+ */
+export const migrateInitialDataIfNeeded = async (): Promise<boolean> => false;
