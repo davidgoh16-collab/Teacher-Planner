@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { User } from 'firebase/auth';
 import { ChatMessage, AIConversation } from '../types';
 import { fetchAIConversations, saveAIConversation, deleteAIConversation } from '../services/chatService';
 
 interface UseChatConversationsArgs {
   messages: ChatMessage[];
   onSetMessages: (messages: ChatMessage[]) => void;
+  user: User | null;
 }
 
 export interface ChatConversationsApi {
@@ -30,7 +32,7 @@ export interface ChatConversationsApi {
  *
  * Extracted verbatim from the original ChatWidget so behaviour is unchanged.
  */
-export function useChatConversations({ messages, onSetMessages }: UseChatConversationsArgs): ChatConversationsApi {
+export function useChatConversations({ messages, onSetMessages, user }: UseChatConversationsArgs): ChatConversationsApi {
   const [conversations, setConversations] = useState<AIConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
@@ -43,20 +45,23 @@ export function useChatConversations({ messages, onSetMessages }: UseChatConvers
 
   // Load the conversation list (for the history menu) but ALWAYS open a fresh
   // conversation each time the app starts. Previous chats stay available in history.
+  // We depend on `user` so this re-runs once auth resolves — avoids the "No authenticated
+  // user" error that fires when Firebase hasn't resolved the session yet on mount.
   useEffect(() => {
+    if (!user) return;
     const loadConvs = async () => {
       try {
         const convs = await fetchAIConversations();
         setConversations(convs);
       } catch (e) {
-        console.error(e);
+        console.error('Error fetching AI conversations', e);
       } finally {
         handleNewConversation();
       }
     };
     loadConvs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   // Save the active conversation only when a message is actually added (length changed),
   // so reloading a conversation from history does not re-save it.

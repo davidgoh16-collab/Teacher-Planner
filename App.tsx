@@ -196,7 +196,7 @@ const App: React.FC = () => {
   const handledAgentCallIdsRef = useRef<Set<string>>(new Set());
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
-  const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages });
+  const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages, user });
   // Reset the agent sandbox/turn whenever the conversation changes (new chat or loaded history),
   // so a fresh agent run does not continue a stale, unrelated sandbox.
   useEffect(() => {
