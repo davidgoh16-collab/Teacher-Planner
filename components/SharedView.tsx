@@ -26,6 +26,11 @@ const GRID_PERIODS = PERIOD_LABELS.filter(p => !p.includes('Mtg'));
 const entryAt = (tt: WeeklyTimetable | null | undefined, day: string, period: string): TimetableEntry | null =>
   (tt && tt[day] && tt[day][period]) || null;
 
+const shareLoadErrorMessage = (e: any): string =>
+  e?.code === 'permission-denied'
+    ? "Couldn't load this share — the owner may have revoked it, or the app's Firestore security rules haven't been deployed yet."
+    : "Couldn't load this share right now. Please try again in a moment.";
+
 const isFree = (entry: TimetableEntry | null): boolean =>
   !entry || !entry.subject || entry.subject.toUpperCase().includes('PPA');
 
@@ -37,6 +42,7 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
   // Timetable viewing state
   const [ownerTimetable, setOwnerTimetable] = useState<{ week1: WeeklyTimetable; week2: WeeklyTimetable } | null>(null);
   const [ttLoading, setTtLoading] = useState(false);
+  const [ttError, setTtError] = useState<string | null>(null);
   const [week, setWeek] = useState<1 | 2>(1);
   const [overlay, setOverlay] = useState(false);
 
@@ -44,6 +50,7 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
   const [openProject, setOpenProject] = useState<Share | null>(null);
   const [projectData, setProjectData] = useState<{ project: Project | null; tasks: Task[] } | null>(null);
   const [projLoading, setProjLoading] = useState(false);
+  const [projError, setProjError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -81,12 +88,16 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
     setOpenProject(null);
     setProjectData(null);
     setOverlay(false);
+    setTtError(null);
     if (current?.timetableShare) {
       setTtLoading(true);
-      fetchOwnerTimetable(current.ownerUid).then(res => {
-        setOwnerTimetable(res ? { week1: res.week1, week2: res.week2 } : { week1: {}, week2: {} });
-        setTtLoading(false);
-      });
+      fetchOwnerTimetable(current.ownerUid)
+        .then(res => setOwnerTimetable({ week1: res.week1, week2: res.week2 }))
+        .catch(e => {
+          console.error('Failed to load shared timetable', e);
+          setTtError(shareLoadErrorMessage(e));
+        })
+        .finally(() => setTtLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOwner]);
@@ -94,9 +105,17 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
   const openSharedProject = async (share: Share) => {
     setOpenProject(share);
     setProjLoading(true);
-    const data = await fetchOwnerProject(share.ownerUid, share.resourceId);
-    setProjectData(data);
-    setProjLoading(false);
+    setProjError(null);
+    setProjectData(null);
+    try {
+      const data = await fetchOwnerProject(share.ownerUid, share.resourceId);
+      setProjectData(data);
+    } catch (e) {
+      console.error('Failed to load shared project', e);
+      setProjError(shareLoadErrorMessage(e));
+    } finally {
+      setProjLoading(false);
+    }
   };
 
   const toggleTaskDone = async (share: Share, task: Task) => {
@@ -182,6 +201,8 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
 
                   {ttLoading ? (
                     <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+                  ) : ttError ? (
+                    <div className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-400">{ttError}</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -269,6 +290,8 @@ const SharedView: React.FC<SharedViewProps> = ({ uid, myWeek1, myWeek2 }) => {
             <div className="p-5 overflow-y-auto">
               {projLoading ? (
                 <div className="flex items-center justify-center py-10 text-gray-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              ) : projError ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{projError}</p>
               ) : !projectData?.project ? (
                 <p className="text-sm text-gray-500">This project is no longer available.</p>
               ) : (

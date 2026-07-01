@@ -114,24 +114,21 @@ export const listSharesWithMe = async (uid: string): Promise<Share[]> => {
 /** Read an owner's live timetable (default academic year) for a recipient to view/overlay. */
 export const fetchOwnerTimetable = async (
   ownerUid: string,
-): Promise<{ week1: WeeklyTimetable; week2: WeeklyTimetable; yearName?: string } | null> => {
-  try {
-    const yearsSnap = await getDocs(ownerCol(ownerUid, 'teacher_planner_academic_years'));
-    if (yearsSnap.empty) return { week1: {}, week2: {} };
-    const years = yearsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-    const def = years.find((y: any) => y.isDefault) || years[0];
-    const ttSnap = await getDocs(ownerCol(ownerUid, 'teacher_planner_academic_years', def.id, 'teacher_planner_timetables'));
-    let week1: WeeklyTimetable = {};
-    let week2: WeeklyTimetable = {};
-    ttSnap.forEach(d => {
-      if (d.id === 'week1') week1 = d.data() as WeeklyTimetable;
-      else if (d.id === 'week2') week2 = d.data() as WeeklyTimetable;
-    });
-    return { week1, week2, yearName: def.name };
-  } catch (e) {
-    console.error('Failed to fetch shared timetable', e);
-    return null;
-  }
+): Promise<{ week1: WeeklyTimetable; week2: WeeklyTimetable; yearName?: string }> => {
+  // Errors (e.g. permission-denied when rules aren't deployed) propagate so the UI can show
+  // them — a silent {} here used to render as "this colleague has an empty timetable".
+  const yearsSnap = await getDocs(ownerCol(ownerUid, 'teacher_planner_academic_years'));
+  if (yearsSnap.empty) return { week1: {}, week2: {} };
+  const years = yearsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  const def = years.find((y: any) => y.isDefault) || years[0];
+  const ttSnap = await getDocs(ownerCol(ownerUid, 'teacher_planner_academic_years', def.id, 'teacher_planner_timetables'));
+  let week1: WeeklyTimetable = {};
+  let week2: WeeklyTimetable = {};
+  ttSnap.forEach(d => {
+    if (d.id === 'week1') week1 = d.data() as WeeklyTimetable;
+    else if (d.id === 'week2') week2 = d.data() as WeeklyTimetable;
+  });
+  return { week1, week2, yearName: def.name };
 };
 
 /** Write a task back to the owner's data (used by an edit-permission collaborator). */
@@ -144,14 +141,15 @@ export const fetchOwnerProject = async (
   ownerUid: string,
   projectId: string,
 ): Promise<{ project: Project | null; tasks: Task[] }> => {
-  try {
-    const pSnap = await getDoc(ownerDocRef(ownerUid, 'teacher_planner_projects', projectId));
-    const project = pSnap.exists() ? (pSnap.data() as Project) : null;
-    const tSnap = await getDocs(ownerCol(ownerUid, 'teacher_planner_tasks'));
-    const tasks = tSnap.docs.map(d => d.data() as Task).filter(t => t.projectId === projectId);
-    return { project, tasks };
-  } catch (e) {
-    console.error('Failed to fetch shared project', e);
-    return { project: null, tasks: [] };
-  }
+  const pSnap = await getDoc(ownerDocRef(ownerUid, 'teacher_planner_projects', projectId));
+  const project = pSnap.exists() ? (pSnap.data() as Project) : null;
+  // The projectId filter must be in the QUERY, not applied client-side: security rules authorise
+  // task reads per-document by resource.data.projectId, so an unfiltered list over all the owner's
+  // tasks is rejected wholesale with permission-denied as soon as any task belongs to another project.
+  const tSnap = await getDocs(query(
+    ownerCol(ownerUid, 'teacher_planner_tasks'),
+    where('projectId', '==', projectId),
+  ));
+  const tasks = tSnap.docs.map(d => d.data() as Task);
+  return { project, tasks };
 };

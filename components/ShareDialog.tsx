@@ -23,8 +23,12 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
   const [shares, setShares] = useState<Share[]>([]);
 
   const loadShares = async () => {
-    const all = await listSharesByMe(owner.uid);
-    setShares(all.filter(s => s.type === type && s.resourceId === resourceId));
+    try {
+      const all = await listSharesByMe(owner.uid);
+      setShares(all.filter(s => s.type === type && s.resourceId === resourceId));
+    } catch (e) {
+      console.error('Failed to load existing shares', e);
+    }
   };
 
   useEffect(() => {
@@ -40,18 +44,26 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
   const handleShare = async () => {
     if (!email.trim()) return;
     setSharing(true); setError(null); setSuccess(null);
-    const res = await createShare({
-      owner, type, resourceId, resourceName,
-      recipientEmail: email.trim(),
-      permission: type === 'project' ? permission : 'view',
-    });
-    setSharing(false);
-    if (res.ok) {
-      setSuccess(`Shared with ${email.trim()}.`);
-      setEmail('');
-      loadShares();
-    } else {
-      setError(res.error || 'Could not share.');
+    try {
+      const res = await createShare({
+        owner, type, resourceId, resourceName,
+        recipientEmail: email.trim(),
+        permission: type === 'project' ? permission : 'view',
+      });
+      if (res.ok) {
+        setSuccess(`Shared with ${email.trim()}.`);
+        setEmail('');
+        loadShares();
+      } else {
+        setError(res.error || 'Could not share.');
+      }
+    } catch (e: any) {
+      console.error('Share failed', e);
+      setError(e?.code === 'permission-denied'
+        ? "Sharing isn't set up on the server yet — the Firestore security rules need deploying (see README)."
+        : e?.message || 'Could not share — please try again.');
+    } finally {
+      setSharing(false);
     }
   };
 
