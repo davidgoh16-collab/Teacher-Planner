@@ -1214,9 +1214,10 @@ const App: React.FC = () => {
       }
 
       handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction), formatThoughts(liveTrace));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Agent Error:", error);
-      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, the agent run failed. This preview feature can be slow or rate-limited — please check the console and try again." }]);
+      const detail = error?.message ? `\n\n${String(error.message).slice(0, 300)}` : '';
+      setChatMessages(prev => [...prev, { role: 'model', text: `Sorry, the agent run failed. This preview feature can be slow or rate-limited — please try again.${detail}` }]);
     } finally {
       traceRef.current = null;
       setAgentTrace(null);

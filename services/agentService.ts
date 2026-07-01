@@ -14,6 +14,10 @@ import { PLANNER_AGENT_TOOLS, AgentFunctionTool } from "./plannerTools";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 export const AGENT = "antigravity-preview-05-2026";
 
+// The Interactions API requires an Api-Revision header on REST calls (the v2 SDK sends it
+// automatically as GOOGLE_GENAI_API_REVISION); requests without it are rejected/mis-routed.
+const API_REVISION = "2026-05-20";
+
 // Agent runs are autonomous multi-step loops that can take minutes; give them a long ceiling.
 const REQUEST_TIMEOUT_MS = 300_000;
 
@@ -28,6 +32,20 @@ const getApiKey = (): string => {
     throw new Error("API key must be set when using the Gemini API.");
   }
   return apiKey;
+};
+
+/** Turn a non-OK response into a readable error, surfacing the API's own message when present. */
+const describeHttpError = async (response: Response): Promise<string> => {
+  const raw = await response.text().catch(() => "");
+  let detail = raw.slice(0, 500);
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.error?.message) detail = parsed.error.message;
+  } catch { /* keep the raw slice */ }
+  const hint =
+    response.status === 429 ? " (rate limited — wait a moment and try again)" :
+    response.status === 403 ? " (check that the Gemini API key is valid and has access)" : "";
+  return `Agent request failed (${response.status})${hint}: ${detail}`;
 };
 
 export type AgentTool =
@@ -130,6 +148,7 @@ export const createAgentInteraction = async ({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Api-Revision": API_REVISION,
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(body),
@@ -137,8 +156,7 @@ export const createAgentInteraction = async ({
     });
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`Agent request failed (${response.status}): ${errText.slice(0, 500)}`);
+      throw new Error(await describeHttpError(response));
     }
     return (await response.json()) as Interaction;
   } finally {
@@ -236,6 +254,7 @@ export const streamAgentInteraction = async (
       headers: {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
+        "Api-Revision": API_REVISION,
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(body),
@@ -243,8 +262,7 @@ export const streamAgentInteraction = async (
     });
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`Agent stream failed (${response.status}): ${errText.slice(0, 500)}`);
+      throw new Error(await describeHttpError(response));
     }
     if (!response.body) {
       throw new Error("Agent stream returned no body");
