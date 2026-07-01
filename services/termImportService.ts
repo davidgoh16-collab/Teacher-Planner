@@ -39,18 +39,23 @@ Rules:
   try {
     const ai = getAiClient();
     // NOTE: tools cannot be combined with responseSchema, so the JSON shape is prompt-enforced
-    // and recovered with extractAndParseJSON.
+    // and recovered with extractAndParseJSON. Reading a page server-side can legitimately take
+    // ~30-60s, so allow a generous timeout but cap it so a stuck request can't spin forever.
     response = await ai.models.generateContent({
       model: TEXT_MODEL,
       contents: prompt,
       config: {
         tools: [{ urlContext: {} }, { googleSearch: {} }],
+        httpOptions: { timeout: 120000 },
       },
     });
   } catch (e: any) {
     const msg = String(e?.message || e);
     if (msg.includes('API key')) {
       throw new Error('The AI assistant is not configured (missing Gemini API key), so the page cannot be read. Add the dates manually instead.');
+    }
+    if (/timeout|timed out|abort/i.test(msg)) {
+      throw new Error('Reading that page took too long. Try again, or paste the dates in instead.');
     }
     throw new Error(`Could not read that page (${msg.slice(0, 200)}). Check the link, or paste the dates instead.`);
   }
