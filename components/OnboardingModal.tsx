@@ -7,9 +7,11 @@ import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeCo
 import { usePlannerData } from '../src/context/PlannerContext';
 import { saveAcademicYear, saveTerm, saveTimetable } from '../services/plannerDataService';
 import { extractTermsFromUrl } from '../services/termImportService';
-import { parseTimetableImage } from '../services/aiService';
-import { importTimetableFile } from '../services/timetableImportService';
+import { parseTimetableImage, parseTimetableText } from '../services/aiService';
+import { importTimetableFile, TIMETABLE_ACCEPT } from '../services/timetableImportService';
 import { saveColleague } from '../services/colleagueService';
+import { readFileContent } from '../utils/fileUtils';
+import ImportHelp from './ui/ImportHelp';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -25,14 +27,6 @@ const currentAcademicYearName = (): string => {
   const start = now.getMonth() >= 7 ? y : y - 1; // academic year rolls over around September
   return `${start}/${start + 1}`;
 };
-
-const fileToBase64 = (file: File): Promise<{ base64: string; mime: string }> =>
-  new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onloadend = () => resolve({ base64: (r.result as string).split(',')[1], mime: file.type });
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
 
 const StepDot: React.FC<{ active: boolean; done: boolean }> = ({ active, done }) => (
   <span className={`h-1.5 rounded-full transition-all ${active ? 'w-6 bg-primary-600' : done ? 'w-1.5 bg-primary-400' : 'w-1.5 bg-gray-300 dark:bg-slate-600'}`} />
@@ -118,15 +112,21 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
     if (!file || !activeYearId) return;
     setTtBusy(true); setTtErr(null); setTtMsg(null);
     try {
-      const { base64, mime } = await fileToBase64(file);
-      const result = await parseTimetableImage(base64, mime);
+      // PDFs/images go to the vision model as-is; Word/Excel/CSV/text are extracted to
+      // plain text client-side and parsed through the text route.
+      const content = await readFileContent(file);
+      const result = content.isBase64
+        ? await parseTimetableImage(content.text, content.mimeType)
+        : await parseTimetableText(content.text);
       await saveTimetable(activeYearId, 'week1', result.week1 || {});
       await saveTimetable(activeYearId, 'week2', result.week2 || {});
       await refreshPlannerData();
       setTtMsg('Your timetable was imported. You can adjust any lesson in Settings → Timetables.');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setTtErr('Could not read that timetable. Try a clearer image/PDF, or set it up later in Settings.');
+      setTtErr(err?.message?.includes('Unsupported file type')
+        ? err.message
+        : 'Could not read that timetable. Try a clearer image/PDF, or set it up later in Settings.');
     } finally {
       setTtBusy(false);
     }
@@ -239,6 +239,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
               </div>
               {termsMsg && <p className="text-xs text-green-600 dark:text-green-400">{termsMsg}</p>}
               {termsErr && <p className="text-xs text-red-600 dark:text-red-400">{termsErr}</p>}
+              <ImportHelp
+                formats="a link to a public webpage listing your term dates (your school or council site)"
+                tips={[
+                  'The page must be viewable without logging in — if it is behind a login, add the dates in Settings → Terms instead.',
+                ]}
+              />
             </>
           )}
         </div>
@@ -249,16 +255,24 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
       title: 'Upload your timetable',
       body: (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600 dark:text-slate-300">Upload a photo, screenshot or PDF of your own timetable — the AI reads it into your weekly grid.</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300">Upload your own timetable — the AI reads it into your weekly grid.</p>
           {!activeYearId ? noYet : (
             <>
               <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${ttBusy ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
                 {ttBusy ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <UploadCloud className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{ttBusy ? 'Reading your timetable…' : 'Choose your timetable file'}</span>
-                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleOwnTimetable} disabled={ttBusy} />
+                <input type="file" accept={TIMETABLE_ACCEPT} className="hidden" onChange={handleOwnTimetable} disabled={ttBusy} />
               </label>
               {ttMsg && <p className="text-xs text-green-600 dark:text-green-400">{ttMsg}</p>}
               {ttErr && <p className="text-xs text-red-600 dark:text-red-400">{ttErr}</p>}
+              <ImportHelp
+                formats="photo or screenshot (PNG, JPG), PDF, Word (.docx), Excel (.xlsx), CSV or plain text"
+                tips={[
+                  'A straight-on screenshot of the full grid works best — include the day and period headers.',
+                  'PDF exports from SIMS, Bromcom or Arbor work well.',
+                  'If the file shows only one week, it fills Week 1 and you can copy it to Week 2 in Settings.',
+                ]}
+              />
             </>
           )}
         </div>
@@ -273,10 +287,14 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
           <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'staff' ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
             {peopleBusy === 'staff' ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <Users className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{peopleBusy === 'staff' ? 'Adding staff…' : 'Choose staff timetable files'}</span>
-            <span className="text-xs text-gray-400">Images or PDFs · select multiple</span>
-            <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => handlePeople(e, 'staff')} disabled={peopleBusy !== null} />
+            <span className="text-xs text-gray-400">Select several at once</span>
+            <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={(e) => handlePeople(e, 'staff')} disabled={peopleBusy !== null} />
           </label>
           {staffMsg && <p className="text-xs text-green-600 dark:text-green-400">{staffMsg}</p>}
+          <ImportHelp
+            formats="PNG/JPG, PDF, Word, Excel/CSV or text — one person per file, several files at once"
+            tips={["Names are read from the document; if it doesn't show one, the file name is used — so name files like 'J Smith.pdf'."]}
+          />
         </div>
       ),
     },
@@ -289,10 +307,14 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
           <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'student' ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
             {peopleBusy === 'student' ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <GraduationCap className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{peopleBusy === 'student' ? 'Adding students…' : 'Choose student timetable files'}</span>
-            <span className="text-xs text-gray-400">Images or PDFs · select multiple</span>
-            <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => handlePeople(e, 'student')} disabled={peopleBusy !== null} />
+            <span className="text-xs text-gray-400">Select several at once</span>
+            <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={(e) => handlePeople(e, 'student')} disabled={peopleBusy !== null} />
           </label>
           {studentMsg && <p className="text-xs text-green-600 dark:text-green-400">{studentMsg}</p>}
+          <ImportHelp
+            formats="PNG/JPG, PDF, Word, Excel/CSV or text — one student per file, several files at once"
+            tips={["Names are read from the document; if it doesn't show one, the file name is used — so name files like 'A Jones.pdf'."]}
+          />
         </div>
       ),
     },

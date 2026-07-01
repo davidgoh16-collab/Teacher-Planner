@@ -7,6 +7,9 @@ import { toISODate } from '../utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from '../utils/colorUtils';
 import { parseMasterTimetableAndTerms } from '../services/aiService';
 import { extractTermsFromUrl } from '../services/termImportService';
+import { TIMETABLE_ACCEPT } from '../services/timetableImportService';
+import { readFileContent } from '../utils/fileUtils';
+import ImportHelp from './ui/ImportHelp';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
 
@@ -284,15 +287,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        let base64Content = base64String.split(',')[1];
-        let mimeType = file.type;
-
+      // Images/PDFs go to the vision model; Word/Excel/CSV/text are extracted to plain
+      // text client-side and take the paste-text route.
+      const content = await readFileContent(file);
+      if (content.isBase64) {
+        let base64Content = content.text;
+        let mimeType = content.mimeType;
         if (mimeType.startsWith('image/')) {
           try {
              base64Content = await compressImage(base64Content, mimeType);
@@ -302,11 +306,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
           }
         }
         await handleAIImport(base64Content, mimeType, undefined);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
+      } else {
+        await handleAIImport(undefined, undefined, content.text);
+      }
+    } catch (err: any) {
       console.error(err);
-      setImportError("Error reading file.");
+      setImportError(err?.message?.includes('Unsupported file type') || err?.message?.includes("aren't supported")
+        ? err.message
+        : "Error reading file.");
     }
   };
 
@@ -504,6 +511,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">The assistant reads the page and fills in the terms below for you to review, then click “Save Terms”.</p>
+                  <ImportHelp
+                    formats="a link to a public webpage listing your term dates (your school or council site)"
+                    tips={['The page must be viewable without logging in — if it is behind a login, use the Auto-Import upload or type the dates below instead.']}
+                  />
                   {termUrlError && <p className="text-xs text-red-600 dark:text-red-400">{termUrlError}</p>}
                   {termUrlSuccess > 0 && <p className="text-xs text-green-600 dark:text-green-400">Found {termUrlSuccess} term{termUrlSuccess === 1 ? '' : 's'} — review below and save.</p>}
                 </div>
@@ -590,8 +601,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                        <Upload size={18} /> Auto-Import Timetable & Terms via AI
                     </h4>
                     <p className="text-sm text-indigo-700 dark:text-indigo-400 mb-4">
-                       Upload a PDF/Image of your school schedule, or paste it as text. The AI will extract the terms and both weeks of your timetable.
+                       Upload your school schedule, or paste it as text. The AI extracts the term dates and both weeks of your timetable — review below, then Save.
                     </p>
+                    <div className="mb-4">
+                      <ImportHelp
+                        formats="photo or screenshot (PNG, JPG), PDF, Word (.docx), Excel (.xlsx), CSV or plain text"
+                        tips={[
+                          'A straight-on screenshot of the full grid works best — include the day and period headers.',
+                          'PDF exports from SIMS, Bromcom or Arbor work well.',
+                          'Pasting text? Copy the cells straight from Excel/your MIS, keeping the day and period labels.',
+                        ]}
+                      />
+                    </div>
 
                     <div className="flex items-center gap-4 mb-4">
                        <button onClick={() => setImportMode('file')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'file' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>File Upload</button>
@@ -600,10 +621,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
                     {importMode === 'file' ? (
                        <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-gray-300 cursor-not-allowed' : 'border-indigo-300 hover:bg-indigo-100/50'}`}>
-                           <input type="file" className="hidden" accept=".pdf,image/*" onChange={handleFileUpload} disabled={isImporting} />
+                           <input type="file" className="hidden" accept={TIMETABLE_ACCEPT} onChange={handleFileUpload} disabled={isImporting} />
                            <span className="text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-2">
                                {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                               {isImporting ? 'Analyzing document...' : 'Click to select PDF or Image'}
+                               {isImporting ? 'Analyzing document...' : 'Click to select a file'}
                            </span>
                        </label>
                     ) : (
@@ -611,7 +632,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                            <textarea
                               value={importText}
                               onChange={e => setImportText(e.target.value)}
-                              placeholder="Paste CSV or plain text schedule here..."
+                              placeholder="Paste your schedule as text — copy the cells straight from Excel or your MIS, keeping the day and period labels…"
                               className="w-full h-24 p-2 text-sm rounded-lg border border-indigo-200 dark:bg-slate-800 dark:border-indigo-800"
                               disabled={isImporting}
                            />

@@ -1,14 +1,20 @@
 import { WeeklyTimetable } from '../types';
-import { parseTimetableImageWithName } from './aiService';
+import { parseTimetableImageWithName, parseTimetableTextWithName } from './aiService';
+import { readFileContent } from '../utils/fileUtils';
 
 /**
  * Batch timetable import for the meeting planner.
  *
- * Each uploaded file is read, compressed (if an image), and sent to the vision model which extracts
- * both the person's name and their two-week timetable. The name falls back to a cleaned-up version
- * of the filename when the document doesn't print one, so a folder of "J Smith.pdf"-style exports
- * still gets sensible names. The caller reviews/edits the results before saving.
+ * Each uploaded file is normalised by readFileContent — images/PDFs go to the vision model as
+ * inline data (images compressed first); Word/Excel/CSV/text are extracted to plain text and go
+ * through the text parser. Either way the model extracts both the person's name and their
+ * two-week timetable. The name falls back to a cleaned-up version of the filename when the
+ * document doesn't print one, so a folder of "J Smith.pdf"-style exports still gets sensible
+ * names. The caller reviews/edits the results before saving.
  */
+
+/** The accept attribute shared by every timetable-import file input. */
+export const TIMETABLE_ACCEPT = 'image/*,.pdf,.docx,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt';
 
 export interface ParsedImport {
   fileName: string;
@@ -20,17 +26,6 @@ export interface ParsedImport {
   mimeType: string;
   error?: string;
 }
-
-const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: string }> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      resolve({ base64: dataUrl.split(',')[1], mimeType: file.type });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 const compressIfImage = (base64: string, mimeType: string): Promise<{ base64: string; mimeType: string }> =>
   new Promise((resolve) => {
@@ -73,9 +68,19 @@ const isEmptyTimetable = (tt: WeeklyTimetable | null | undefined): boolean =>
 export const importTimetableFile = async (file: File, type: 'staff' | 'student'): Promise<ParsedImport> => {
   const fallbackName = nameFromFilename(file.name) || file.name;
   try {
-    const read = await readFileAsBase64(file);
-    const { base64, mimeType } = await compressIfImage(read.base64, read.mimeType);
-    const result = await parseTimetableImageWithName(base64, mimeType, file.name);
+    const content = await readFileContent(file);
+    let base64 = '';
+    let mimeType = file.type;
+    let result: { name: string | null; week1: WeeklyTimetable; week2: WeeklyTimetable };
+
+    if (content.isBase64) {
+      const compressed = await compressIfImage(content.text, content.mimeType);
+      base64 = compressed.base64;
+      mimeType = compressed.mimeType;
+      result = await parseTimetableImageWithName(base64, mimeType, file.name);
+    } else {
+      result = await parseTimetableTextWithName(content.text, file.name);
+    }
 
     const week1 = result.week1 || {};
     const week2 = result.week2 || {};
@@ -93,7 +98,7 @@ export const importTimetableFile = async (file: File, type: 'staff' | 'student')
       mimeType,
       error,
     };
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to import timetable file', file.name, e);
     return {
       fileName: file.name,
@@ -103,7 +108,9 @@ export const importTimetableFile = async (file: File, type: 'staff' | 'student')
       week2: {},
       base64: '',
       mimeType: file.type,
-      error: 'Could not read this file. Please try a clearer image or PDF.',
+      error: e?.message?.includes('Unsupported file type') || e?.message?.includes("aren't supported")
+        ? e.message
+        : 'Could not read this file. Please try a clearer image or PDF.',
     };
   }
 };

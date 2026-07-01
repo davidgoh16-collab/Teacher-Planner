@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Colleague, WeeklyTimetable } from '../types';
 import { fetchColleagues, saveColleague, deleteColleague } from '../services/colleagueService';
 import { parseTimetableImage, parseTimetableText } from '../services/aiService';
-import { importTimetableFile, ParsedImport } from '../services/timetableImportService';
+import { importTimetableFile, ParsedImport, TIMETABLE_ACCEPT } from '../services/timetableImportService';
+import { readFileContent } from '../utils/fileUtils';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { Users, Upload, UploadCloud, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText, GraduationCap, Pencil } from 'lucide-react';
+import ImportHelp from './ui/ImportHelp';
 
 interface MeetingPlannerProps {
   initialWeekNumber: number; // 1 or 2
@@ -153,7 +155,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
     setUploading(true);
     setUploadError(null);
-    
+
     // CRITICAL: Clear previous data to ensure we don't mix timetables if the user uploads a new file
     setParsedWeek1(null);
     setParsedWeek2(null);
@@ -161,47 +163,42 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
     setUploadedFileMimeType(null);
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        let base64Content = base64String.split(',')[1];
-        let mimeType = file.type;
-        
-        // Compress if it's an image
+      // Images/PDFs go to the vision model; Word/Excel/CSV/text are extracted client-side
+      // and parsed through the text route.
+      const content = await readFileContent(file);
+      let result: { week1: WeeklyTimetable | null; week2: WeeklyTimetable | null };
+
+      if (content.isBase64) {
+        let base64Content = content.text;
+        let mimeType = content.mimeType;
         if (mimeType.startsWith('image/')) {
           try {
-             base64Content = await compressImage(base64Content, mimeType);
-             mimeType = 'image/jpeg'; // We convert to jpeg
+            base64Content = await compressImage(base64Content, mimeType);
+            mimeType = 'image/jpeg'; // We convert to jpeg
           } catch (err) {
             console.warn("Image compression failed, using original", err);
           }
         }
-
         setUploadedFileBase64(base64Content);
         setUploadedFileMimeType(mimeType);
+        result = await parseTimetableImage(base64Content, mimeType);
+      } else {
+        result = await parseTimetableText(content.text);
+      }
 
-        try {
-          const result = await parseTimetableImage(base64Content, mimeType);
-          
-          // Directly set the result, even if null, to ensure we reflect exactly what the AI found in THIS file
-          setParsedWeek1(result.week1 || null);
-          setParsedWeek2(result.week2 || null);
+      // Directly set the result, even if null, to ensure we reflect exactly what the AI found in THIS file
+      setParsedWeek1(result.week1 || null);
+      setParsedWeek2(result.week2 || null);
 
-          if ((!result.week1 || Object.keys(result.week1).length === 0) && (!result.week2 || Object.keys(result.week2).length === 0)) {
-             setUploadError("Could not detect any valid timetable data. Please check the file.");
-          }
-
-        } catch (err) {
-          console.error(err);
-          setUploadError("Failed to parse timetable. Please try again with a clearer file.");
-        } finally {
-          setUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
+      if ((!result.week1 || Object.keys(result.week1).length === 0) && (!result.week2 || Object.keys(result.week2).length === 0)) {
+        setUploadError("Could not detect any valid timetable data. Please check the file.");
+      }
+    } catch (err: any) {
       console.error(err);
-      setUploadError("Error reading file.");
+      setUploadError(err?.message?.includes('Unsupported file type') || err?.message?.includes("aren't supported")
+        ? err.message
+        : "Failed to parse timetable. Please try again with a clearer file.");
+    } finally {
       setUploading(false);
     }
   };
@@ -620,9 +617,14 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
                 <UploadCloud className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Choose timetable files</span>
-                <span className="text-xs text-gray-400">Images or PDFs · select multiple</span>
-                <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleBatchFiles} disabled={importing} />
+                <span className="text-xs text-gray-400">Select several at once</span>
+                <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={handleBatchFiles} disabled={importing} />
               </label>
+
+              <ImportHelp
+                formats="PNG/JPG, PDF, Word (.docx), Excel (.xlsx), CSV or text — one person per file"
+                tips={["Names are read from each document; if a file doesn't show one, its file name is used — so name files like 'J Smith.pdf'."]}
+              />
 
               {importing && (
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -730,7 +732,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                   <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors ${parsedWeek1 || parsedWeek2 ? 'border-green-300 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}>
                     <input
                       type="file"
-                      accept=".pdf,image/*"
+                      accept={TIMETABLE_ACCEPT}
                       onChange={handleFileChange}
                       className="hidden"
                       id="timetable-upload"
@@ -751,7 +753,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
                       {!uploading && (
                         <span className="text-xs text-gray-400 mt-1">
-                          Supports PDF (multi-page) or Images (PNG/JPG)
+                          PNG/JPG, PDF (multi-page), Word, Excel/CSV or text
                         </span>
                       )}
 
@@ -767,7 +769,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                     <textarea
                       value={timetableText}
                       onChange={(e) => setTimetableText(e.target.value)}
-                      placeholder="Paste timetable text here..."
+                      placeholder="Paste timetable text here — copy the cells straight from Excel or your MIS, keeping the day and period labels…"
                       className="w-full h-32 px-3 py-2 text-sm text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:text-gray-300 dark:border-slate-700 custom-scrollbar"
                       disabled={uploading}
                     />
