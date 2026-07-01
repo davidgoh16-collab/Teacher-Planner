@@ -12,6 +12,7 @@ import SettingsModal from './components/SettingsModal';
 import OnboardingModal from './components/OnboardingModal';
 import SharedView from './components/SharedView';
 import ShareDialog from './components/ShareDialog';
+import Toaster from './components/ui/Toaster';
 import { Settings, Share2 } from 'lucide-react';
 import { 
   LessonPlan, 
@@ -2711,6 +2712,8 @@ const App: React.FC = () => {
           resourceName={shareTarget.resourceName}
         />
       )}
+
+      <Toaster />
 
       <TaskCardModal
         isOpen={isCardModalOpen}
