@@ -81,6 +81,11 @@ type Theme = 'light' | 'dark' | 'system';
 // The specific user allowed to edit the planner
 const ADMIN_UID = 'oleZncmmoyNerACQDErqtfMcNYS2';
 
+// Test-only auth bypass (?bypass_login=true) for local Playwright runs. import.meta.env.DEV is
+// statically false in production builds, so the whole branch is stripped and the query param is inert.
+const isBypassLoginEnabled = (): boolean =>
+  import.meta.env.DEV && window.location.search.includes('bypass_login=true');
+
 // Live trace of an in-flight agent run, surfaced as the streamed "thought process".
 export interface AgentTrace {
   reasoning: string;
@@ -534,7 +539,7 @@ const App: React.FC = () => {
 
   const toggleTaskCompletion = async (e: React.MouseEvent, taskId: string, parentTaskId?: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
 
@@ -654,7 +659,7 @@ const App: React.FC = () => {
 
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
 
@@ -741,7 +746,7 @@ const App: React.FC = () => {
 
   const handleToggleRoutineTask = async (e: React.MouseEvent, task: RoutineTask, targetDateStr: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
     const currentlyCompleted = isRoutineCompleted(task, targetDateStr);
@@ -1688,8 +1693,8 @@ const App: React.FC = () => {
     );
   }
 
-  // Force bypass login for playwright tests.
-  const isTestBypass = window.location.search.includes('bypass_login=true');
+  // Force bypass login for playwright tests (DEV builds only).
+  const isTestBypass = isBypassLoginEnabled();
   if (isTestBypass) {
      // we'll pretend there is an admin user
      if (!user || user.uid !== ADMIN_UID) {
