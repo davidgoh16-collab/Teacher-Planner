@@ -79,7 +79,14 @@ export const setLegacyMigrated = async (uid: string): Promise<void> => {
 
 /** Find a registered user by email (case-insensitive). Powers sharing. */
 export const findUserByEmail = async (email: string): Promise<UserProfile | null> => {
-  const q = query(collection(db, USERS), where('emailLower', '==', email.trim().toLowerCase()));
-  const snap = await getDocs(q);
-  return snap.empty ? null : (snap.docs[0].data() as UserProfile);
+  try {
+    const q = query(collection(db, USERS), where('emailLower', '==', email.trim().toLowerCase()));
+    const snap = await getDocs(q);
+    return snap.empty ? null : (snap.docs[0].data() as UserProfile);
+  } catch (e: any) {
+    if (e?.code === 'permission-denied') {
+      throw new Error('User lookup was blocked by the server security rules — the firestore.rules in this repo need deploying (see README).');
+    }
+    throw e;
+  }
 };

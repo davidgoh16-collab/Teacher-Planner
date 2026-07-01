@@ -5,19 +5,17 @@ import { getAuth, OAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 /**
  * FIREBASE CONFIGURATION
  *
- * To make this app work across devices, you need to create a project at:
- * https://console.firebase.google.com/
- *
- * 1. Create a project.
- * 2. Add a Web App to the project.
- * 3. Copy the 'firebaseConfig' object they provide.
- * 4. Paste the values below.
- * 5. In Firebase Console -> Firestore Database -> Rules, set them to allow read/write for testing:
- *    allow read, write: if true;
+ * The web API key can be supplied via VITE_FIREBASE_API_KEY (runtime env.js in Docker, or
+ * .env.local in dev — see README); the hardcoded value is the fallback. Note a Firebase web
+ * API key is an identifier, not a secret — access control lives in firestore.rules, which
+ * MUST be deployed to the project (`npm run rules:deploy`) for sharing to work.
  */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg",
+  apiKey:
+    window.ENV?.VITE_FIREBASE_API_KEY ||
+    import.meta.env.VITE_FIREBASE_API_KEY ||
+    "AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg",
   authDomain: "school-apps-52c7d.firebaseapp.com",
   projectId: "school-apps-52c7d",
   storageBucket: "school-apps-52c7d.firebasestorage.app",

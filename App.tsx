@@ -12,6 +12,7 @@ import SettingsModal from './components/SettingsModal';
 import OnboardingModal from './components/OnboardingModal';
 import SharedView from './components/SharedView';
 import ShareDialog from './components/ShareDialog';
+import Toaster from './components/ui/Toaster';
 import { Settings, Share2 } from 'lucide-react';
 import { 
   LessonPlan, 
@@ -80,6 +81,11 @@ type Theme = 'light' | 'dark' | 'system';
 
 // The specific user allowed to edit the planner
 const ADMIN_UID = 'oleZncmmoyNerACQDErqtfMcNYS2';
+
+// Test-only auth bypass (?bypass_login=true) for local Playwright runs. import.meta.env.DEV is
+// statically false in production builds, so the whole branch is stripped and the query param is inert.
+const isBypassLoginEnabled = (): boolean =>
+  import.meta.env.DEV && window.location.search.includes('bypass_login=true');
 
 // Live trace of an in-flight agent run, surfaced as the streamed "thought process".
 export interface AgentTrace {
@@ -534,7 +540,7 @@ const App: React.FC = () => {
 
   const toggleTaskCompletion = async (e: React.MouseEvent, taskId: string, parentTaskId?: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
 
@@ -654,7 +660,7 @@ const App: React.FC = () => {
 
   const toggleCompletion = async (e: React.MouseEvent, dateStr: string, periodLabel: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
 
@@ -741,7 +747,7 @@ const App: React.FC = () => {
 
   const handleToggleRoutineTask = async (e: React.MouseEvent, task: RoutineTask, targetDateStr: string) => {
     e.stopPropagation();
-    const isTestBypass = !user && window.location.search.includes('bypass_login=true');
+    const isTestBypass = !user && isBypassLoginEnabled();
     const actualIsReadOnly = isTestBypass ? false : isReadOnly;
     if (actualIsReadOnly) return;
     const currentlyCompleted = isRoutineCompleted(task, targetDateStr);
@@ -1209,9 +1215,10 @@ const App: React.FC = () => {
       }
 
       handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction), formatThoughts(liveTrace));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Agent Error:", error);
-      setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, the agent run failed. This preview feature can be slow or rate-limited — please check the console and try again." }]);
+      const detail = error?.message ? `\n\n${String(error.message).slice(0, 300)}` : '';
+      setChatMessages(prev => [...prev, { role: 'model', text: `Sorry, the agent run failed. This preview feature can be slow or rate-limited — please try again.${detail}` }]);
     } finally {
       traceRef.current = null;
       setAgentTrace(null);
@@ -1688,8 +1695,8 @@ const App: React.FC = () => {
     );
   }
 
-  // Force bypass login for playwright tests.
-  const isTestBypass = window.location.search.includes('bypass_login=true');
+  // Force bypass login for playwright tests (DEV builds only).
+  const isTestBypass = isBypassLoginEnabled();
   if (isTestBypass) {
      // we'll pretend there is an admin user
      if (!user || user.uid !== ADMIN_UID) {
@@ -2705,6 +2712,8 @@ const App: React.FC = () => {
           resourceName={shareTarget.resourceName}
         />
       )}
+
+      <Toaster />
 
       <TaskCardModal
         isOpen={isCardModalOpen}

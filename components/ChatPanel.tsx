@@ -541,7 +541,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
             className="p-1.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors shrink-0 disabled:opacity-50"
-            title="Attach Document"
+            title="Attach a file — PDF, image, Word, Excel/CSV, PowerPoint or text"
           >
             <Paperclip size={18} />
           </button>

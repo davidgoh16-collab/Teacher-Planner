@@ -14,6 +14,11 @@ export const getAiClient = () => {
 // The native-audio voice model (LiveAssistant) is intentionally separate.
 export const TEXT_MODEL = "gemini-3.5-flash";
 
+// Every timetable parser asks for hex colours: the renderer (utils/colorUtils.ts) accepts both hex
+// and Tailwind classes, but the Settings colour picker can only edit hex, so hex keeps imported
+// timetables editable and visually consistent across import paths.
+const COLOR_INSTRUCTION = 'Assign a visually distinct HEX color code to the \'colorClass\' field based on the subject (e.g. all Geography classes get the same green hex like #bbf7d0, all Math classes a blue hex like #bfdbfe). Do NOT use Tailwind class names, ONLY hex codes.';
+
 const DAY_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -722,7 +727,7 @@ export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyT
       IMPORTANT: Do NOT hallucinate. If a slot is empty in the text, it MUST be null in the JSON.
       Do NOT fill in default values.
 
-      Assign a colorClass based on the subject (e.g., Math=blue, English=yellow, Science=green, etc.). Use Tailwind classes like "bg-blue-100 text-blue-800".
+      ${COLOR_INSTRUCTION}
 
       Here is the text to analyze:
       ${text}
@@ -833,8 +838,8 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
       
       IMPORTANT: Do NOT hallucinate. If a slot is empty in the image, it MUST be null in the JSON.
       Do NOT fill in default values.
-      
-      Assign a colorClass based on the subject (e.g., Math=blue, English=yellow, Science=green, etc.). Use Tailwind classes like "bg-blue-100 text-blue-800".
+
+      ${COLOR_INSTRUCTION}
     `;
 
     const ai = getAiClient();
@@ -867,22 +872,12 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
   }
 };
 
-/**
- * Like parseTimetableImage but ALSO extracts the person's name from the document (used by the
- * meeting planner's batch import to identify whose timetable each file is). `filenameHint` lets the
- * model fall back to the uploaded file's name when the document itself doesn't print a name.
- */
-export const parseTimetableImageWithName = async (
-  base64Data: string,
-  mimeType: string = "image/png",
-  filenameHint?: string,
-): Promise<{ name: string | null, week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
-  try {
-    const prompt = `
-      Analyze this document (a person's school timetable). It may contain one or multiple pages.
+/** Shared prompt body for the name-extracting timetable parsers (image and text variants). */
+const timetableWithNamePrompt = (filenameHint?: string, textContent?: string) => `
+      Analyze this ${textContent ? 'text representation of a person\'s school timetable' : 'document (a person\'s school timetable). It may contain one or multiple pages'}.
 
       FIRST, identify the NAME of the person this timetable belongs to — look for a teacher or student
-      name printed on the page (a header, title, or "Name:" field).${filenameHint ? `\n      The uploaded file was named "${filenameHint}"; use it as a hint if the document itself is unclear.` : ''}
+      name printed on the ${textContent ? 'text' : 'page'} (a header, title, or "Name:" field).${filenameHint ? `\n      The uploaded file was named "${filenameHint}"; use it as a hint if the document itself is unclear.` : ''}
       Put it in the "name" field (full name if available). If you genuinely cannot find a name, return null.
 
       THEN extract the schedule for Week 1 and Week 2.
@@ -899,15 +894,32 @@ export const parseTimetableImageWithName = async (
       Ignore "Morning Mtg"/"Afternoon Mtg" unless explicitly stated.
 
       IMPORTANT: Do NOT hallucinate. Empty slots MUST be null. Do NOT fill in default values.
-      Assign a colorClass per subject using Tailwind classes like "bg-blue-100 text-blue-800".
+      ${COLOR_INSTRUCTION}
+      ${textContent ? `\n      Here is the text to analyze:\n      ${textContent}` : ''}
     `;
 
+const parseTimetableWithNameResponse = (text: string) => {
+  const result = extractAndParseJSON(text);
+  return { name: result.name || null, week1: result.week1 || {}, week2: result.week2 || {} };
+};
+
+/**
+ * Like parseTimetableImage but ALSO extracts the person's name from the document (used by the
+ * meeting planner's batch import to identify whose timetable each file is). `filenameHint` lets the
+ * model fall back to the uploaded file's name when the document itself doesn't print a name.
+ */
+export const parseTimetableImageWithName = async (
+  base64Data: string,
+  mimeType: string = "image/png",
+  filenameHint?: string,
+): Promise<{ name: string | null, week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
+  try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: TEXT_MODEL,
       contents: {
         parts: [
-          { text: prompt },
+          { text: timetableWithNamePrompt(filenameHint) },
           { inlineData: { mimeType, data: base64Data } },
         ],
       },
@@ -917,13 +929,37 @@ export const parseTimetableImageWithName = async (
       },
     });
 
-    if (response.text) {
-      const result = extractAndParseJSON(response.text);
-      return { name: result.name || null, week1: result.week1 || {}, week2: result.week2 || {} };
-    }
+    if (response.text) return parseTimetableWithNameResponse(response.text);
     throw new Error("No response text from Gemini");
   } catch (error) {
     console.error("Error parsing timetable with name:", error);
+    throw error;
+  }
+};
+
+/**
+ * Text-input variant of parseTimetableImageWithName, used when the uploaded file was a Word/Excel/
+ * CSV/text document whose content is extracted client-side rather than sent as an image.
+ */
+export const parseTimetableTextWithName = async (
+  textContent: string,
+  filenameHint?: string,
+): Promise<{ name: string | null, week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: timetableWithNamePrompt(filenameHint, textContent),
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: TIMETABLE_WITH_NAME_SCHEMA,
+      },
+    });
+
+    if (response.text) return parseTimetableWithNameResponse(response.text);
+    throw new Error("No response text from Gemini");
+  } catch (error) {
+    console.error("Error parsing timetable text with name:", error);
     throw error;
   }
 };

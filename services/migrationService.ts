@@ -2,6 +2,7 @@ import { db } from '../firebase';
 import { collection, getDocs, doc, setDoc, writeBatch } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { ensureUserProfile, getProfile, setLegacyMigrated } from './userService';
+import { claimPendingShares } from './shareService';
 
 /**
  * One-time migration of the original (pre-multi-tenant) global data into the owner's user space,
@@ -93,6 +94,15 @@ export const bootstrapUser = (user: User): Promise<void> => {
   if (bootstrap && bootstrap.uid === user.uid) return bootstrap.promise;
   const promise = (async () => {
     await ensureUserProfile(user);
+    if (user.email) {
+      // Convert any invites sent to this email before the account existed. Best-effort:
+      // a failure must never block login, and unclaimed docs are retried next login.
+      try {
+        await claimPendingShares(user.uid, user.email);
+      } catch (e) {
+        console.error('Claiming pending shares failed (will retry next login):', e);
+      }
+    }
     await migrateLegacyDataIfNeeded(user.uid);
   })();
   bootstrap = { uid: user.uid, promise };

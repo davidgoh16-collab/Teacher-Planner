@@ -4,13 +4,6 @@ import { userCol, userDocRef } from './userScope';
 
 const COLLECTION_NAME = 'colleagues';
 
-/**
- * Colleague seeding is intentionally a no-op now: each user starts with an empty roster and adds
- * their own staff/student timetables. (The original owner's colleagues arrive via the one-time
- * legacy migration in migrationService.ts.)
- */
-export const seedDatabase = async (): Promise<void> => {};
-
 export const fetchColleagues = async (): Promise<Colleague[]> => {
   const colleagues: Colleague[] = [];
   try {

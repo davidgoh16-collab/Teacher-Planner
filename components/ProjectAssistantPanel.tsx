@@ -391,7 +391,7 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isLoading || isReadOnly}
-                            title="Attach a document"
+                            title="Attach a file — PDF, image, Word, Excel/CSV, PowerPoint or text"
                             className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors disabled:opacity-50 shrink-0"
                         >
                             <Paperclip size={18} />

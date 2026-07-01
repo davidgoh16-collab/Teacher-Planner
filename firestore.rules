@@ -6,13 +6,16 @@ rules_version = '2';
 //  - All planner data lives under users/{uid}/... and is private to that user.
 //  - users/{uid} profile docs are readable by any signed-in user so sharing-by-email lookups work
 //    (keep them minimal — no sensitive data).
-//  - Sharing grants live at users/{ownerUid}/grants/{recipientUid} and authorise a recipient to read
-//    the owner's timetable and read/edit specific projects.
-//  - shares/{id} is the registry that drives the "Shared with me" UI.
-//  - The original (pre-multi-tenant) global collections remain readable by the original owner so the
-//    one-time client-side migration can copy them into their user space.
+//  - shares/{id} docs are BOTH the sharing registry and the access grant. Ids are deterministic:
+//      direct:  {ownerUid}__{recipientUid}__{type}__{resourceId}
+//      pending: {ownerUid}__email:{recipientEmailLower}__{type}__{resourceId}   (recipientUid == null)
+//    Data-access rules authorise a recipient via exists()/get() on the direct id. A pending share
+//    grants nothing until the addressee signs in and "claims" it: they create the direct-id copy
+//    (validated field-by-field against the pending doc) and then delete the pending doc.
+//  - The original (pre-multi-tenant) global collections remain readable by the original owner so
+//    the one-time client-side migration can copy them into their user space.
 //
-// NOTE: validate with the Firestore emulator before deploying to production.
+// Deploy with `npm run rules:deploy`; test with `npm run rules:test` (Firestore emulator).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,14 +23,29 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isLegacyOwner() { return isSignedIn() && request.auth.uid == 'oleZncmmoyNerACQDErqtfMcNYS2'; }
 
-    function hasGrant(ownerUid) {
-      return exists(/databases/$(database)/documents/users/$(ownerUid)/grants/$(request.auth.uid));
+    // Lower-cased email from the auth token, or '' when the provider supplied none.
+    // Only call when signed in.
+    function tokenEmail() {
+      return ('email' in request.auth.token) ? request.auth.token.email.lower() : '';
     }
-    function grant(ownerUid) {
-      return get(/databases/$(database)/documents/users/$(ownerUid)/grants/$(request.auth.uid)).data;
+
+    // Deterministic id of a direct share from this owner to the requesting user.
+    function sharePath(ownerUid, type, resourceId) {
+      return /databases/$(database)/documents/shares/$(ownerUid + '__' + request.auth.uid + '__' + type + '__' + resourceId);
     }
+    // Deterministic id of a pending share from this owner to the requesting user's email.
+    function pendingSharePath(ownerUid, type, resourceId) {
+      return /databases/$(database)/documents/shares/$(ownerUid + '__email:' + tokenEmail() + '__' + type + '__' + resourceId);
+    }
+
+    function timetableShared(ownerUid) {
+      return exists(sharePath(ownerUid, 'timetable', 'timetable'));
+    }
+    // '' when not shared; otherwise the share's permission ('view' | 'edit').
     function projectPerm(ownerUid, projectId) {
-      return grant(ownerUid).projects.get(projectId, '');
+      return exists(sharePath(ownerUid, 'project', projectId))
+        ? get(sharePath(ownerUid, 'project', projectId)).data.permission
+        : '';
     }
 
     // ---- User profile + private per-user data ----
@@ -43,34 +61,77 @@ service cloud.firestore {
 
     // ---- Shared timetable (live, read-only): recipient may read the owner's academic-year subtree ----
     match /users/{ownerUid}/teacher_planner_academic_years/{doc=**} {
-      allow read: if request.auth.uid == ownerUid
-        || (hasGrant(ownerUid) && grant(ownerUid).timetable == true);
+      allow read: if request.auth.uid == ownerUid || timetableShared(ownerUid);
     }
 
     // ---- Shared projects: recipient may read (and edit when granted 'edit') ----
     match /users/{ownerUid}/teacher_planner_projects/{projectId} {
       allow read: if request.auth.uid == ownerUid
-        || (hasGrant(ownerUid) && projectPerm(ownerUid, projectId) in ['view', 'edit']);
+        || projectPerm(ownerUid, projectId) in ['view', 'edit'];
       allow write: if request.auth.uid == ownerUid
-        || (hasGrant(ownerUid) && projectPerm(ownerUid, projectId) == 'edit');
+        || projectPerm(ownerUid, projectId) == 'edit';
     }
-    // Tasks of a shared project follow the project's grant.
+    // Tasks of a shared project follow the project's share. Recipients must query with an
+    // equality filter on projectId — unfiltered lists are denied by design.
     match /users/{ownerUid}/teacher_planner_tasks/{taskId} {
       allow read: if request.auth.uid == ownerUid
-        || (hasGrant(ownerUid)
-            && projectPerm(ownerUid, resource.data.projectId) in ['view', 'edit']);
+        || projectPerm(ownerUid, resource.data.projectId) in ['view', 'edit'];
       allow write: if request.auth.uid == ownerUid
-        || (hasGrant(ownerUid)
-            && projectPerm(ownerUid,
-                 (request.resource != null ? request.resource.data.projectId : resource.data.projectId)) == 'edit');
+        || projectPerm(ownerUid,
+             (request.resource != null ? request.resource.data.projectId : resource.data.projectId)) == 'edit';
     }
 
-    // ---- Shares registry (drives the "Shared with me" lists) ----
+    // ---- Shares: registry + grant in one doc ----
     match /shares/{shareId} {
-      allow read: if isSignedIn()
-        && (resource.data.ownerUid == request.auth.uid || resource.data.recipientUid == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      // Owner, the resolved recipient, or the addressee of a pending invite.
+      allow read: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || resource.data.recipientUid == request.auth.uid
+        || (resource.data.recipientUid == null
+            && tokenEmail() != ''
+            && resource.data.recipientEmail == tokenEmail())
+      );
+
+      // The id must encode the doc's own routing fields — the data-access rules above trust it.
+      allow create: if isSignedIn() && (
+        // Owner creates a direct share to a registered user…
+        (request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.recipientUid is string
+          && shareId == request.auth.uid + '__' + request.resource.data.recipientUid + '__'
+               + request.resource.data.type + '__' + request.resource.data.resourceId)
+        // …or a pending invite to an email address that hasn't signed up yet…
+        || (request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.recipientUid == null
+          && request.resource.data.recipientEmail == request.resource.data.recipientEmail.lower()
+          && shareId == request.auth.uid + '__email:' + request.resource.data.recipientEmail + '__'
+               + request.resource.data.type + '__' + request.resource.data.resourceId)
+        // …or the addressee claims a pending invite by creating the direct-id copy, validated
+        // against the still-existing pending doc (which only the owner could have created).
+        || (tokenEmail() != ''
+          && request.resource.data.recipientUid == request.auth.uid
+          && shareId == request.resource.data.ownerUid + '__' + request.auth.uid + '__'
+               + request.resource.data.type + '__' + request.resource.data.resourceId
+          && exists(pendingSharePath(request.resource.data.ownerUid, request.resource.data.type, request.resource.data.resourceId))
+          && get(pendingSharePath(request.resource.data.ownerUid, request.resource.data.type, request.resource.data.resourceId)).data.ownerUid == request.resource.data.ownerUid
+          && get(pendingSharePath(request.resource.data.ownerUid, request.resource.data.type, request.resource.data.resourceId)).data.permission == request.resource.data.permission)
+      );
+
+      // Owner may update (e.g. flip view/edit) but not rewrite the identity the id encodes.
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.recipientUid == resource.data.recipientUid
+        && request.resource.data.recipientEmail == resource.data.recipientEmail
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.resourceId == resource.data.resourceId;
+
+      // Owner revokes; a claimant removes the pending doc they just converted.
+      allow delete: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || (resource.data.recipientUid == null
+            && tokenEmail() != ''
+            && resource.data.recipientEmail == tokenEmail())
+      );
     }
 
     // ---- Legacy global collections: original owner read-only, for one-time migration ----

@@ -1,6 +1,7 @@
 import { getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import { Project, Task, Category, Idea, KeyDate, RoutineTask } from '../types';
 import { userCol, userDocRef } from './userScope';
+import { notifyError } from '../utils/notify';
 
 const PROJECTS_COLLECTION = 'teacher_planner_projects';
 const TASKS_COLLECTION = 'teacher_planner_tasks';
@@ -80,7 +81,8 @@ export const saveTask = async (task: Task): Promise<void> => {
         await setDoc(userDocRef(TASKS_COLLECTION, task.id), task);
     } catch (e) {
         console.error("Error saving task", e);
-        console.warn("Ignoring saveTask error for local testing.");
+        notifyError("Couldn't save that task — check your connection and try again.");
+        throw e;
     }
 };
 
@@ -89,7 +91,8 @@ export const deleteTask = async (id: string): Promise<void> => {
         await deleteDoc(userDocRef(TASKS_COLLECTION, id));
     } catch (e) {
         console.error("Error deleting task", e);
-        console.warn("Ignoring deleteTask error for local testing.");
+        notifyError("Couldn't delete that task — check your connection and try again.");
+        throw e;
     }
 };
 
@@ -110,6 +113,8 @@ export const saveKeyDate = async (keyDate: KeyDate): Promise<void> => {
     await setDoc(userDocRef(KEY_DATES_COLLECTION, keyDate.id), keyDate);
   } catch (e) {
     console.error("Error saving key date", e);
+    notifyError("Couldn't save that key date — check your connection and try again.");
+    throw e;
   }
 };
 
@@ -118,6 +123,8 @@ export const deleteKeyDate = async (keyDateId: string): Promise<void> => {
     await deleteDoc(userDocRef(KEY_DATES_COLLECTION, keyDateId));
   } catch (e) {
     console.error("Error deleting key date", e);
+    notifyError("Couldn't delete that key date — check your connection and try again.");
+    throw e;
   }
 };
 
@@ -164,9 +171,21 @@ export const fetchRoutineTasks = async (): Promise<RoutineTask[]> => {
 };
 
 export const saveRoutineTask = async (task: RoutineTask): Promise<void> => {
-  try { await setDoc(userDocRef(ROUTINE_TASKS_COLLECTION, task.id), task); } catch (e) {}
+  try {
+    await setDoc(userDocRef(ROUTINE_TASKS_COLLECTION, task.id), task);
+  } catch (e) {
+    console.error("Error saving routine task", e);
+    notifyError("Couldn't save that routine — check your connection and try again.");
+    throw e;
+  }
 };
 
 export const deleteRoutineTask = async (id: string): Promise<void> => {
-  try { await deleteDoc(userDocRef(ROUTINE_TASKS_COLLECTION, id)); } catch (e) {}
+  try {
+    await deleteDoc(userDocRef(ROUTINE_TASKS_COLLECTION, id));
+  } catch (e) {
+    console.error("Error deleting routine task", e);
+    notifyError("Couldn't delete that routine — check your connection and try again.");
+    throw e;
+  }
 };
