@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Loader2, Check, Trash2, UserPlus } from 'lucide-react';
+import { X, Mail, Loader2, Check, Trash2, UserPlus, Copy, Send } from 'lucide-react';
 import {
   Share, ShareType, SharePermission,
   createShare, listSharesByMe, revokeShare, setSharePermission,
 } from '../services/shareService';
+
+/** Prefilled email draft so the colleague actually hears about the share (the app has no mail server). */
+const buildInvite = (recipientEmail: string, type: ShareType, resourceName: string) => {
+  const what = type === 'timetable' ? 'my timetable' : `the project "${resourceName}"`;
+  const subject = `I've shared ${what} with you on Teacher Planner`;
+  const body = `Hi,\n\nI've shared ${what} with you in Teacher Planner.\n\nSign in at ${window.location.origin} using this email address (${recipientEmail}) and it will appear under "Shared with me".\n`;
+  return {
+    text: `${subject}\n\n${body}`,
+    mailto: `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+  };
+};
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -21,6 +32,8 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [shares, setShares] = useState<Share[]>([]);
+  const [invite, setInvite] = useState<{ email: string; pending: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const loadShares = async () => {
     try {
@@ -34,6 +47,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
   useEffect(() => {
     if (isOpen) {
       setEmail(''); setError(null); setSuccess(null); setPermission('view');
+      setInvite(null); setCopied(false);
       loadShares();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,15 +57,19 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
 
   const handleShare = async () => {
     if (!email.trim()) return;
-    setSharing(true); setError(null); setSuccess(null);
+    const target = email.trim();
+    setSharing(true); setError(null); setSuccess(null); setInvite(null); setCopied(false);
     try {
       const res = await createShare({
         owner, type, resourceId, resourceName,
-        recipientEmail: email.trim(),
+        recipientEmail: target,
         permission: type === 'project' ? permission : 'view',
       });
       if (res.ok) {
-        setSuccess(`Shared with ${email.trim()}.`);
+        setSuccess(res.pending
+          ? `${target} hasn't signed up yet — they'll get access automatically the first time they sign in with that email.`
+          : `Shared with ${target}.`);
+        setInvite({ email: target.toLowerCase(), pending: !!res.pending });
         setEmail('');
         loadShares();
       } else {
@@ -64,6 +82,17 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
         : e?.message || 'Could not share — please try again.');
     } finally {
       setSharing(false);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!invite) return;
+    try {
+      await navigator.clipboard.writeText(buildInvite(invite.email, type, resourceName).text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error('Clipboard write failed', e);
     }
   };
 
@@ -112,7 +141,29 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
             )}
 
             {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {success && <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1"><Check size={14} /> {success}</p>}
+            {success && <p className="text-xs text-green-600 dark:text-green-400 flex items-start gap-1"><Check size={14} className="shrink-0 mt-0.5" /> <span>{success}</span></p>}
+
+            {invite && (
+              <div className="rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 p-3 space-y-2">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                  Let them know — the app doesn't send emails itself:
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href={buildInvite(invite.email, type, resourceName).mailto}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+                  >
+                    <Send size={13} /> Email them an invite
+                  </a>
+                  <button
+                    onClick={handleCopyInvite}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                  >
+                    {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy invite'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={handleShare}
@@ -129,7 +180,14 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Shared with</p>
               {shares.map(s => (
                 <div key={s.id} className="flex items-center gap-2 text-sm">
-                  <span className="flex-1 truncate text-gray-700 dark:text-gray-200">{s.recipientEmail}</span>
+                  <span className="flex-1 truncate text-gray-700 dark:text-gray-200">
+                    {s.recipientEmail}
+                    {s.recipientUid === null && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 align-middle">
+                        Invited — hasn't signed up yet
+                      </span>
+                    )}
+                  </span>
                   {s.type === 'project' && (
                     <select
                       value={s.permission}
