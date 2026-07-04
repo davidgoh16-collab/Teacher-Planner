@@ -4,6 +4,7 @@ import AppModal from './AppModal';
 import ManageAppCategoriesModal from './ManageAppCategoriesModal';
 import { Plus, LayoutGrid, Settings, Search, Folder, Star } from 'lucide-react';
 import IconRenderer from './ui/IconRenderer';
+import { sanitizeUrl } from '../utils/urlUtils';
 
 interface AppsHubProps {
   isReadOnly: boolean;
@@ -150,7 +151,7 @@ const AppsHub: React.FC<AppsHubProps> = ({ isReadOnly, apps, categories, onSaveA
                                     {catApps.map(app => (
                                         <a
                                             key={app.id}
-                                            href={app.url}
+                                            href={sanitizeUrl(app.url)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="group relative flex flex-col items-center gap-3 w-24 hover:-translate-y-1 transition-transform duration-200"
