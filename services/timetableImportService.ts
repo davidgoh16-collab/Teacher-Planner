@@ -1,6 +1,50 @@
 import { WeeklyTimetable } from '../types';
 import { parseTimetableImageWithName, parseTimetableTextWithName } from './aiService';
 import { readFileContent } from '../utils/fileUtils';
+import { detectAndScrub } from '../utils/piiDetector';
+import { buildMappingFromPeople, rehydrateDeep } from '../utils/pseudonymiser';
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Remove any of `names` (whole-word, case-insensitive) from every string in a nested structure. */
+const redactNamesDeep = <T>(value: T, names: string[]): T => {
+  const patterns = names
+    .filter((n) => n && n.trim().length >= 2)
+    .map((n) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(n.trim())}(?![\\p{L}\\p{N}])`, 'giu'));
+  const walk = (v: any): any => {
+    if (typeof v === 'string') { let s = v; for (const p of patterns) s = s.replace(p, ''); return s; }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') {
+      const o: any = {};
+      for (const [k, val] of Object.entries(v)) o[k] = walk(val);
+      return o;
+    }
+    return v;
+  };
+  return walk(value);
+};
+
+/** The first roster name (whole-word, case-insensitive) that appears in the extracted text. */
+const findRosterNameInText = (text: string, rosterNames: string[]): string | null => {
+  for (const n of rosterNames) {
+    const name = (n || '').trim();
+    if (name.length >= 3 && new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'iu').test(text)) {
+      return name;
+    }
+  }
+  return null;
+};
+
+/** True if the file will be sent to the vision model as a raw image (photo, or scanned PDF). */
+export const isLikelyScan = (file: File): boolean =>
+  file.type.startsWith('image/') || file.type === 'application/pdf' || /\.(png|jpe?g|webp|gif|pdf)$/i.test(file.name);
+
+/** Consent gate for scanned/image documents that must be sent to Gemini as a raw image. */
+export const confirmScanConsent = (count = 1): boolean =>
+  typeof window === 'undefined' ? true : window.confirm(
+    `${count > 1 ? `${count} of these files look` : 'This file looks'} like a scan or photo. Processing ` +
+    'it sends the raw image to Google Gemini, including any names or personal details visible on it. Continue?'
+  );
 
 /**
  * Batch timetable import for the meeting planner.
@@ -64,33 +108,61 @@ export const nameFromFilename = (fileName: string): string => {
 const isEmptyTimetable = (tt: WeeklyTimetable | null | undefined): boolean =>
   !tt || Object.keys(tt).length === 0;
 
-/** Process one file end-to-end into a reviewable ParsedImport. Never throws — errors are captured. */
-export const importTimetableFile = async (file: File, type: 'staff' | 'student'): Promise<ParsedImport> => {
+/**
+ * Process one file end-to-end into a reviewable ParsedImport. Never throws — errors are captured.
+ *
+ * Data minimisation of the person's name:
+ * - Text documents: names are detected & scrubbed LOCALLY (piiDetector) before anything reaches
+ *   Gemini, and the person is identified by matching the colleague roster — Gemini is never asked
+ *   to read a name. If no roster match is found, the name is left for the reviewer to fill in.
+ * - Scanned images: the raw image is sent to the vision model (behind the caller's consent gate);
+ *   the prompt keeps names out of the lesson fields and we redact any that leak as a backstop.
+ */
+export const importTimetableFile = async (
+  file: File,
+  type: 'staff' | 'student',
+  rosterNames: string[] = [],
+): Promise<ParsedImport> => {
   const fallbackName = nameFromFilename(file.name) || file.name;
   try {
     const content = await readFileContent(file);
     let base64 = '';
     let mimeType = file.type;
-    let result: { name: string | null; week1: WeeklyTimetable; week2: WeeklyTimetable };
+    let name = '';
+    let week1: WeeklyTimetable = {};
+    let week2: WeeklyTimetable = {};
 
     if (content.isBase64) {
       const compressed = await compressIfImage(content.text, content.mimeType);
       base64 = compressed.base64;
       mimeType = compressed.mimeType;
-      result = await parseTimetableImageWithName(base64, mimeType, file.name);
+      const result = await parseTimetableImageWithName(base64, mimeType, file.name);
+      name = (result.name && result.name.trim()) || fallbackName;
+      // Backstop: strip the person's name (and any roster name) out of the lesson fields.
+      const redactList = [name, ...rosterNames];
+      week1 = redactNamesDeep(result.week1 || {}, redactList);
+      week2 = redactNamesDeep(result.week2 || {}, redactList);
     } else {
-      result = await parseTimetableTextWithName(content.text, file.name);
+      // Detect + scrub names locally so they never reach Gemini; identify the person from the roster.
+      // Use the labelled/table pass (not aggressive title-case) so lesson subjects like
+      // "Design Technology" aren't mistaken for names and stripped out of the schedule.
+      const rosterMapping = buildMappingFromPeople(rosterNames.map((n) => ({ name: n })));
+      const detected = detectAndScrub(content.text, [], rosterMapping);
+      const foundName = findRosterNameInText(content.text, rosterNames);
+      const result = await parseTimetableTextWithName(detected.scrubbedText, foundName || undefined);
+      // Restore any tokens the model echoed back into the (name-free) lesson fields.
+      week1 = rehydrateDeep(result.week1 || {}, detected.mapping);
+      week2 = rehydrateDeep(result.week2 || {}, detected.mapping);
+      name = foundName || fallbackName;
     }
 
-    const week1 = result.week1 || {};
-    const week2 = result.week2 || {};
     const error = isEmptyTimetable(week1) && isEmptyTimetable(week2)
       ? 'No timetable detected in this file.'
       : undefined;
 
     return {
       fileName: file.name,
-      name: (result.name && result.name.trim()) || fallbackName,
+      name,
       type,
       week1,
       week2,

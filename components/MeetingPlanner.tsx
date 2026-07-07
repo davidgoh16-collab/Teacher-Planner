@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Colleague, WeeklyTimetable } from '../types';
 import { fetchColleagues, saveColleague, deleteColleague } from '../services/colleagueService';
 import { parseTimetableImage, parseTimetableText } from '../services/aiService';
-import { importTimetableFile, ParsedImport, TIMETABLE_ACCEPT } from '../services/timetableImportService';
+import { importTimetableFile, ParsedImport, TIMETABLE_ACCEPT, confirmScanConsent, isLikelyScan } from '../services/timetableImportService';
 import { readFileContent } from '../utils/fileUtils';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { Users, Upload, UploadCloud, Plus, Trash2, Check, X, Loader2, CheckCircle2, Eye, FileText, GraduationCap, Pencil } from 'lucide-react';
@@ -169,6 +169,12 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       let result: { week1: WeeklyTimetable | null; week2: WeeklyTimetable | null };
 
       if (content.isBase64) {
+        // Consent gate: this file has no readable text layer, so the raw image goes to Gemini.
+        if (!confirmScanConsent(1)) {
+          setUploadError('Cancelled — the file was not sent.');
+          setUploading(false);
+          return;
+        }
         let base64Content = content.text;
         let mimeType = content.mimeType;
         if (mimeType.startsWith('image/')) {
@@ -237,12 +243,23 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
   const handleBatchFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    // Consent gate: scanned/photo files must be sent to Gemini as raw images.
+    const scanCount = files.filter(isLikelyScan).length;
+    if (scanCount > 0 && !confirmScanConsent(scanCount)) {
+      e.target.value = '';
+      return;
+    }
+
+    // Roster names let the importer identify people locally (text docs) and redact leaked names.
+    const rosterNames = colleagues.map(c => c.name);
+
     setImporting(true);
     setImportResults([]);
     setImportProgress({ done: 0, total: files.length });
     const results: ParsedImport[] = [];
     for (let i = 0; i < files.length; i++) {
-      const res = await importTimetableFile(files[i], activeRoster);
+      const res = await importTimetableFile(files[i], activeRoster, rosterNames);
       results.push(res);
       setImportProgress({ done: i + 1, total: files.length });
       setImportResults([...results]);
@@ -636,6 +653,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               {importResults.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Review &amp; confirm</p>
+                  <p className="text-[11px] text-gray-400">Names are detected on-device — where a row is blank, type in whose timetable it is.</p>
                   {importResults.map((row, idx) => (
                     <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg border ${row.error ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-gray-200 dark:border-slate-700'}`}>
                       <div className="flex-1 min-w-0">
@@ -644,7 +662,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                           <input
                             value={row.name}
                             onChange={(e) => updateImportRow(idx, { name: e.target.value })}
-                            placeholder="Name"
+                            placeholder="Whose timetable is this?"
                             className="w-full bg-transparent text-sm font-medium text-gray-800 dark:text-gray-100 focus:outline-none border-b border-transparent focus:border-primary-400"
                           />
                         </div>

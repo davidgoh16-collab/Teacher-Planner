@@ -1,4 +1,5 @@
 import { PLANNER_AGENT_TOOLS, AgentFunctionTool } from "./plannerTools";
+import { authHeaders } from "./aiService";
 
 /**
  * REST client for Google's Antigravity managed agent (Gemini Interactions API).
@@ -11,28 +12,14 @@ import { PLANNER_AGENT_TOOLS, AgentFunctionTool } from "./plannerTools";
  * Docs: https://ai.google.dev/gemini-api/docs/antigravity-agent
  */
 
-const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
+// Same-origin server proxy. It forwards the interaction body to the Antigravity Interactions API
+// with the server-held Gemini key and the required Api-Revision header, so the key never reaches
+// the browser (key-exposure fix). Requests carry the user's Firebase ID token as a Bearer.
+const ENDPOINT = "/api/interactions/step";
 export const AGENT = "antigravity-preview-05-2026";
-
-// The Interactions API requires an Api-Revision header on REST calls (the v2 SDK sends it
-// automatically as GOOGLE_GENAI_API_REVISION); requests without it are rejected/mis-routed.
-const API_REVISION = "2026-05-20";
 
 // Agent runs are autonomous multi-step loops that can take minutes; give them a long ceiling.
 const REQUEST_TIMEOUT_MS = 300_000;
-
-/** Resolve the Gemini API key using the same 4-layer fallback as aiService.ts / App.tsx. */
-const getApiKey = (): string => {
-  const apiKey =
-    window.ENV?.GEMINI_API_KEY ||
-    import.meta.env.GEMINI_API_KEY ||
-    window.ENV?.VITE_GEMINI_API_KEY ||
-    import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("API key must be set when using the Gemini API.");
-  }
-  return apiKey;
-};
 
 /** Turn a non-OK response into a readable error, surfacing the API's own message when present. */
 const describeHttpError = async (response: Response): Promise<string> => {
@@ -121,7 +108,7 @@ export const createAgentInteraction = async ({
   functionResults,
   tools,
 }: CreateInteractionArgs): Promise<Interaction> => {
-  const apiKey = getApiKey();
+  const headers = await authHeaders();
 
   const body: Record<string, any> = {
     agent: AGENT,
@@ -146,11 +133,7 @@ export const createAgentInteraction = async ({
   try {
     const response = await fetch(ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Api-Revision": API_REVISION,
-        "x-goog-api-key": apiKey,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -222,7 +205,7 @@ export const streamAgentInteraction = async (
   { input, environmentId, previousInteractionId, functionResults, tools }: CreateInteractionArgs,
   callbacks: AgentStreamCallbacks = {},
 ): Promise<Interaction> => {
-  const apiKey = getApiKey();
+  const headers = { ...(await authHeaders()), Accept: "text/event-stream" };
 
   const body: Record<string, any> = {
     agent: AGENT,
@@ -251,12 +234,7 @@ export const streamAgentInteraction = async (
   try {
     const response = await fetch(ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "text/event-stream",
-        "Api-Revision": API_REVISION,
-        "x-goog-api-key": apiKey,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });

@@ -1,4 +1,5 @@
 import mammoth from 'mammoth';
+import { extractFileText } from './documentTextExtractor';
 
 // `xlsx` and `jszip` are heavy and only needed when a spreadsheet/presentation is uploaded,
 // so they are loaded on demand (dynamic import) rather than bloating the initial bundle.
@@ -114,10 +115,24 @@ export const readFileContent = async (file: File): Promise<ReadFileResult> => {
   const fileType = file.type;
   const ext = getExtension(file.name);
 
-  // 1. PDFs and images — sent to the model as native inline data (it reads them directly).
+  // 0. PDFs — extract the text layer locally (via pdfjs) so a document with real text never
+  //    leaves the browser as an image. Scanned / image-only PDFs (no text layer) fall through to
+  //    the base64 inline-data path below, which routes them to the consent gate before upload.
+  if (fileType === 'application/pdf' || ext === 'pdf') {
+    try {
+      const extracted = await extractFileText(file);
+      if (extracted.hasTextLayer && extracted.text.trim()) {
+        return { text: extracted.text, mimeType: 'text/plain', isBase64: false, fileName: file.name };
+      }
+    } catch (err) {
+      console.warn('PDF text extraction failed; falling back to inline image path', err);
+    }
+    const base64Data = await readAsBase64(file);
+    return { text: base64Data, mimeType: 'application/pdf', isBase64: true, fileName: file.name };
+  }
+
+  // 1. Images — sent to the model as native inline data (it reads them directly).
   if (
-    fileType === 'application/pdf' ||
-    ext === 'pdf' ||
     fileType === 'image/jpeg' ||
     fileType === 'image/png' ||
     fileType === 'image/webp' ||

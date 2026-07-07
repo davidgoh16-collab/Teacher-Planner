@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, Loader2, X, Bot, Info, Monitor, MonitorOff } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { authHeaders } from '../services/aiService';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
 import { DAYS, PERIOD_LABELS } from '../constants';
 import { toISODate, addDays, generateWeeksForTerm } from '../utils/dateUtils';
@@ -87,6 +88,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'listening' | 'speaking'>('idle');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  // Set when the server cannot mint an ephemeral Live token; the raw key is never used client-side.
+  const [voiceUnavailable, setVoiceUnavailable] = useState(false);
 
   useEffect(() => {
     if (onStatusChange) {
@@ -266,10 +269,29 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   const startSession = async () => {
     if (!currentWeekData) return;
     setIsConnecting(true);
+    setVoiceUnavailable(false);
 
     try {
-      const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-      const ai = new GoogleGenAI({ apiKey });
+      // Mint a short-lived ephemeral token from the server so the browser never sees the raw
+      // Gemini key. If the server can't mint one, disable the voice feature gracefully rather
+      // than falling back to shipping the key.
+      let token: string | null = null;
+      try {
+        const res = await fetch('/api/live-token', { method: 'POST', headers: await authHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          token = json?.token ?? null;
+        }
+      } catch {
+        token = null;
+      }
+      if (!token) {
+        setVoiceUnavailable(true);
+        setIsConnecting(false);
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -743,6 +765,11 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
           <Mic size={18} />
         )}
       </button>
+      {voiceUnavailable && (
+        <span className="absolute top-full right-0 mt-1 whitespace-nowrap text-[10px] font-medium text-slate-400 dark:text-slate-500">
+          Voice assistant temporarily unavailable
+        </span>
+      )}
       </div>
     </>
   );

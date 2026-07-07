@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { GoogleGenAI, Chat } from "@google/genai";
 import { auth } from './firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { 
@@ -47,7 +46,9 @@ import { bootstrapUser } from './services/migrationService';
 import { getProfile, updatePreferences, UserProfile } from './services/userService';
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
-import { TEXT_MODEL, buildDateContextBlock } from './services/aiService';
+import { TEXT_MODEL, buildDateContextBlock, getAiClient } from './services/aiService';
+import { fetchColleagues } from './services/colleagueService';
+import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep } from './utils/pseudonymiser';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
 import { createAgentInteraction, streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
@@ -1004,8 +1005,13 @@ const App: React.FC = () => {
     try {
       if (!currentWeekData) throw new Error("No active week data");
 
-      const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = getAiClient();
+
+      // Data minimisation: pseudonymise colleague/student names (and mask emails) in everything
+      // that leaves the browser, then rehydrate the model's reply for display. The mapping stays
+      // in the browser and never reaches Gemini.
+      const colleagues = await fetchColleagues().catch(() => []);
+      const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
 
       // Build the full planner context + system instruction (shared with agent mode).
       const contextString = buildPlannerContextString(currentWeekData);
@@ -1015,12 +1021,12 @@ const App: React.FC = () => {
       // "change that task" / "reschedule it" retain context. Gemini requires the
       // history to start with a user turn, so drop any leading model messages.
       const recentMessages = chatMessages.slice(-16);
-      const mappedHistory = recentMessages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+      const mappedHistory = recentMessages.map(m => ({ role: m.role, parts: [{ text: scrubText(m.text, mapping) }] }));
       const firstUserIdx = mappedHistory.findIndex(m => m.role === 'user');
       const chatHistory = firstUserIdx === -1 ? [] : mappedHistory.slice(firstUserIdx);
 
-      // Initialize Chat using new SDK pattern
-      const chat: Chat = ai.chats.create({
+      // Initialize Chat via the same-origin proxy (server holds the Gemini key).
+      const chat = ai.chats.create({
         model: TEXT_MODEL,
         config: {
           systemInstruction: systemInstruction,
@@ -1030,24 +1036,28 @@ const App: React.FC = () => {
         history: chatHistory
       });
 
-      let finalMessage: any = userMessage;
+      const safeUserMessage = scrubText(userMessage, mapping);
+      let finalMessage: any = safeUserMessage;
       if (fileData) {
          const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
          if (fileData.isBase64) {
              finalMessage = [
-                 `${userMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}`,
+                 `${safeUserMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}`,
                  { inlineData: { data: fileData.text, mimeType: fileData.mimeType } }
              ];
          } else {
-             finalMessage = `User Message: ${userMessage}\n\nAttached Document Content${fileLabel}:\n${fileData.text}`;
+             finalMessage = `User Message: ${safeUserMessage}\n\nAttached Document Content${fileLabel}:\n${scrubText(fileData.text, mapping)}`;
          }
       }
-      
+
       const response = await chat.sendMessage({ message: finalMessage });
 
-      // Handle Function Calls
-      const functionCalls = response.functionCalls;
-      let finalText = response.text || "";
+      // Handle Function Calls. Rehydrate the model's tool arguments (which may echo pseudonymous
+      // tokens from the scrubbed input) back to real names BEFORE they touch the planner/DB.
+      const functionCalls = response.functionCalls
+        ? response.functionCalls.map((fc: any) => ({ ...fc, args: rehydrateDeep(fc.args, mapping) }))
+        : response.functionCalls;
+      let finalText = rehydrateText(response.text || "", mapping);
 
       if (functionCalls && functionCalls.length > 0) {
         // Double check admin status before execution
@@ -1154,6 +1164,12 @@ const App: React.FC = () => {
     try {
       if (!currentWeekData) throw new Error("No active week data");
 
+      // Data minimisation: pseudonymise names / mask emails in the agent's free-text input, and
+      // rehydrate its answer for display. The mapping never leaves the browser.
+      const colleagues = await fetchColleagues().catch(() => []);
+      const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+      const safeUserMessage = scrubText(userMessage, mapping);
+
       const isContinuing = !!agentSession;
       // The Antigravity agent already has its own system prompt, so the input must LEAD with the
       // user's task — burying it under the persona/rules/data block makes the agent treat the whole
@@ -1166,14 +1182,14 @@ const App: React.FC = () => {
         const reminder = vizEnabled
           ? `(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`
           : `(Reminder: respond concisely in plain text/markdown — no charts or HTML.)`;
-        input = `${userMessage}\n\n${reminder}`;
+        input = `${safeUserMessage}\n\n${reminder}`;
       } else {
         // Compact context keeps the prompt small so the agent is far less likely to hit mid-task
         // context compaction (which can derail its final answer).
         const contextString = buildPlannerContextString(currentWeekData, true);
         const systemInstruction = buildAssistantSystemInstruction(contextString);
         input =
-          `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${userMessage}\n\n` +
+          `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${safeUserMessage}\n\n` +
           `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
           `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
           `IMPORTANT: Always finish by delivering the completed result for the task above. If your context is summarized or you receive a checkpoint/resume notice partway through, continue and still produce that result — never end with only a greeting or a request for more input.\n` +
@@ -1186,11 +1202,11 @@ const App: React.FC = () => {
         const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
         if (fileData.isBase64) {
           input = [
-            { type: 'text', text: `${typeof input === 'string' ? input : userMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}` },
+            { type: 'text', text: `${typeof input === 'string' ? input : safeUserMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}` },
             { type: 'image', data: fileData.text, mime_type: fileData.mimeType },
           ];
         } else {
-          input = `${typeof input === 'string' ? input : userMessage}\n\nAttached Document Content${fileLabel}:\n${fileData.text}`;
+          input = `${typeof input === 'string' ? input : safeUserMessage}\n\nAttached Document Content${fileLabel}:\n${scrubText(fileData.text, mapping)}`;
         }
       }
 
@@ -1214,7 +1230,13 @@ const App: React.FC = () => {
         interaction = await createAgentInteraction(args);
       }
 
-      handleAgentInteractionResult(interaction, getPendingFunctionCalls(interaction), formatThoughts(liveTrace));
+      if (interaction && typeof interaction.output_text === 'string') {
+        interaction.output_text = rehydrateText(interaction.output_text, mapping);
+      }
+
+      // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
+      const pendingCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+      handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
     } catch (error: any) {
       console.error("Agent Error:", error);
       const detail = error?.message ? `\n\n${String(error.message).slice(0, 300)}` : '';
