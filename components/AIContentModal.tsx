@@ -3,6 +3,8 @@ import { Bot, X, Check, Edit2, RotateCcw, Save, Loader2, Send } from 'lucide-rea
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getAiClient, TEXT_MODEL } from '../services/aiService';
+import { fetchColleagues } from '../services/colleagueService';
+import { buildMappingFromPeople, scrubText, rehydrateText } from '../utils/pseudonymiser';
 
 const remarkPlugins = [remarkGfm];
 
@@ -93,9 +95,11 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
         setIsGeneratingPro(true);
         try {
             const ai = getAiClient();
+            const colleagues = await fetchColleagues().catch(() => []);
+            const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
 
             const systemPrompt = `You are a professional assistant. Please rewrite and elevate the following content to be more comprehensive, professional, and well-structured.`;
-            const prompt = `Please rewrite this content to be better:\n\n${editedContent}`;
+            const prompt = `Please rewrite this content to be better:\n\n${scrubText(editedContent, mapping)}`;
 
             const response = await ai.models.generateContent({
                 model: TEXT_MODEL,
@@ -107,7 +111,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
 
             if (response.text) {
                 saveToHistory(editedContent);
-                setEditedContent(response.text);
+                setEditedContent(rehydrateText(response.text, mapping));
             }
         } catch (error) {
             console.error("AI Regenerate Pro Error:", error);
@@ -123,6 +127,8 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
         setIsAiLoading(true);
         try {
             const ai = getAiClient();
+            const colleagues = await fetchColleagues().catch(() => []);
+            const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
 
             let systemPrompt = "";
             let prompt = "";
@@ -162,13 +168,13 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
 
             const response = await ai.models.generateContent({
         model: TEXT_MODEL,
-                contents: prompt,
+                contents: scrubText(prompt, mapping),
                 config: {
                     systemInstruction: systemPrompt,
                 }
             });
 
-            let newText = response.text || "";
+            let newText = rehydrateText(response.text || "", mapping);
 
             // Clean up potential markdown code block wrapping from the model
             if (newText.startsWith('\`\`\`markdown\n')) {

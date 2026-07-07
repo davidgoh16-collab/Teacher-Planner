@@ -1,7 +1,8 @@
 import { Type } from "@google/genai";
 import { Term, WeeklyTimetable } from "../types";
 import { auth } from "../firebase";
-import { scrubText, rehydrateDeep, type PseudonymMapping } from "../utils/pseudonymiser";
+import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, type PseudonymMapping } from "../utils/pseudonymiser";
+import { fetchColleagues } from "./colleagueService";
 
 /**
  * Build the auth headers for a same-origin API call. The signed-in user's Firebase ID token
@@ -429,11 +430,19 @@ export const generateInsights = async (
 export const generateContentFromAction = async (prompt: string): Promise<string> => {
   try {
     const ai = getAiClient();
+    // Tokenise colleague/staff names in the action prompt (which may have been
+    // rehydrated to real names upstream) before it reaches Gemini; rehydrate the reply.
+    let mapping: PseudonymMapping | undefined;
+    try {
+      const colleagues = await fetchColleagues();
+      mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+    } catch { /* roster unavailable: server still masks emails */ }
     const response = await ai.models.generateContent({
       model: TEXT_MODEL,
-      contents: prompt,
+      contents: mapping ? scrubText(prompt, mapping) : prompt,
     });
-    return response.text || "";
+    const text = response.text || "";
+    return mapping ? rehydrateText(text, mapping) : text;
   } catch (error) {
     console.error("Error generating content:", error);
     return "Error generating content. Please try again.";
