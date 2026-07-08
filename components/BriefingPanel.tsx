@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { generateBriefing, Briefing, BriefingItem } from '../services/aiService';
+import { fetchColleagues } from '../services/colleagueService';
+import { buildMappingFromPeople } from '../utils/pseudonymiser';
 import { Task } from '../types';
 import { Sparkles, Loader2, ChevronUp, ChevronDown, RotateCcw, AlertTriangle, CalendarClock, BookOpen, Lightbulb } from 'lucide-react';
 
@@ -87,6 +89,8 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
         }
         setIsLoading(true);
         try {
+            const colleagues = await fetchColleagues().catch(() => []);
+            const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
             const result = await generateBriefing({
                 todayISO,
                 weekday: weekdayNames[new Date().getDay()],
@@ -94,7 +98,7 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
                 dueTodayTasks,
                 todaysLessons,
                 upcomingKeyDates,
-            });
+            }, mapping);
             writeCachedBriefing(todayISO, result);
             setBriefing(result);
         } catch (e) {

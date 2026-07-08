@@ -1,14 +1,107 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Term, WeeklyTimetable } from "../types";
+import { auth } from "../firebase";
+import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, type PseudonymMapping } from "../utils/pseudonymiser";
+import { fetchColleagues } from "./colleagueService";
 
-export const getAiClient = () => {
-  const apiKey = window.ENV?.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || window.ENV?.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-      console.warn("API key must be set when using the Gemini API.");
-      throw new Error("API key must be set when using the Gemini API.");
-  }
-  return new GoogleGenAI({ apiKey });
+/**
+ * Build the auth headers for a same-origin API call. The signed-in user's Firebase ID token
+ * authorises the request; the server verifies it and holds the Gemini key (never the browser).
+ */
+export const authHeaders = async (): Promise<Record<string, string>> => {
+  const user = auth.currentUser;
+  const token = user ? await user.getIdToken() : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 };
+
+/** Extract Gemini function calls from the raw candidates array returned by the proxy. */
+const extractFunctionCalls = (candidates?: any[]): any[] | undefined => {
+  const parts = candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return undefined;
+  const calls = parts
+    .filter((p: any) => p && p.functionCall)
+    .map((p: any) => ({ id: p.functionCall.id, name: p.functionCall.name, args: p.functionCall.args || {} }));
+  return calls.length ? calls : undefined;
+};
+
+export interface ProxyResponse {
+  text: string;
+  candidates?: any[];
+  functionCalls?: any[];
+}
+
+/**
+ * POST a generateContent request to the same-origin server proxy (/api/generate-content), which
+ * forwards it to Gemini using the server-held API key. The key never reaches the browser — this
+ * is the client half of the key-exposure fix.
+ */
+export const proxyGenerateContent = async (
+  payload: { model: string; contents: any; config?: any }
+): Promise<ProxyResponse> => {
+  const res = await fetch('/api/generate-content', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let message = `AI request failed (${res.status})`;
+    if (res.status === 401) message = 'You must be signed in to use AI features.';
+    else {
+      try { const j = await res.json(); if (j?.error) message = j.error; } catch { /* ignore */ }
+    }
+    throw new Error(message);
+  }
+  const data = await res.json();
+  return {
+    text: typeof data.text === 'string' ? data.text : '',
+    candidates: data.candidates,
+    functionCalls: extractFunctionCalls(data.candidates),
+  };
+};
+
+/** Normalise a chat `message` (string | part | array) into Gemini `parts`. */
+const messageToParts = (message: any): any[] => {
+  if (typeof message === 'string') return [{ text: message }];
+  if (Array.isArray(message)) return message.map((m) => (typeof m === 'string' ? { text: m } : m));
+  return [message];
+};
+
+/**
+ * Stateless drop-in for the SDK chat object: accumulates the conversation locally and sends the
+ * full history to the proxy on every turn (the server is stateless). Preserves the app's existing
+ * `.sendMessage({ message })` shape and returns `{ text, candidates, functionCalls }`.
+ */
+const createProxyChat = (
+  { model, config, history }: { model: string; config?: any; history?: any[] }
+) => {
+  const contents: any[] = Array.isArray(history) ? [...history] : [];
+  return {
+    async sendMessage({ message }: { message: any }): Promise<ProxyResponse> {
+      contents.push({ role: 'user', parts: messageToParts(message) });
+      const resp = await proxyGenerateContent({ model, contents, config });
+      const modelParts: any[] = [];
+      if (resp.text) modelParts.push({ text: resp.text });
+      if (resp.functionCalls) for (const fc of resp.functionCalls) modelParts.push({ functionCall: { name: fc.name, args: fc.args } });
+      contents.push({ role: 'model', parts: modelParts.length ? modelParts : [{ text: '' }] });
+      return resp;
+    },
+  };
+};
+
+/**
+ * Returns a minimal Gemini-client-shaped facade whose calls are routed through the same-origin
+ * server proxy. This keeps the Gemini API key entirely server-side (GDPR / key-exposure fix)
+ * while preserving the `ai.models.generateContent(...)` and `ai.chats.create(...).sendMessage(...)`
+ * call shapes the rest of the app already uses.
+ */
+export const getAiClient = () => ({
+  models: {
+    generateContent: (payload: { model: string; contents: any; config?: any }) => proxyGenerateContent(payload),
+  },
+  chats: {
+    create: (opts: { model: string; config?: any; history?: any[] }) => createProxyChat(opts),
+  },
+});
 
 // Single source of truth for the text model. Swap here to migrate every text-based AI call.
 // The native-audio voice model (LiveAssistant) is intentionally separate.
@@ -245,7 +338,8 @@ export const generateInsights = async (
   contextType: 'project' | 'all_tasks',
   tasks: any[],
   project?: any,
-  timetable?: any
+  timetable?: any,
+  mapping?: PseudonymMapping
 ): Promise<AIInsight[]> => {
   try {
     const ai = getAiClient();
@@ -256,6 +350,8 @@ export const generateInsights = async (
       contextStr += `Project Description: ${project.description || 'None'}\n`;
     }
     contextStr += `Tasks:\n${JSON.stringify(tasks, null, 2)}\n`;
+    // Data minimisation: pseudonymise names / mask emails in the task JSON before it leaves the browser.
+    contextStr = scrubText(contextStr, mapping);
 
     const prompt = `
       You are an AI assistant for a teacher planner app. Based on the provided context, generate 3-5 helpful insights.
@@ -321,7 +417,8 @@ export const generateInsights = async (
     });
 
     if (response.text) {
-      return extractAndParseJSON(response.text);
+      // Rehydrate pseudonymous tokens back to real names for display.
+      return rehydrateDeep(extractAndParseJSON(response.text), mapping as PseudonymMapping);
     }
     return [];
   } catch (error) {
@@ -333,11 +430,19 @@ export const generateInsights = async (
 export const generateContentFromAction = async (prompt: string): Promise<string> => {
   try {
     const ai = getAiClient();
+    // Tokenise colleague/staff names in the action prompt (which may have been
+    // rehydrated to real names upstream) before it reaches Gemini; rehydrate the reply.
+    let mapping: PseudonymMapping | undefined;
+    try {
+      const colleagues = await fetchColleagues();
+      mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+    } catch { /* roster unavailable: server still masks emails */ }
     const response = await ai.models.generateContent({
       model: TEXT_MODEL,
-      contents: prompt,
+      contents: mapping ? scrubText(prompt, mapping) : prompt,
     });
-    return response.text || "";
+    const text = response.text || "";
+    return mapping ? rehydrateText(text, mapping) : text;
   } catch (error) {
     console.error("Error generating content:", error);
     return "Error generating content. Please try again.";
@@ -653,12 +758,12 @@ export interface BriefingContext {
  * Generates a proactive daily/weekly briefing for the teacher.
  * Read-only narrative + light suggestions; never mutates data.
  */
-export const generateBriefing = async (ctx: BriefingContext): Promise<Briefing> => {
+export const generateBriefing = async (ctx: BriefingContext, mapping?: PseudonymMapping): Promise<Briefing> => {
     const empty: Briefing = { greeting: "", summary: "", items: [] };
     try {
         const ai = getAiClient();
 
-        const prompt = `
+        const rawPrompt = `
             You are a teacher's proactive planning assistant. Produce a concise morning briefing.
             Today is ${ctx.weekday}, ${ctx.todayISO}.
 
@@ -674,6 +779,9 @@ export const generateBriefing = async (ctx: BriefingContext): Promise<Briefing> 
             - Be encouraging and brief. Return at most 8 items total. If there is genuinely nothing to do, say so warmly with an empty items array.
         `;
 
+        // Data minimisation: pseudonymise names / mask emails in the task titles before sending.
+        const prompt = scrubText(rawPrompt, mapping);
+
         const response = await ai.models.generateContent({
             model: TEXT_MODEL,
             contents: prompt,
@@ -685,11 +793,12 @@ export const generateBriefing = async (ctx: BriefingContext): Promise<Briefing> 
 
         if (response.text) {
             const parsed = extractAndParseJSON(response.text) as Briefing;
-            return {
+            // Rehydrate pseudonymous tokens back to real names for display.
+            return rehydrateDeep({
                 greeting: parsed.greeting || "",
                 summary: parsed.summary || "",
                 items: Array.isArray(parsed.items) ? parsed.items : [],
-            };
+            }, mapping as PseudonymMapping);
         }
         return empty;
     } catch (error) {
@@ -872,13 +981,27 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
   }
 };
 
-/** Shared prompt body for the name-extracting timetable parsers (image and text variants). */
-const timetableWithNamePrompt = (filenameHint?: string, textContent?: string) => `
+/**
+ * Shared prompt body for the timetable parsers (image and text variants).
+ *
+ * Data minimisation: `askForName` controls whether the model is asked to read a person's name off
+ * the document at all.
+ * - askForName=false — used for TEXT documents whose names were already detected & scrubbed
+ *   client-side (or the person is known from the roster). We DROP the "identify the NAME" paragraph
+ *   and the filename name-guess entirely, and instruct the model to output NO personal names.
+ * - askForName=true — used for scanned IMAGES the user has explicitly consented to send. The model
+ *   may fill the designated `name` field, but MUST keep names out of the lesson (subject/room) fields.
+ */
+const timetableWithNamePrompt = (filenameHint?: string, textContent?: string, askForName = true) => `
       Analyze this ${textContent ? 'text representation of a person\'s school timetable' : 'document (a person\'s school timetable). It may contain one or multiple pages'}.
 
-      FIRST, identify the NAME of the person this timetable belongs to — look for a teacher or student
+      ${askForName
+        ? `FIRST, identify the NAME of the person this timetable belongs to — look for a teacher or student
       name printed on the ${textContent ? 'text' : 'page'} (a header, title, or "Name:" field).${filenameHint ? `\n      The uploaded file was named "${filenameHint}"; use it as a hint if the document itself is unclear.` : ''}
       Put it in the "name" field (full name if available). If you genuinely cannot find a name, return null.
+      PRIVACY: a person's name may go ONLY in the "name" field — NEVER in any subject, room, or colorClass field.`
+        : `Leave the "name" field null. PRIVACY: do NOT output any person's name in ANY field
+      (name, subject, room, colorClass) — report only lesson subjects/rooms.`}
 
       THEN extract the schedule for Week 1 and Week 2.
       Look for headers like "Week 1" / "Week 2"; if only one week is present, populate it and leave the other empty.
@@ -904,9 +1027,10 @@ const parseTimetableWithNameResponse = (text: string) => {
 };
 
 /**
- * Like parseTimetableImage but ALSO extracts the person's name from the document (used by the
- * meeting planner's batch import to identify whose timetable each file is). `filenameHint` lets the
- * model fall back to the uploaded file's name when the document itself doesn't print a name.
+ * Like parseTimetableImage but ALSO reads the person's name from a SCANNED image the user has
+ * consented to send (the raw image is going to the vision model regardless, so the designated
+ * `name` field may be populated). Names are kept out of the lesson fields by the prompt; the caller
+ * post-scrubs as a backstop. `filenameHint` lets the model fall back to the uploaded file's name.
  */
 export const parseTimetableImageWithName = async (
   base64Data: string,
@@ -919,7 +1043,7 @@ export const parseTimetableImageWithName = async (
       model: TEXT_MODEL,
       contents: {
         parts: [
-          { text: timetableWithNamePrompt(filenameHint) },
+          { text: timetableWithNamePrompt(filenameHint, undefined, true) },
           { inlineData: { mimeType, data: base64Data } },
         ],
       },
@@ -938,25 +1062,30 @@ export const parseTimetableImageWithName = async (
 };
 
 /**
- * Text-input variant of parseTimetableImageWithName, used when the uploaded file was a Word/Excel/
- * CSV/text document whose content is extracted client-side rather than sent as an image.
+ * Text-document variant, used when the file's text was extracted client-side. Data minimisation:
+ * the model is NOT asked to read any name (names were detected & scrubbed locally beforehand); the
+ * person is identified from the roster instead and passed in as `knownName`, which becomes the
+ * returned name without ever having been sent to Gemini.
  */
 export const parseTimetableTextWithName = async (
   textContent: string,
-  filenameHint?: string,
+  knownName?: string,
 ): Promise<{ name: string | null, week1: WeeklyTimetable, week2: WeeklyTimetable }> => {
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: TEXT_MODEL,
-      contents: timetableWithNamePrompt(filenameHint, textContent),
+      contents: timetableWithNamePrompt(undefined, textContent, false),
       config: {
         responseMimeType: "application/json",
         responseSchema: TIMETABLE_WITH_NAME_SCHEMA,
       },
     });
 
-    if (response.text) return parseTimetableWithNameResponse(response.text);
+    if (response.text) {
+      const parsed = parseTimetableWithNameResponse(response.text);
+      return { name: knownName || null, week1: parsed.week1, week2: parsed.week2 };
+    }
     throw new Error("No response text from Gemini");
   } catch (error) {
     console.error("Error parsing timetable text with name:", error);

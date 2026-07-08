@@ -7,7 +7,7 @@ import { toISODate } from '../utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from '../utils/colorUtils';
 import { parseMasterTimetableAndTerms } from '../services/aiService';
 import { extractTermsFromUrl } from '../services/termImportService';
-import { TIMETABLE_ACCEPT } from '../services/timetableImportService';
+import { TIMETABLE_ACCEPT, confirmScanConsent } from '../services/timetableImportService';
 import { readFileContent } from '../utils/fileUtils';
 import ImportHelp from './ui/ImportHelp';
 import { PERIOD_LABELS, DAYS } from '../constants';
@@ -211,6 +211,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   const handleAIImport = async (base64Content?: string, mimeType?: string, textContent?: string) => {
      if (!selectedAcademicYearId) return;
+     // Consent gate: a scanned/image document is sent to Gemini as a raw image.
+     if (base64Content && !confirmScanConsent(1)) {
+        setImportError('Cancelled — the file was not sent.');
+        return;
+     }
      setIsImporting(true);
      setImportError(null);
      setImportSuccess(false);

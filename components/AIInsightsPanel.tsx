@@ -3,6 +3,8 @@ import { generateInsights, AIInsight, generateContentFromAction } from '../servi
 import { Sparkles, X, Check, Loader2, Bot, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Task, Project } from '../types';
 import { saveTask } from '../services/projectService';
+import { fetchColleagues } from '../services/colleagueService';
+import { buildMappingFromPeople } from '../utils/pseudonymiser';
 import AIContentModal from './AIContentModal';
 import ReviewTasksModal from './ReviewTasksModal';
 
@@ -50,7 +52,9 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
     const loadInsights = async () => {
         setIsLoading(true);
         try {
-            const fetched = await generateInsights(contextType, tasks, project);
+            const colleagues = await fetchColleagues().catch(() => []);
+            const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+            const fetched = await generateInsights(contextType, tasks, project, undefined, mapping);
             if (fetched) {
                 insightsCache[cacheKey] = fetched;
                 if (fetched.length > 0) {

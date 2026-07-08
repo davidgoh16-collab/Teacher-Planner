@@ -10,33 +10,26 @@ RUN npm install
 # Copy the rest of the app's source code
 COPY . .
 
-# Accept VITE_GEMINI_API_KEY as an argument at build time
-ARG VITE_GEMINI_API_KEY
-ARG GEMINI_API_KEY
-ARG VITE_FIREBASE_API_KEY
-
-# Set it as an environment variable so Vite can pick it up
-ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
-ENV GEMINI_API_KEY=$GEMINI_API_KEY
-ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
-
-# Build the application
+# Build the application. The Gemini API key is NEVER baked into the client bundle; it is only
+# read server-side at runtime from process.env.GEMINI_API_KEY. The Firebase web key is injected
+# at runtime via /env.js, so no build-time API-key args are needed.
 RUN npm run build
 
-# Stage 2: Serve the App using Nginx
-FROM nginx:alpine
+# Stage 2: Serve with Node.js (Cloud Run style)
+FROM node:20-alpine
 
-# Remove default nginx static assets
-RUN rm -rf /usr/share/nginx/html && mkdir -p /usr/share/nginx/html
+WORKDIR /app
 
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Install production dependencies only (express, firebase-admin, @google/genai, ...).
+COPY package*.json ./
+RUN npm install --omit=dev
 
-# Copy custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy the built SPA and the server.
+COPY --from=builder /app/dist ./dist
+COPY server.js .
 
-# Start script
-COPY start-nginx.sh /start-nginx.sh
-RUN chmod +x /start-nginx.sh
+EXPOSE 8080
 
-CMD ["/start-nginx.sh"]
+# VITE_FIREBASE_API_KEY and GEMINI_API_KEY are supplied at runtime (e.g. Cloud Run env vars).
+# server.js exposes only VITE_FIREBASE_API_KEY to the browser via /env.js.
+CMD ["node", "server.js"]

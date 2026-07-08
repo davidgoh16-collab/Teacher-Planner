@@ -4,6 +4,8 @@ import { X, Send, Bot, User, Loader2, Sparkles, Paperclip } from 'lucide-react';
 import { getAiClient, TEXT_MODEL } from '../services/aiService';
 import { FunctionDeclaration, Type } from "@google/genai";
 import { saveTask, deleteTask } from '../services/projectService';
+import { fetchColleagues } from '../services/colleagueService';
+import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep } from '../utils/pseudonymiser';
 import { readFileContent } from '../utils/fileUtils';
 import ReactMarkdown from 'react-markdown';
 
@@ -136,6 +138,13 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
 
         try {
             const ai = getAiClient();
+
+            // Data minimisation: pseudonymise colleague/student names (and mask emails) in the
+            // outgoing context/message, then rehydrate the model's reply and tool args for display
+            // and persistence. The mapping never leaves the browser.
+            const colleagues = await fetchColleagues().catch(() => []);
+            const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+
             const todayISO = new Date().toISOString().split('T')[0];
 
             const categoriesStr = taskCategories.length > 0
@@ -178,33 +187,39 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
             const chat = ai.chats.create({
                 model: TEXT_MODEL,
                 config: {
-                    systemInstruction,
+                    systemInstruction: scrubText(systemInstruction, mapping),
                     tools: [{ functionDeclarations: [addTaskDeclaration, updateTasksDeclaration, deleteTasksDeclaration] }]
                 },
-                history
+                history: history.map(h => ({ ...h, parts: h.parts.map(p => ({ ...p, text: scrubText(p.text, mapping) })) }))
             });
 
             // Assemble the message, attaching file content as inline data or text.
-            let message: any = textToProcess.trim() || "Please extract the action items from this document and add them as tasks.";
+            const safeText = scrubText(textToProcess.trim(), mapping);
+            let message: any = safeText || "Please extract the action items from this document and add them as tasks.";
             if (fileData) {
                 if (fileData.isBase64) {
                     message = [
-                        textToProcess.trim() || "Extract the action items from this document and add them as tasks:",
+                        safeText || "Extract the action items from this document and add them as tasks:",
                         { inlineData: { data: fileData.text, mimeType: fileData.mimeType } }
                     ];
                 } else {
-                    message = `${textToProcess.trim() || "Extract the action items from this document and add them as tasks."}\n\nDocument content:\n${fileData.text}`;
+                    message = `${safeText || "Extract the action items from this document and add them as tasks."}\n\nDocument content:\n${scrubText(fileData.text, mapping)}`;
                 }
             }
 
             const response = await chat.sendMessage({ message });
-            let responseText = response.text || "";
+            let responseText = rehydrateText(response.text || "", mapping);
             const systemNotes: string[] = [];
 
-            if (response.functionCalls && response.functionCalls.length > 0) {
+            // Rehydrate tool-call arguments (which may echo pseudonymous tokens) before persisting.
+            const functionCalls = response.functionCalls
+                ? response.functionCalls.map((fc: any) => ({ ...fc, args: rehydrateDeep(fc.args, mapping) }))
+                : response.functionCalls;
+
+            if (functionCalls && functionCalls.length > 0) {
                 let working = [...localTasks];
 
-                for (const call of response.functionCalls) {
+                for (const call of functionCalls) {
                     try {
                         if (call.name === "addTask") {
                             const args = call.args as any;

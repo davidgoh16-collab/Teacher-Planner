@@ -8,7 +8,7 @@ import { usePlannerData } from '../src/context/PlannerContext';
 import { saveAcademicYear, saveTerm, saveTimetable } from '../services/plannerDataService';
 import { extractTermsFromUrl } from '../services/termImportService';
 import { parseTimetableImage, parseTimetableText } from '../services/aiService';
-import { importTimetableFile, TIMETABLE_ACCEPT } from '../services/timetableImportService';
+import { importTimetableFile, TIMETABLE_ACCEPT, confirmScanConsent, isLikelyScan } from '../services/timetableImportService';
 import { saveColleague } from '../services/colleagueService';
 import { readFileContent } from '../utils/fileUtils';
 import ImportHelp from './ui/ImportHelp';
@@ -115,6 +115,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
       // PDFs/images go to the vision model as-is; Word/Excel/CSV/text are extracted to
       // plain text client-side and parsed through the text route.
       const content = await readFileContent(file);
+      // Consent gate: a scan/photo with no text layer is sent to Gemini as a raw image.
+      if (content.isBase64 && !confirmScanConsent(1)) {
+        setTtErr('Cancelled — the file was not sent.');
+        setTtBusy(false);
+        return;
+      }
       const result = content.isBase64
         ? await parseTimetableImage(content.text, content.mimeType)
         : await parseTimetableText(content.text);
@@ -136,6 +142,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
     const files = Array.from(e.target.files || []);
     e.target.value = '';
     if (!files.length) return;
+    // Consent gate for scanned/photo files sent to Gemini as raw images.
+    const scanCount = files.filter(isLikelyScan).length;
+    if (scanCount > 0 && !confirmScanConsent(scanCount)) return;
     setPeopleBusy(type);
     if (type === 'staff') setStaffMsg(null); else setStudentMsg(null);
     let saved = 0;
