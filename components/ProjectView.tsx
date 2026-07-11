@@ -31,6 +31,7 @@ import ProjectAssistantPanel from './ProjectAssistantPanel';
 import ReviewTasksModal from './ReviewTasksModal';
 import TaskCardModal from './TaskCardModal';
 import { Idea } from '../types';
+import { sanitizeUrl } from '../utils/urlUtils';
 
 interface ProjectViewProps {
     allProjects: Project[];
@@ -1249,7 +1250,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     )}
                                     {project.links.map((link, idx) => (
                                         <div key={idx} className="flex items-center justify-between group bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:underline truncate">
+                                            <a href={sanitizeUrl(link.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:underline truncate">
                                                 <LinkIcon size={14} className="shrink-0" />
                                                 <span className="truncate">{link.displayName}</span>
                                             </a>

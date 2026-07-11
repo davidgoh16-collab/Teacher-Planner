@@ -37,6 +37,7 @@ import LiveAssistant from './components/LiveAssistant';
 import TaskCardModal from './components/TaskCardModal';
 import MeetingPlanner from './components/MeetingPlanner';
 import LoginPage from './components/LoginPage';
+import { sanitizeUrl } from './utils/urlUtils';
 import ProjectPlanner from './components/ProjectPlanner';
 import AppsHub from './components/AppsHub';
 import GlobalSearch from './components/GlobalSearch';
@@ -1796,7 +1797,7 @@ const App: React.FC = () => {
   );
 
   // Open an app shortcut in a new tab (used by sidebar favourites + Home grid).
-  const openApp = (app: AppItem) => { window.open(app.url, '_blank', 'noopener,noreferrer'); };
+  const openApp = (app: AppItem) => { window.open(sanitizeUrl(app.url), '_blank', 'noopener,noreferrer'); };
   const favouriteApps = apps.filter(a => a.isFavourite);
 
   // Apps are owned here (single source of truth) so favourites reflect in the sidebar + Home.
@@ -2321,7 +2322,7 @@ const App: React.FC = () => {
                                                 {plan.links && plan.links.length > 0 && (
                                                     <div className="flex flex-col gap-0.5 mt-1">
                                                         {plan.links.map((link, i) => (
-                                                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-700 dark:text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
+                                                        <a key={i} href={sanitizeUrl(link)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-700 dark:text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
                                                             <LinkIcon size={10} />
                                                             <span className="truncate max-w-[120px]">Link {i+1}</span>
                                                         </a>

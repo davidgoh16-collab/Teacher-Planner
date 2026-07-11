@@ -8,6 +8,7 @@ import { LessonPlan, WeekData } from '../types';
 import { PERIOD_LABELS, TIMETABLE_WEEK_1, TIMETABLE_WEEK_2, DAYS, TERMS } from '../constants';
 import { toISODate, addDays, formatDate, generateWeeksForTerm } from '../utils/dateUtils';
 import { generateContentFromAction } from '../services/aiService';
+import { sanitizeUrl } from '../utils/urlUtils';
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -688,7 +689,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             {links.map((link, idx) => (
                                 <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700 text-sm">
                                     <a 
-                                        href={link} 
+                                        href={sanitizeUrl(link)}
                                         target="_blank" 
                                         rel="noopener noreferrer"
                                         className="flex-1 truncate text-green-600 dark:text-green-400 hover:underline flex items-center gap-1.5"

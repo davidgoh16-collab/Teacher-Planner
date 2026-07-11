@@ -4,6 +4,7 @@ import ChatPanel, { ChatBag } from './ChatPanel';
 import BriefingPanel from './BriefingPanel';
 import IconRenderer from './ui/IconRenderer';
 import { Task, AppItem, AppTab } from '../types';
+import { sanitizeUrl } from '../utils/urlUtils';
 
 interface TodaysLesson { period: string; subject: string; hasPlan: boolean; title?: string; links?: string[]; }
 interface UpcomingKeyDate { title: string; dateStr: string; }
@@ -24,9 +25,6 @@ interface HomePageProps {
 }
 
 const greetingFor = (h: number) => (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
-
-// Ensure a user-entered link is treated as an absolute URL (e.g. "docs.google.com" -> "https://docs.google.com").
-const normalizeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 const HomePage: React.FC<HomePageProps> = ({
   chat, todaysLessons, upcomingKeyDates, globalTasks, favouriteApps, onOpenApp, onNavigate, isReadOnly, onTasksRefresh, onToggleTask, onOpenTask, userName,
@@ -120,7 +118,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         <div className="flex-1 min-w-0">
                           {primaryLink ? (
                             <a
-                              href={normalizeUrl(primaryLink)}
+                              href={sanitizeUrl(primaryLink)}
                               target="_blank"
                               rel="noopener noreferrer"
                               title={`Open lesson link: ${className}`}
@@ -143,7 +141,7 @@ const HomePage: React.FC<HomePageProps> = ({
                           {links.slice(1).map((link, li) => (
                             <a
                               key={li}
-                              href={normalizeUrl(link)}
+                              href={sanitizeUrl(link)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
