@@ -64,8 +64,11 @@ const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, onSetThem
 
       {/* Content column */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Global top bar */}
-        <header className="shrink-0 h-14 flex items-center gap-3 px-3 sm:px-4 border-b border-black/[0.06] dark:border-white/[0.08] bg-[#faf7f2]/90 dark:bg-[#1c1a17]/90 backdrop-blur z-30">
+        {/* Global top bar — pt inset keeps content clear of the status bar in edge-to-edge mode */}
+        <header
+          className="shrink-0 flex items-center gap-3 px-3 sm:px-4 border-b border-black/[0.06] dark:border-white/[0.08] bg-[#faf7f2]/90 dark:bg-[#1c1a17]/90 backdrop-blur z-30"
+          style={{ height: 'calc(3.5rem + env(safe-area-inset-top))', paddingTop: 'env(safe-area-inset-top)' }}
+        >
           <h2 className="font-serif text-base sm:text-lg font-bold shrink-0 text-slate-900 dark:text-white">{TITLES[rest.activeTab]}</h2>
           {topBar ? (
             <div className="flex-1 flex items-center overflow-x-auto no-scrollbar">

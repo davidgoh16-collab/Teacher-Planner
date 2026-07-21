@@ -1,5 +1,6 @@
 import { PLANNER_AGENT_TOOLS, AgentFunctionTool } from "./plannerTools";
-import { authHeaders } from "./aiService";
+import { authHeaders, NATIVE_GEMINI_KEY, useDirectGemini } from "./aiService";
+import { maskEmailsDeep } from "../utils/pseudonymiser";
 
 /**
  * REST client for Google's Antigravity managed agent (Gemini Interactions API).
@@ -17,6 +18,35 @@ import { authHeaders } from "./aiService";
 // the browser (key-exposure fix). Requests carry the user's Firebase ID token as a Bearer.
 const ENDPOINT = "/api/interactions/step";
 export const AGENT = "antigravity-preview-05-2026";
+
+// Native builds have no server proxy, so they call the Antigravity Interactions API directly with
+// the baked Gemini key and the required Api-Revision header (mirrors server.js).
+const NATIVE_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const AGENT_API_REVISION = "2026-05-20";
+
+/**
+ * Resolve where an interactions request goes: straight to Google with the baked key on native, or
+ * through the same-origin proxy (Firebase-token authorised) on web. On native the body is
+ * email-masked here, matching the server-side backstop.
+ */
+const buildInteractionTransport = async (
+  body: Record<string, any>,
+  extraHeaders: Record<string, string> = {},
+): Promise<{ url: string; headers: Record<string, string>; body: Record<string, any> }> => {
+  if (useDirectGemini) {
+    return {
+      url: NATIVE_INTERACTIONS_URL,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": NATIVE_GEMINI_KEY,
+        "Api-Revision": AGENT_API_REVISION,
+        ...extraHeaders,
+      },
+      body: maskEmailsDeep(body),
+    };
+  }
+  return { url: ENDPOINT, headers: { ...(await authHeaders()), ...extraHeaders }, body };
+};
 
 // Agent runs are autonomous multi-step loops that can take minutes; give them a long ceiling.
 const REQUEST_TIMEOUT_MS = 300_000;
@@ -108,8 +138,6 @@ export const createAgentInteraction = async ({
   functionResults,
   tools,
 }: CreateInteractionArgs): Promise<Interaction> => {
-  const headers = await authHeaders();
-
   const body: Record<string, any> = {
     agent: AGENT,
     environment: environmentId || "remote",
@@ -128,13 +156,14 @@ export const createAgentInteraction = async ({
     body.input = input;
   }
 
+  const transport = await buildInteractionTransport(body);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(ENDPOINT, {
+    const response = await fetch(transport.url, {
       method: "POST",
-      headers,
-      body: JSON.stringify(body),
+      headers: transport.headers,
+      body: JSON.stringify(transport.body),
       signal: controller.signal,
     });
 
@@ -205,8 +234,6 @@ export const streamAgentInteraction = async (
   { input, environmentId, previousInteractionId, functionResults, tools }: CreateInteractionArgs,
   callbacks: AgentStreamCallbacks = {},
 ): Promise<Interaction> => {
-  const headers = { ...(await authHeaders()), Accept: "text/event-stream" };
-
   const body: Record<string, any> = {
     agent: AGENT,
     environment: environmentId || "remote",
@@ -225,6 +252,7 @@ export const streamAgentInteraction = async (
     body.input = input;
   }
 
+  const transport = await buildInteractionTransport(body, { Accept: "text/event-stream" });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -232,10 +260,10 @@ export const streamAgentInteraction = async (
   const result: Interaction = { id: '', status: 'in_progress', output_text: '', steps: [] };
 
   try {
-    const response = await fetch(ENDPOINT, {
+    const response = await fetch(transport.url, {
       method: "POST",
-      headers,
-      body: JSON.stringify(body),
+      headers: transport.headers,
+      body: JSON.stringify(transport.body),
       signal: controller.signal,
     });
 

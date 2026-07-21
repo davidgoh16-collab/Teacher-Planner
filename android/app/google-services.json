@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "982739442942",
+    "project_id": "school-apps-52c7d",
+    "storage_bucket": "school-apps-52c7d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982739442942:android:8847815045c06b182359af",
+        "android_client_info": {
+          "package_name": "com.davidgoh.teacherplanner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "982739442942-icrf6imdv9qastliqatfu99m76vfdir5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.davidgoh.teacherplanner",
+            "certificate_hash": "8e4969749c10a3b67dbe2cee417916b0cde3de1d"
+          }
+        },
+        {
+          "client_id": "982739442942-t39124ahpc2cl642svcefr3c92gmvvqh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX1kokzj2UTGQdSG_ON6fjaISVybgDnuQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "982739442942-t39124ahpc2cl642svcefr3c92gmvvqh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

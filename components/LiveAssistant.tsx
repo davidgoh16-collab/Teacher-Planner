@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Volume2, Loader2, X, Bot, Info, Monitor, MonitorOff } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { authHeaders } from '../services/aiService';
+import { authHeaders, useDirectGemini, NATIVE_GEMINI_KEY } from '../services/aiService';
 import { LessonPlan, WeekData, WeeklyTimetable } from '../types';
 import { DAYS, PERIOD_LABELS } from '../constants';
 import { toISODate, addDays, generateWeeksForTerm } from '../utils/dateUtils';
@@ -272,18 +272,22 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
     setVoiceUnavailable(false);
 
     try {
-      // Mint a short-lived ephemeral token from the server so the browser never sees the raw
-      // Gemini key. If the server can't mint one, disable the voice feature gracefully rather
-      // than falling back to shipping the key.
+      // Web: mint a short-lived ephemeral token from the server so the browser never sees the raw
+      // Gemini key. Native: there is no server, so connect with the baked key directly (accepted
+      // client-key trade-off for the installed app).
       let token: string | null = null;
-      try {
-        const res = await fetch('/api/live-token', { method: 'POST', headers: await authHeaders() });
-        if (res.ok) {
-          const json = await res.json();
-          token = json?.token ?? null;
+      if (useDirectGemini) {
+        token = NATIVE_GEMINI_KEY;
+      } else {
+        try {
+          const res = await fetch('/api/live-token', { method: 'POST', headers: await authHeaders() });
+          if (res.ok) {
+            const json = await res.json();
+            token = json?.token ?? null;
+          }
+        } catch {
+          token = null;
         }
-      } catch {
-        token = null;
       }
       if (!token) {
         setVoiceUnavailable(true);

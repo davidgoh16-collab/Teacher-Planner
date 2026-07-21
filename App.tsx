@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { auth } from './firebase';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { auth, logout } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   PERIOD_LABELS, 
   DAYS 
@@ -434,6 +435,18 @@ const App: React.FC = () => {
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
+  }, [theme]);
+
+  // --- Native status bar (edge-to-edge) ---
+  // Overlay the web view so the app draws behind the bars, and match the status-bar icon colour
+  // to the resolved theme (light icons on dark, dark icons on light). No-op on web.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+    }).catch(() => {});
   }, [theme]);
 
   // --- Accent colour (Pillar 3) ---
@@ -1972,7 +1985,7 @@ const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onExport={exportData}
-        onLogout={() => signOut(auth)}
+        onLogout={() => logout()}
         search={globalSearchEl}
         topBar={activeTab === 'timetable' ? timetableToolbarEl : undefined}
       >

@@ -9,10 +9,17 @@
     "preview": "vite preview",
     "start": "node server.js",
     "lint": "tsc --noEmit",
+    "cap:build": "CAP_BUILD=1 vite build",
+    "cap:sync": "CAP_BUILD=1 vite build && cap sync android",
     "rules:test": "firebase emulators:exec --only firestore --project demo-teacher-planner \"node --test tests/rules/*.test.mjs\"",
     "rules:deploy": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -38,6 +45,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.2",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { auth, microsoftProvider, googleProvider } from '../firebase';
+import { auth, loginWithGoogle, loginWithMicrosoft } from '../firebase';
 import {
-  signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
@@ -42,11 +41,11 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handlePopup = async (provider: typeof microsoftProvider | typeof googleProvider, which: 'microsoft' | 'google') => {
+  const handleProvider = async (which: 'microsoft' | 'google') => {
     setLoading(which);
     setError(null);
     try {
-      await signInWithPopup(auth, provider);
+      await (which === 'google' ? loginWithGoogle() : loginWithMicrosoft());
       // Auth state change is handled by App.tsx
     } catch (err: any) {
       console.error('Login Error:', err);
@@ -102,7 +101,7 @@ const LoginPage: React.FC = () => {
 
           <div className="space-y-2.5">
             <button
-              onClick={() => handlePopup(microsoftProvider, 'microsoft')}
+              onClick={() => handleProvider('microsoft')}
               disabled={busy}
               className="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#1a1a1a] text-white py-2.5 px-4 rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
@@ -116,7 +115,7 @@ const LoginPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handlePopup(googleProvider, 'google')}
+              onClick={() => handleProvider('google')}
               disabled={busy}
               className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 border border-black/[0.08] dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white dark:border-white/[0.1] py-2.5 px-4 rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >

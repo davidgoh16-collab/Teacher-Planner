@@ -3,6 +3,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// The installed Android (Capacitor) build ships every asset inside the APK and is served from
+// capacitor://localhost, so a PWA service worker adds no offline benefit and actively risks
+// serving a stale app shell across APK updates. CAP_BUILD=1 (set by the cap:* npm scripts)
+// omits VitePWA for native builds; the web build keeps it.
+const isCapacitorBuild = process.env.CAP_BUILD === '1';
+
 export default defineConfig(() => {
     return {
       server: {
@@ -11,6 +17,7 @@ export default defineConfig(() => {
       },
       plugins: [
         react(),
+        ...(isCapacitorBuild ? [] : [
         VitePWA({
           registerType: 'autoUpdate',
           injectRegister: 'auto',
@@ -45,6 +52,7 @@ export default defineConfig(() => {
             ]
           }
         })
+        ]),
       ],
       resolve: {
         alias: {

@@ -1,9 +1,28 @@
 import { Type } from "@google/genai";
 import { Term, WeeklyTimetable } from "../types";
 import { clampTimetableColors } from "../utils/timetablePalette";
-import { auth } from "../firebase";
-import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, type PseudonymMapping } from "../utils/pseudonymiser";
+import { auth, isNative } from "../firebase";
+import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, maskEmailsDeep, type PseudonymMapping } from "../utils/pseudonymiser";
 import { fetchColleagues } from "./colleagueService";
+
+/**
+ * On web the Gemini key is held server-side and every AI call is proxied through /api/*.
+ * The installed (Capacitor) app has no same-origin server, so it talks to Gemini directly with a
+ * key baked in at build time from .env.local (VITE_GEMINI_API_KEY). This trade-off — a client-side
+ * key on native only — is deliberate; the web bundle is still built without the key.
+ */
+export const NATIVE_GEMINI_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+export const useDirectGemini = isNative && !!NATIVE_GEMINI_KEY;
+
+let directClientPromise: Promise<any> | null = null;
+const getDirectAiClient = async () => {
+  if (!directClientPromise) {
+    directClientPromise = import("@google/genai").then(
+      ({ GoogleGenAI }) => new GoogleGenAI({ apiKey: NATIVE_GEMINI_KEY })
+    );
+  }
+  return directClientPromise;
+};
 
 /**
  * Build the auth headers for a same-origin API call. The signed-in user's Firebase ID token
@@ -39,6 +58,21 @@ export interface ProxyResponse {
 export const proxyGenerateContent = async (
   payload: { model: string; contents: any; config?: any }
 ): Promise<ProxyResponse> => {
+  // Native: call Gemini directly with the baked key (mirrors the server's masking + response shape).
+  if (useDirectGemini) {
+    const ai = await getDirectAiClient();
+    const response = await ai.models.generateContent({
+      model: payload.model,
+      contents: maskEmailsDeep(payload.contents),
+      config: maskEmailsDeep(payload.config),
+    });
+    return {
+      text: typeof response.text === 'string' ? response.text : '',
+      candidates: response.candidates,
+      functionCalls: extractFunctionCalls(response.candidates),
+    };
+  }
+
   const res = await fetch('/api/generate-content', {
     method: 'POST',
     headers: await authHeaders(),

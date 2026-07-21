@@ -1,0 +1,12 @@
+{
+  "name": "teacher-planner-functions",
+  "description": "Cloud Functions for Teacher Planner (native auth bridge)",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.7.0"
+  }
+}
