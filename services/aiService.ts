@@ -1,5 +1,6 @@
 import { Type } from "@google/genai";
 import { Term, WeeklyTimetable } from "../types";
+import { clampTimetableColors } from "../utils/timetablePalette";
 import { auth } from "../firebase";
 import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, type PseudonymMapping } from "../utils/pseudonymiser";
 import { fetchColleagues } from "./colleagueService";
@@ -111,6 +112,14 @@ export const TEXT_MODEL = "gemini-3.5-flash";
 // and Tailwind classes, but the Settings colour picker can only edit hex, so hex keeps imported
 // timetables editable and visually consistent across import paths.
 const COLOR_INSTRUCTION = 'Assign a visually distinct HEX color code to the \'colorClass\' field based on the subject (e.g. all Geography classes get the same green hex like #bbf7d0, all Math classes a blue hex like #bfdbfe). Do NOT use Tailwind class names, ONLY hex codes.';
+
+// Every parsed timetable is clamped to the curated palette so AI-suggested hexes
+// (or anything off-theme) land as on-palette chip classes in Firestore.
+const clampParsedWeeks = <T extends { week1?: any; week2?: any }>(result: T): T => ({
+  ...result,
+  ...(result.week1 ? { week1: clampTimetableColors(result.week1) } : {}),
+  ...(result.week2 ? { week2: clampTimetableColors(result.week2) } : {}),
+});
 
 const DAY_SCHEMA = {
   type: Type.OBJECT,
@@ -853,7 +862,7 @@ export const parseTimetableText = async (text: string): Promise<{ week1: WeeklyT
     });
 
     if (response.text) {
-      return extractAndParseJSON(response.text);
+      return clampParsedWeeks(extractAndParseJSON(response.text));
     }
     throw new Error("No response text from Gemini");
   } catch (error) {
@@ -910,7 +919,7 @@ export const parseMasterTimetableAndTerms = async (
     });
 
     if (response.text) {
-      return extractAndParseJSON(response.text);
+      return clampParsedWeeks(extractAndParseJSON(response.text));
     }
     throw new Error("No response text from Gemini");
   } catch (error) {
@@ -972,7 +981,7 @@ export const parseTimetableImage = async (base64Data: string, mimeType: string =
     });
 
     if (response.text) {
-      return extractAndParseJSON(response.text);
+      return clampParsedWeeks(extractAndParseJSON(response.text));
     }
     throw new Error("No response text from Gemini");
   } catch (error) {
@@ -1023,7 +1032,7 @@ const timetableWithNamePrompt = (filenameHint?: string, textContent?: string, as
 
 const parseTimetableWithNameResponse = (text: string) => {
   const result = extractAndParseJSON(text);
-  return { name: result.name || null, week1: result.week1 || {}, week2: result.week2 || {} };
+  return clampParsedWeeks({ name: result.name || null, week1: result.week1 || {}, week2: result.week2 || {} });
 };
 
 /**

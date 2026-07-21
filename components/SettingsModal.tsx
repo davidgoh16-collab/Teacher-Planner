@@ -12,6 +12,7 @@ import { readFileContent } from '../utils/fileUtils';
 import ImportHelp from './ui/ImportHelp';
 import { PERIOD_LABELS, DAYS } from '../constants';
 import { getThemePresets, DEFAULT_THEME_COLOR, OWNER_THEME_COLOR, isValidHex } from '../utils/themeColor';
+import { TIMETABLE_PALETTE, mapLegacyColor, clampTimetableColors } from '../utils/timetablePalette';
 import { LEGACY_OWNER_UID } from '../services/migrationService';
 
 interface SettingsModalProps {
@@ -119,8 +120,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
   const handleSaveTimetables = async () => {
     if (isReadOnly || !selectedAcademicYearId) return;
     try {
-      await saveTimetable(selectedAcademicYearId, 'week1', localTimetableW1);
-      await saveTimetable(selectedAcademicYearId, 'week2', localTimetableW2);
+      // Clamp every colour to the curated palette (also self-heals legacy hex cells).
+      await saveTimetable(selectedAcademicYearId, 'week1', clampTimetableColors(localTimetableW1));
+      await saveTimetable(selectedAcademicYearId, 'week2', clampTimetableColors(localTimetableW2));
       await refreshPlannerData();
     } catch (e) {
       console.error("Failed to save timetables:", e);
@@ -706,14 +708,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                                            className="w-full text-sm font-bold bg-transparent outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal"
                                            disabled={isReadOnly}
                                          />
-                                         <input
-                                            type="color"
-                                            value={entry?.colorClass?.startsWith('#') ? entry.colorClass.substring(0, 7) : '#e2e8f0'}
-                                           onChange={(e) => updateTimetableEntry(day, period, 'colorClass', e.target.value)}
-                                            className="w-full h-8 cursor-pointer rounded-md outline-none bg-transparent border-0 p-0 m-0"
-                                           disabled={isReadOnly}
-                                           title="Select Custom Background Color"
-                                         />
+                                         <div className="flex flex-wrap gap-1">
+                                           {TIMETABLE_PALETTE.map(c => {
+                                             const selected = entry?.colorClass ? mapLegacyColor(entry.colorClass).startsWith(c.chipClass) : false;
+                                             return (
+                                               <button
+                                                 key={c.id}
+                                                 type="button"
+                                                 title={c.name}
+                                                 disabled={isReadOnly}
+                                                 onClick={() => updateTimetableEntry(day, period, 'colorClass', c.chipClass)}
+                                                 className={`h-4 w-4 rounded-full border border-black/10 transition-transform hover:scale-110 disabled:cursor-default ${selected ? 'ring-2 ring-slate-500 ring-offset-1 dark:ring-offset-slate-800' : ''}`}
+                                                 style={{ backgroundColor: c.hex }}
+                                               />
+                                             );
+                                           })}
+                                         </div>
                                          {!isReadOnly && entry && (
                                             <button
                                               onClick={() => updateTimetableEntry(day, period, 'clear', null)}
