@@ -13,7 +13,7 @@ const chip = (id) => TIMETABLE_PALETTE.find(c => c.id === id).chipClass;
 test('legacy Tailwind families map to the expected palette', () => {
   assert.equal(mapLegacyColor('bg-red-100 text-red-900 border-red-200 dark:bg-red-900/30 dark:text-red-100 dark:border-red-800'), chip('terracotta'));
   assert.equal(mapLegacyColor('bg-green-100 text-green-900 border-green-200 dark:bg-green-900/30 dark:text-green-100 dark:border-green-800'), chip('sage'));
-  assert.equal(mapLegacyColor('bg-emerald-100 text-emerald-900 border-emerald-200'), chip('sage'));
+  assert.equal(mapLegacyColor('bg-emerald-100 text-emerald-900 border-emerald-200'), chip('moss'));
   assert.equal(mapLegacyColor('bg-lime-100 text-lime-900 border-lime-200'), chip('sage'));
   assert.equal(mapLegacyColor('bg-yellow-100 text-yellow-900 border-yellow-200'), chip('ochre'));
   assert.equal(mapLegacyColor('bg-teal-100 text-teal-900 border-teal-200'), chip('jade'));
@@ -66,7 +66,7 @@ test('clampTimetableColors maps every entry and preserves nulls', () => {
     },
   };
   const out = clampTimetableColors(week);
-  assert.equal(out.Monday['Period 1'].colorClass, chip('sage'));
+  assert.equal(out.Monday['Period 1'].colorClass, chip('moss'));
   assert.equal(out.Monday['Period 1'].subject, '10M');
   assert.equal(out.Monday['Period 2'], null);
 });

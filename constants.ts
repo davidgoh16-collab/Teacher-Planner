@@ -16,7 +16,7 @@ export const COLORS = {
   STUDY: 'bg-blush-100 text-blush-900 border-blush-200 dark:bg-blush-900/30 dark:text-blush-100 dark:border-blush-800',
   MEETING: 'bg-heather-100 text-heather-900 border-heather-200 dark:bg-heather-900/30 dark:text-heather-100 dark:border-heather-800',
   COMBINED: 'bg-plum-100 text-plum-900 border-plum-200 dark:bg-plum-900/30 dark:text-plum-100 dark:border-plum-800',
-  REG: 'bg-sage-100 text-sage-900 border-sage-200 dark:bg-sage-900/30 dark:text-sage-100 dark:border-sage-800',
+  REG: 'bg-moss-100 text-moss-900 border-moss-200 dark:bg-moss-900/30 dark:text-moss-100 dark:border-moss-800',
 };
 
 // INITIAL MIGRATION DATA

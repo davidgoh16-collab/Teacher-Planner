@@ -19,17 +19,17 @@ export default {
   safelist: [
     {
       pattern:
-        /^(bg|text|border)-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush)-(50|100|200|300|400|500|800|900)$/,
+        /^(bg|text|border)-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush|moss)-(50|100|200|300|400|500|800|900)$/,
       variants: ['dark'],
     },
     {
       pattern:
-        /^bg-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush)-(800|900)\/(20|30|50)$/,
+        /^bg-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush|moss)-(800|900)\/(20|30|50)$/,
       variants: ['dark'],
     },
     {
       pattern:
-        /^border-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush)-(600|700|800)$/,
+        /^border-(gray|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|sage|ocean|clay|ochre|terracotta|heather|plum|jade|blush|moss)-(600|700|800)$/,
       variants: ['dark'],
     },
   ],
@@ -88,6 +88,10 @@ export default {
         blush: {
           50: '#f9f2f2', 100: '#f1e2e2', 200: '#e2c6c6', 300: '#cda1a1', 400: '#b98383',
           500: '#a56a6a', 600: '#8e5757', 700: '#754848', 800: '#613d3d', 900: '#513434',
+        },
+        moss: {
+          50: '#f5f6f0', 100: '#e9ebdd', 200: '#d1d6b6', 300: '#b3bb8b', 400: '#98a36c',
+          500: '#7c8b5a', 600: '#68764a', 700: '#55603d', 800: '#464f33', 900: '#3b422c',
         },
         // Static brand scale shared across David's apps (logged-out chrome, owner swatch).
         sage: {

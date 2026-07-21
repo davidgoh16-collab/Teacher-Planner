@@ -42,6 +42,10 @@ export const TIMETABLE_PALETTE: TimetableColor[] = [
     chipClass: 'bg-blush-100 text-blush-900 border-blush-200 dark:bg-blush-900/30 dark:text-blush-100 dark:border-blush-800' },
   { id: 'slate', name: 'Slate', hex: '#5b6470', dot: 'bg-slate-400',
     chipClass: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700' },
+  // Kept distinct from sage: registration/form-group entries (legacy 'emerald') would
+  // otherwise collide with green/lime subject colours in the same timetable.
+  { id: 'moss', name: 'Moss', hex: '#7c8b5a', dot: 'bg-moss-400',
+    chipClass: 'bg-moss-100 text-moss-900 border-moss-200 dark:bg-moss-900/30 dark:text-moss-100 dark:border-moss-800' },
 ];
 
 const BY_ID: Record<string, TimetableColor> = Object.fromEntries(TIMETABLE_PALETTE.map(c => [c.id, c]));
@@ -52,7 +56,7 @@ const FAMILY_MAP: Record<string, string> = {
   red: 'terracotta',
   orange: 'clay', amber: 'clay',
   yellow: 'ochre',
-  lime: 'sage', green: 'sage', emerald: 'sage',
+  lime: 'sage', green: 'sage', emerald: 'moss',
   teal: 'jade',
   sky: 'ocean', blue: 'ocean', cyan: 'ocean',
   indigo: 'heather', violet: 'heather',
