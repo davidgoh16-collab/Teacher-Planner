@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { BookOpen, AlertCircle, Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
+import { AlertCircle, Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
 
 type Mode = 'signin' | 'register';
 
@@ -80,27 +80,16 @@ const LoginPage: React.FC = () => {
   const busy = loading !== null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] overflow-hidden border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-300">
-
-        {/* Header Section */}
-        <div className="bg-slate-900 dark:bg-slate-950 p-8 text-center border-b border-slate-800 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-indigo-500 to-purple-500"></div>
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4 shadow-sm shadow-primary-900/50">
-            <BookOpen size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Teacher Planner</h1>
-          <p className="text-slate-400 text-sm">Plan lessons, meetings and projects — your way.</p>
-        </div>
+    <div className="min-h-screen bg-[#faf7f2] dark:bg-[#1c1a17] flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
 
         {/* Login Body */}
         <div className="p-8 space-y-5">
           <div className="text-center space-y-1">
-            <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-              {mode === 'register' ? 'Create your account' : 'Welcome'}
-            </h2>
+            <img src="/logo.png" alt="Teacher Planner" className="mx-auto mb-5 h-16 w-16" />
+            <h1 className="font-serif text-2xl text-slate-900 dark:text-white">Teacher Planner</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {mode === 'register' ? 'Set up your own planner in minutes.' : 'Sign in to access your planner.'}
+              {mode === 'register' ? 'Set up your own planner in minutes.' : 'Plan lessons, meetings and projects — your way.'}
             </p>
           </div>
 
@@ -115,7 +104,7 @@ const LoginPage: React.FC = () => {
             <button
               onClick={() => handlePopup(microsoftProvider, 'microsoft')}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#1a1a1a] text-white py-2.5 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#1a1a1a] text-white py-2.5 px-4 rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
                 <path fill="#f35325" d="M1 1h10v10H1z" />
@@ -129,7 +118,7 @@ const LoginPage: React.FC = () => {
             <button
               onClick={() => handlePopup(googleProvider, 'google')}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-600 py-2.5 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 border border-black/[0.08] dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white dark:border-white/[0.1] py-2.5 px-4 rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
@@ -156,7 +145,7 @@ const LoginPage: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-sage-500"
                 />
               </div>
             )}
@@ -168,7 +157,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
                 autoComplete="email"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-sage-500"
               />
             </div>
             <div className="relative">
@@ -179,13 +168,13 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-sage-500"
               />
             </div>
             <button
               type="submit"
               disabled={busy}
-              className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white py-2.5 px-4 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-sage-600 hover:bg-sage-700 text-white py-2.5 px-4 rounded-xl font-semibold transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {loading === 'email' && <Loader2 size={16} className="animate-spin" />}
               {mode === 'register' ? 'Create account' : 'Sign in'}
@@ -196,7 +185,7 @@ const LoginPage: React.FC = () => {
             {mode === 'register' ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               onClick={() => { setMode(mode === 'register' ? 'signin' : 'register'); setError(null); }}
-              className="text-primary-600 dark:text-primary-400 font-medium hover:underline"
+              className="text-sage-700 dark:text-sage-300 font-medium hover:underline"
             >
               {mode === 'register' ? 'Sign in' : 'Create one'}
             </button>
