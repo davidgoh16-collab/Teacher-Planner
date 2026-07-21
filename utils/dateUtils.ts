@@ -11,6 +11,9 @@ export const toISODate = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
+/** Key for a lesson plan slot — full period label, e.g. "2026-09-01_Period 2". */
+export const getLessonKey = (dateStr: string, periodLabel: string): string => `${dateStr}_${periodLabel}`;
+
 export const getMonday = (d: Date): Date => {
   const date = new Date(d);
   const day = date.getDay();
