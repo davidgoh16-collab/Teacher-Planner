@@ -654,7 +654,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
       ) : activeTab === 'ideas' ? (
-        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] overflow-hidden">
             <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Lightbulb className="text-amber-500" /> Global Ideas & Notes

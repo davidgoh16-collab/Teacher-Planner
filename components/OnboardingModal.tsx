@@ -346,13 +346,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] border border-slate-100 dark:border-slate-800 overflow-hidden animate-in">
-        <div className="bg-slate-900 dark:bg-slate-950 px-6 py-5 flex items-center gap-3 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 via-primary-500 to-primary-700" />
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-600 text-white shrink-0">{current.icon}</div>
+      <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] overflow-hidden animate-in">
+        <div className="px-6 py-5 flex items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 shrink-0">{current.icon}</div>
           <div>
-            <h2 className="text-lg font-bold text-white leading-tight">{current.title}</h2>
-            <p className="text-xs text-slate-400">Step {step + 1} of {total}</p>
+            <h2 className="font-serif text-lg text-slate-900 dark:text-white leading-tight">{current.title}</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Step {step + 1} of {total}</p>
           </div>
         </div>
 

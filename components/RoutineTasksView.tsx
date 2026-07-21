@@ -146,7 +146,7 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
     }
 
     return (
-        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] overflow-hidden">
             <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-primary-50/50 dark:bg-primary-900/10">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <RotateCw className="text-primary-500" /> Routine Tasks
