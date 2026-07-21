@@ -1,6 +1,7 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { AppItem } from '../../types';
+import { mapLegacyColor } from '../../utils/timetablePalette';
 
 interface IconRendererProps {
   app: AppItem;
@@ -37,9 +38,10 @@ const IconRenderer: React.FC<IconRendererProps> = ({ app, size = 32, className =
   }
 
   const IconComponent = (LucideIcons as any)[app.iconValue] || LucideIcons.Globe;
+  const colorClass = mapLegacyColor(app.colorClass);
   return (
-    <div className={`${className} ${app.colorClass || 'bg-white text-slate-800 border-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'} ${rounded} flex items-center justify-center shadow-sm border shrink-0`}>
-      <IconComponent size={size} className={app.colorClass ? 'opacity-80' : 'text-slate-600 dark:text-slate-300'} />
+    <div className={`${className} ${colorClass || 'bg-white text-slate-800 border-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'} ${rounded} flex items-center justify-center shadow-sm border shrink-0`}>
+      <IconComponent size={size} className={colorClass ? 'opacity-80' : 'text-slate-600 dark:text-slate-300'} />
     </div>
   );
 };

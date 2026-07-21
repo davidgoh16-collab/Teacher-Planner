@@ -4,6 +4,7 @@ import AppModal from './AppModal';
 import ManageAppCategoriesModal from './ManageAppCategoriesModal';
 import { Plus, LayoutGrid, Settings, Search, Folder, Star } from 'lucide-react';
 import IconRenderer from './ui/IconRenderer';
+import { mapLegacyColor } from '../utils/timetablePalette';
 
 interface AppsHubProps {
   isReadOnly: boolean;
@@ -135,7 +136,7 @@ const AppsHub: React.FC<AppsHubProps> = ({ isReadOnly, apps, categories, onSaveA
                             <div key={catId} className="space-y-4">
                                 {category && (
                                     <div className="flex items-center gap-2">
-                                        <span className={`w-3 h-3 rounded-full border ${category.colorClass.split(' ')[0]} ${category.colorClass.split(' ')[2]}`}></span>
+                                        <span className={`w-3 h-3 rounded-full border ${mapLegacyColor(category.colorClass).split(' ')[0]} ${mapLegacyColor(category.colorClass).split(' ')[2]}`}></span>
                                         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{category.name}</h2>
                                     </div>
                                 )}

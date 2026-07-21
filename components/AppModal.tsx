@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppItem, AppCategory } from '../types';
 import * as LucideIcons from 'lucide-react';
 import { X, Save, Trash2, Image, LayoutGrid, Check } from 'lucide-react';
+import { TIMETABLE_PALETTE, mapLegacyColor } from '../utils/timetablePalette';
 
 interface AppModalProps {
   isOpen: boolean;
@@ -13,31 +14,9 @@ interface AppModalProps {
   categories: AppCategory[];
 }
 
-const APP_BG_COLORS = [
-  { label: 'White', class: 'bg-white text-slate-800 border-slate-200' },
-  { label: 'Slate', class: 'bg-slate-100 text-slate-800 border-slate-300' },
-  { label: 'Gray', class: 'bg-gray-100 text-gray-800 border-gray-300' },
-  { label: 'Zinc', class: 'bg-zinc-100 text-zinc-800 border-zinc-300' },
-  { label: 'Neutral', class: 'bg-neutral-100 text-neutral-800 border-neutral-300' },
-  { label: 'Stone', class: 'bg-stone-100 text-stone-800 border-stone-300' },
-  { label: 'Red', class: 'bg-red-100 text-red-800 border-red-300' },
-  { label: 'Orange', class: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { label: 'Amber', class: 'bg-amber-100 text-amber-800 border-amber-300' },
-  { label: 'Yellow', class: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { label: 'Lime', class: 'bg-lime-100 text-lime-800 border-lime-300' },
-  { label: 'Green', class: 'bg-green-100 text-green-800 border-green-300' },
-  { label: 'Emerald', class: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  { label: 'Teal', class: 'bg-teal-100 text-teal-800 border-teal-300' },
-  { label: 'Cyan', class: 'bg-cyan-100 text-cyan-800 border-cyan-300' },
-  { label: 'Sky', class: 'bg-sky-100 text-sky-800 border-sky-300' },
-  { label: 'Blue', class: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { label: 'Indigo', class: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
-  { label: 'Violet', class: 'bg-violet-100 text-violet-800 border-violet-300' },
-  { label: 'Purple', class: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { label: 'Fuchsia', class: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
-  { label: 'Pink', class: 'bg-pink-100 text-pink-800 border-pink-300' },
-  { label: 'Rose', class: 'bg-rose-100 text-rose-800 border-rose-300' }
-];
+// Icon colours use the same curated earth-tone palette as the timetable, so
+// Apps Hub stays on-theme (see utils/timetablePalette.ts).
+const APP_BG_COLORS = TIMETABLE_PALETTE.map(c => ({ label: c.name, class: c.chipClass, hex: c.hex }));
 
 const PRESET_ICONS = [
   'Globe', 'Mail', 'Calendar', 'Briefcase', 'Book', 'BookOpen', 'FileText', 'Folder',
@@ -55,7 +34,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
   const [iconType, setIconType] = useState<'preset' | 'imageUrl'>(initialData?.iconType || 'preset');
   const [iconValue, setIconValue] = useState(initialData?.iconValue || 'Globe');
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
-  const [colorClass, setColorClass] = useState(initialData?.colorClass || APP_BG_COLORS[0].class);
+  const [colorClass, setColorClass] = useState(mapLegacyColor(initialData?.colorClass) || APP_BG_COLORS[0].class);
 
   useEffect(() => {
     if (initialData) {
@@ -64,7 +43,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
       setIconType(initialData.iconType);
       setIconValue(initialData.iconValue);
       setCategoryId(initialData.categoryId || '');
-      setColorClass(initialData.colorClass || APP_BG_COLORS[0].class);
+      setColorClass(mapLegacyColor(initialData.colorClass) || APP_BG_COLORS[0].class);
     } else {
       setName('');
       setUrl('');
@@ -233,7 +212,8 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                   key={color.class}
                   type="button"
                   onClick={(e) => { e.preventDefault(); setColorClass(color.class); }}
-                  className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${colorClass === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                  className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-105 ${colorClass === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                  style={{ backgroundColor: color.hex }}
                   title={color.label}
                 />
               ))}

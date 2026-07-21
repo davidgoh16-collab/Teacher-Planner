@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppCategory } from '../types';
 import { fetchAppCategories, saveAppCategory, deleteAppCategory } from '../services/appService';
 import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { TIMETABLE_PALETTE, mapLegacyColor } from '../utils/timetablePalette';
 
 interface ManageAppCategoriesModalProps {
   isOpen: boolean;
@@ -9,30 +10,9 @@ interface ManageAppCategoriesModalProps {
   isReadOnly: boolean;
 }
 
-const CATEGORY_COLORS = [
-  { label: 'Slate', class: 'bg-slate-100 text-slate-800 border-slate-300' },
-  { label: 'Gray', class: 'bg-gray-100 text-gray-800 border-gray-300' },
-  { label: 'Zinc', class: 'bg-zinc-100 text-zinc-800 border-zinc-300' },
-  { label: 'Neutral', class: 'bg-neutral-100 text-neutral-800 border-neutral-300' },
-  { label: 'Stone', class: 'bg-stone-100 text-stone-800 border-stone-300' },
-  { label: 'Red', class: 'bg-red-100 text-red-800 border-red-300' },
-  { label: 'Orange', class: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { label: 'Amber', class: 'bg-amber-100 text-amber-800 border-amber-300' },
-  { label: 'Yellow', class: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { label: 'Lime', class: 'bg-lime-100 text-lime-800 border-lime-300' },
-  { label: 'Green', class: 'bg-green-100 text-green-800 border-green-300' },
-  { label: 'Emerald', class: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  { label: 'Teal', class: 'bg-teal-100 text-teal-800 border-teal-300' },
-  { label: 'Cyan', class: 'bg-cyan-100 text-cyan-800 border-cyan-300' },
-  { label: 'Sky', class: 'bg-sky-100 text-sky-800 border-sky-300' },
-  { label: 'Blue', class: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { label: 'Indigo', class: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
-  { label: 'Violet', class: 'bg-violet-100 text-violet-800 border-violet-300' },
-  { label: 'Purple', class: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { label: 'Fuchsia', class: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
-  { label: 'Pink', class: 'bg-pink-100 text-pink-800 border-pink-300' },
-  { label: 'Rose', class: 'bg-rose-100 text-rose-800 border-rose-300' }
-];
+// Category colours use the same curated earth-tone palette as the timetable,
+// so Apps Hub stays on-theme (see utils/timetablePalette.ts).
+const CATEGORY_COLORS = TIMETABLE_PALETTE.map(c => ({ label: c.name, class: c.chipClass, hex: c.hex }));
 
 const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isOpen, onClose, isReadOnly }) => {
   const [categories, setCategories] = useState<AppCategory[]>([]);
@@ -144,7 +124,8 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
                           key={color.class}
                           type="button"
                           onClick={() => setNewCatColor(color.class)}
-                          className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                          className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-105 ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                          style={{ backgroundColor: color.hex }}
                           title={color.label}
                         />
                       ))}
@@ -170,7 +151,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
                   <ul className="space-y-2">
                     {categories.map(cat => (
                       <li key={cat.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${cat.colorClass}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${mapLegacyColor(cat.colorClass)}`}>
                           {cat.name}
                         </span>
                         {!isReadOnly && (
