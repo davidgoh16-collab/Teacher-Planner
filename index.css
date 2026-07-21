@@ -1,10 +1,8 @@
-/* Self-hosted fonts (offline-safe, matches Journal/Smart-Budget) */
-@import '@fontsource/inter/300.css';
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
+/* Self-hosted fonts (offline-safe). Merriweather is the single universal typeface. */
+@import '@fontsource/merriweather/300.css';
 @import '@fontsource/merriweather/400.css';
+@import '@fontsource/merriweather/500.css';
+@import '@fontsource/merriweather/600.css';
 @import '@fontsource/merriweather/700.css';
 @import '@fontsource/merriweather/400-italic.css';
 
@@ -33,7 +31,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Merriweather', Georgia, serif;
   overscroll-behavior-y: none;
 }
 

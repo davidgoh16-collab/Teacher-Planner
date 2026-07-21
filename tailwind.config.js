@@ -36,8 +36,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        serif: ['Merriweather', 'serif'],
+        // Merriweather is the single universal typeface — both the default (sans)
+        // and the explicit `font-serif` headings resolve to it, so the whole app
+        // renders in one face. Only `font-mono` (code blocks) differs, by design.
+        sans: ['Merriweather', 'Georgia', 'serif'],
+        serif: ['Merriweather', 'Georgia', 'serif'],
       },
       colors: {
         // Runtime-themeable accent scale driven by --primary-* CSS variables
