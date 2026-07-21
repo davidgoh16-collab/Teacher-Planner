@@ -21,9 +21,9 @@ export default defineConfig(() => {
           manifest: {
             name: 'Teacher Planner',
             short_name: 'Planner',
-            description: 'A comprehensive teacher planner for the 2025/2026 academic year',
-            theme_color: '#16a34a',
-            background_color: '#0f172a',
+            description: 'Plan lessons, meetings and projects — your way.',
+            theme_color: '#5d7752',
+            background_color: '#faf7f2',
             display: 'standalone',
             icons: [
               {

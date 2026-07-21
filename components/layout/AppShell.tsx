@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
 import Sidebar from './Sidebar';
+import BottomNav from '../ui/BottomNav';
+import MoreSheet from '../ui/MoreSheet';
 import { AppTab, AppItem, AcademicYear } from '../../types';
 
 interface ShellUser { displayName?: string | null; email?: string | null; photoURL?: string | null; }
@@ -19,6 +20,7 @@ interface AppShellProps {
   theme: string;
   themeIcon: React.ReactNode;
   onCycleTheme: () => void;
+  onSetTheme: (t: 'light' | 'dark' | 'system') => void;
   onOpenSettings: () => void;
   onOpenCalendar: () => void;
   onExport: () => void;
@@ -41,96 +43,30 @@ const TITLES: Record<AppTab, string> = {
 };
 
 /**
- * App frame: persistent left Sidebar + a slim global top bar (title + search) +
- * an optional view-specific toolbar sub-row + the scrollable main content.
- * On mobile the sidebar becomes an off-canvas drawer.
+ * App frame: persistent left Sidebar (desktop) + a slim global top bar (title +
+ * search) + an optional view-specific toolbar sub-row + the scrollable main
+ * content. On mobile, navigation is a bottom tab bar with a More sheet.
  */
-const SIDEBAR_MIN = 64;      // narrowest: icon-only
-const SIDEBAR_MAX = 340;
-const SIDEBAR_NARROW = 64;   // default width (icons only)
-const SIDEBAR_WIDE = 248;    // snap target when expanding
-const COLLAPSE_AT = 150;     // below this width, labels are hidden
-
-const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, ...rest }) => {
-  const [width, setWidth] = useState(() => {
-    const saved = Number(localStorage.getItem('tp_sidebar_width'));
-    return saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX ? saved : SIDEBAR_NARROW;
-  });
-  const [dragging, setDragging] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, onSetTheme, ...rest }) => {
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('tp_sidebar_collapsed') === '1');
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('tp_sidebar_width', String(width));
-  }, [width]);
-
-  const collapsed = width < COLLAPSE_AT;
-  const toggleCollapsed = () => setWidth(w => (w < COLLAPSE_AT ? SIDEBAR_WIDE : SIDEBAR_NARROW));
-
-  // Pointer-driven resize: track the drag on the window so it keeps working even if
-  // the cursor leaves the thin handle. Snap back to icon-width if dragged below the threshold.
-  const startResize = (e: React.PointerEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = width;
-    setDragging(true);
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-    const onMove = (ev: PointerEvent) => {
-      setWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + ev.clientX - startX)));
-    };
-    const onUp = () => {
-      setDragging(false);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setWidth(w => (w < COLLAPSE_AT ? SIDEBAR_NARROW : w));
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
+    localStorage.setItem('tp_sidebar_collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
 
   return (
-    <div className="h-screen flex bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-hidden">
+    <div className="h-screen flex bg-[#faf7f2] dark:bg-[#1c1a17] text-slate-800 dark:text-slate-100 transition-colors duration-200 overflow-hidden">
       {/* Desktop sidebar */}
       <div className="hidden md:flex shrink-0">
-        <Sidebar {...rest} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} width={width} dragging={dragging} onResizeStart={startResize} />
+        <Sidebar {...rest} collapsed={collapsed} onToggleCollapsed={() => setCollapsed(c => !c)} />
       </div>
-
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[60] flex">
-          <div className="fixed inset-0 bg-black/50 animate-in fade-in" onClick={() => setMobileOpen(false)} />
-          <div className="relative z-10 h-full shadow-2xl animate-in slide-in-from-left-16">
-            <Sidebar
-              {...rest}
-              collapsed={false}
-              onToggleCollapsed={() => {}}
-              onNavigate={() => setMobileOpen(false)}
-            />
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-3 -right-12 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 p-2 rounded-lg shadow-lg"
-              aria-label="Close menu"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Content column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Global top bar */}
-        <header className="shrink-0 h-14 flex items-center gap-3 px-3 sm:px-4 border-b border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm z-30">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="md:hidden p-2 -ml-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800"
-            aria-label="Open menu"
-          >
-            <Menu size={20} />
-          </button>
-          <h2 className="font-bold text-base sm:text-lg shrink-0">{TITLES[rest.activeTab]}</h2>
+        <header className="shrink-0 h-14 flex items-center gap-3 px-3 sm:px-4 border-b border-black/[0.06] dark:border-white/[0.08] bg-[#faf7f2]/90 dark:bg-[#1c1a17]/90 backdrop-blur z-30">
+          <h2 className="font-serif text-base sm:text-lg font-bold shrink-0 text-slate-900 dark:text-white">{TITLES[rest.activeTab]}</h2>
           {topBar ? (
             <div className="flex-1 flex items-center overflow-x-auto no-scrollbar">
               {topBar}
@@ -142,11 +78,32 @@ const AppShell: React.FC<AppShellProps> = ({ search, topBar, children, ...rest }
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto pb-20 md:pb-0">
             {children}
           </div>
         </main>
       </div>
+
+      {/* Mobile navigation */}
+      <BottomNav
+        active={rest.activeTab}
+        onChange={rest.onTabChange}
+        onMore={() => setMoreOpen(true)}
+        moreActive={moreOpen}
+      />
+      <MoreSheet
+        isOpen={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        user={rest.user}
+        isAdmin={rest.isAdmin}
+        theme={rest.theme as 'light' | 'dark' | 'system'}
+        onSetTheme={onSetTheme}
+        onTabChange={rest.onTabChange}
+        onOpenCalendar={rest.onOpenCalendar}
+        onExport={rest.onExport}
+        onOpenSettings={rest.onOpenSettings}
+        onLogout={rest.onLogout}
+      />
     </div>
   );
 };

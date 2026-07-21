@@ -1798,7 +1798,7 @@ const App: React.FC = () => {
       )}
       <button
         onClick={() => setIsQuickAddOpen(true)}
-        className="group relative w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:shadow-green-500/20"
+        className="group relative w-12 h-12 rounded-full shadow-sm flex items-center justify-center transition-all duration-300 transform active:scale-95 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white"
         aria-label="Quick add task"
       >
         <Plus size={24} />
@@ -1967,6 +1967,7 @@ const App: React.FC = () => {
         theme={theme}
         themeIcon={getThemeIcon()}
         onCycleTheme={cycleTheme}
+        onSetTheme={setTheme}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onExport={exportData}
@@ -2807,7 +2808,7 @@ const App: React.FC = () => {
 
       {/* Floating chat + quick-add. Home embeds the chat, so there it only gets the quick-add FAB. */}
       {activeTab === 'home' ? (
-        <div className="fixed bottom-6 right-6 z-50">{quickAddFab}</div>
+        <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50">{quickAddFab}</div>
       ) : (
         <ChatLauncher quickAddButton={quickAddFab} chat={chatBag} />
       )}

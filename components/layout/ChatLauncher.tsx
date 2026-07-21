@@ -17,7 +17,7 @@ const ChatLauncher: React.FC<ChatLauncherProps> = ({ chat, quickAddButton }) => 
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex flex-col items-end pointer-events-none">
       {/* Chat window — kept mounted (hidden when closed) to preserve panel state */}
       <div className={`mb-4 pointer-events-auto ${(!isOpen && !isFullScreen) ? 'hidden' : ''}`}>
         <ChatPanel
@@ -35,7 +35,7 @@ const ChatLauncher: React.FC<ChatLauncherProps> = ({ chat, quickAddButton }) => 
           {quickAddButton && <div className="flex justify-end">{quickAddButton}</div>}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
+            className={`w-14 h-14 rounded-full shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
               isOpen ? 'bg-slate-700 text-white rotate-90' : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
             aria-label={isOpen ? 'Close chat' : 'Open chat'}
