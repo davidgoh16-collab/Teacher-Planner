@@ -1,3 +1,6 @@
+import type React from 'react';
+import { mapLegacyColor } from './timetablePalette';
+
 // Shared category color palette. Used by the Manage Categories modal and any
 // feature that needs to create a category (e.g. the Vibe Project generator).
 export const CATEGORY_COLORS = [
@@ -63,26 +66,16 @@ export const getContrastTextColor = (colorVal: string): string => {
   return 'text-slate-900 dark:text-white';
 };
 
-export const getEntryStyle = (entry: any | null | undefined) => {
-   if (!entry) return {};
-
-   if (entry.colorClass?.startsWith('#')) {
-       const textColorClass = getContrastTextColor(entry.colorClass);
-       return {
-         backgroundColor: entry.colorClass,
-         color: textColorClass === 'text-slate-900' ? '#0f172a' : '#f8fafc',
-         borderColor: `${entry.colorClass}80`
-       };
-   }
+// All timetable colours render through the curated earth palette: stored values
+// (legacy Tailwind strings, hexes from old pickers/AI imports, or already-migrated
+// chips) are clamped via mapLegacyColor, so even unmigrated shared/colleague data
+// stays on-theme. getEntryStyle is kept (returning {}) so call sites don't change.
+export const getEntryStyle = (_entry: any | null | undefined): React.CSSProperties => {
    return {};
 };
 
 export const getEntryClassName = (entry: any | null | undefined) => {
    if (!entry) return 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.08] border-dashed';
 
-   if (entry.colorClass?.startsWith('#')) {
-       return 'border-dashed border shadow-sm';
-   }
-
-   return entry.colorClass || 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.08] border-dashed border';
+   return mapLegacyColor(entry.colorClass) || 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.08] border-dashed border';
 };

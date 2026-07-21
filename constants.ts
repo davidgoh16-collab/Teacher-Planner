@@ -3,20 +3,20 @@ import { Term, WeeklyTimetable } from './types';
 export const PERIOD_LABELS = ['Morning Mtg', 'Period 1', 'Period 2', 'Period 3', 'Break', 'Period 4', 'Period 5', 'Period 6', 'Afternoon Mtg'];
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-// Color palette mapping based on image analysis
-// Added dark: classes for dark mode support
+// Colour palette for seeded timetable entries — curated earth tones matching the
+// sage theme (single source of truth: utils/timetablePalette.ts TIMETABLE_PALETTE).
 export const COLORS = {
-  Y13_TT: 'bg-red-100 text-red-900 border-red-200 dark:bg-red-900/30 dark:text-red-100 dark:border-red-800',
-  Y13_GEO: 'bg-green-100 text-green-900 border-green-200 dark:bg-green-900/30 dark:text-green-100 dark:border-green-800',
-  Y12_TTE: 'bg-yellow-100 text-yellow-900 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-100 dark:border-yellow-800',
-  Y11_GEO: 'bg-teal-100 text-teal-900 border-teal-200 dark:bg-teal-900/30 dark:text-teal-100 dark:border-teal-800',
-  Y10_GEO: 'bg-orange-100 text-orange-900 border-orange-200 dark:bg-orange-900/30 dark:text-orange-100 dark:border-orange-800',
-  Y7_GEO: 'bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-900/30 dark:text-sky-100 dark:border-sky-800',
-  PPA: 'bg-gray-50 text-gray-500 border-gray-200 italic dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700',
-  STUDY: 'bg-pink-50 text-pink-900 border-pink-200 dark:bg-pink-900/20 dark:text-pink-100 dark:border-pink-800',
-  MEETING: 'bg-indigo-50 text-indigo-900 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-100 dark:border-indigo-800',
-  COMBINED: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-100 dark:border-fuchsia-800',
-  REG: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:border-emerald-800',
+  Y13_TT: 'bg-terracotta-100 text-terracotta-900 border-terracotta-200 dark:bg-terracotta-900/30 dark:text-terracotta-100 dark:border-terracotta-800',
+  Y13_GEO: 'bg-sage-100 text-sage-900 border-sage-200 dark:bg-sage-900/30 dark:text-sage-100 dark:border-sage-800',
+  Y12_TTE: 'bg-ochre-100 text-ochre-900 border-ochre-200 dark:bg-ochre-900/30 dark:text-ochre-100 dark:border-ochre-800',
+  Y11_GEO: 'bg-jade-100 text-jade-900 border-jade-200 dark:bg-jade-900/30 dark:text-jade-100 dark:border-jade-800',
+  Y10_GEO: 'bg-clay-100 text-clay-900 border-clay-200 dark:bg-clay-900/30 dark:text-clay-100 dark:border-clay-800',
+  Y7_GEO: 'bg-ocean-100 text-ocean-900 border-ocean-200 dark:bg-ocean-900/30 dark:text-ocean-100 dark:border-ocean-800',
+  PPA: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700 italic',
+  STUDY: 'bg-blush-100 text-blush-900 border-blush-200 dark:bg-blush-900/30 dark:text-blush-100 dark:border-blush-800',
+  MEETING: 'bg-heather-100 text-heather-900 border-heather-200 dark:bg-heather-900/30 dark:text-heather-100 dark:border-heather-800',
+  COMBINED: 'bg-plum-100 text-plum-900 border-plum-200 dark:bg-plum-900/30 dark:text-plum-100 dark:border-plum-800',
+  REG: 'bg-sage-100 text-sage-900 border-sage-200 dark:bg-sage-900/30 dark:text-sage-100 dark:border-sage-800',
 };
 
 // INITIAL MIGRATION DATA
