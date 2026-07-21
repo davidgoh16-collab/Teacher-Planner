@@ -172,18 +172,18 @@ const handleSaveTask = (e: React.FormEvent) => {
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-lg overflow-hidden flex flex-col">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
                     <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
                         <button
                             onClick={() => setActiveTab('task')}
-                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'task' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'task' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             Quick Add Task
                         </button>
                         <button
                             onClick={() => setActiveTab('idea')}
-                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'idea' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'idea' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             Jot an Idea
                         </button>
@@ -232,7 +232,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     {(() => {
                                         const c = preview.confidence ?? 0;
                                         const cfg = c >= 0.7
-                                            ? { label: 'High confidence', cls: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' }
+                                            ? { label: 'High confidence', cls: 'bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-300' }
                                             : c >= 0.4
                                             ? { label: 'Medium confidence', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' }
                                             : { label: 'Low confidence', cls: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
@@ -274,7 +274,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     required
                                     autoFocus
                                     placeholder="What needs to be done?"
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
                             <div>
@@ -283,7 +283,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     value={taskDescription}
                                     onChange={(e) => setTaskDescription(e.target.value)}
                                     placeholder="Add details, notes, or steps..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[80px]"
                                 />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -371,7 +371,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     required
                                     autoFocus
                                     placeholder="Write down a quick thought or idea..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[120px]"
+                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[120px]"
                                 />
                             </div>
                             <div>
@@ -401,7 +401,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                         type="submit"
                         form={activeTab === 'task' ? "quickAddTaskForm" : "quickAddIdeaForm"}
                         disabled={activeTab === 'task' ? !taskTitle.trim() : !ideaText.trim()}
-                        className="px-5 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                        className="px-5 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2"
                     >
                         <Check size={16} /> Save {activeTab === 'task' ? 'Task' : 'Idea'}
                     </button>

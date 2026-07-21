@@ -387,20 +387,20 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Users className="w-5 h-5" />
             Meeting Planner
           </h2>
-          <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
             <button
               onClick={() => setCurrentWeek(1)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 1 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 1 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               Week 1
             </button>
             <button
               onClick={() => setCurrentWeek(2)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 2 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentWeek === 2 ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               Week 2
             </button>
@@ -408,16 +408,16 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
         </div>
 
         <div className="flex justify-between items-center gap-3 flex-wrap">
-          <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
             <button
               onClick={() => switchRoster('staff')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'staff' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'staff' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               <Users className="w-4 h-4" /> Staff
             </button>
             <button
               onClick={() => switchRoster('student')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'student' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeRoster === 'student' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               <GraduationCap className="w-4 h-4" /> Students
             </button>
@@ -433,7 +433,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add manually
@@ -443,13 +443,13 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       </div>
 
       {/* Colleague Selection */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">
           Select {activeRoster === 'staff' ? 'Staff' : 'Students'} to Compare
         </h3>
         <div className="flex flex-wrap gap-3">
           {rosterColleagues.length === 0 && !loading && (
-            <p className="text-sm text-gray-400 italic">No {rosterLabel} added yet. Use “Import timetables” to add several at once.</p>
+            <p className="text-sm text-slate-400 italic">No {rosterLabel} added yet. Use “Import timetables” to add several at once.</p>
           )}
           {rosterColleagues.map(colleague => (
             <div
@@ -459,7 +459,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                 cursor-pointer px-3 py-2 rounded-lg border flex items-center gap-2 transition-all
                 ${selectedColleagueIds.has(colleague.id)
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-700 dark:text-indigo-300'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'}
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'}
               `}
             >
               <span className="font-medium">{colleague.name}</span>
@@ -472,7 +472,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       e.stopPropagation();
                       setViewingColleague(colleague);
                     }}
-                    className="p-1 hover:bg-green-100 text-gray-400 hover:text-green-600 rounded-full dark:hover:bg-green-900/30"
+                    className="p-1 hover:bg-primary-100 text-slate-400 hover:text-primary-600 rounded-full dark:hover:bg-primary-900/30"
                     title="View Timetable"
                   >
                     <Eye className="w-3 h-3" />
@@ -483,7 +483,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                     e.stopPropagation();
                     handleDeleteColleague(colleague.id);
                   }}
-                  className="p-1 hover:bg-red-100 text-gray-400 hover:text-red-600 rounded-full dark:hover:bg-red-900/30"
+                  className="p-1 hover:bg-red-100 text-slate-400 hover:text-red-600 rounded-full dark:hover:bg-red-900/30"
                   title="Remove Colleague"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -496,15 +496,15 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
       {/* Comparison Grid */}
       {selectedColleagueIds.size > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200">
               Common Free Slots — you &amp; selected {rosterLabel} (Week {currentWeek})
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-slate-900/50 dark:text-gray-400">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-900/50 dark:text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Period</th>
                   {DAYS.map(day => <th key={day} className="px-4 py-3">{day}</th>)}
@@ -512,8 +512,8 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               </thead>
               <tbody>
                 {PERIOD_LABELS.filter(p => !p.includes('Mtg')).map(period => (
-                  <tr key={period} className="border-b border-gray-100 dark:border-slate-700 last:border-0">
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  <tr key={period} className="border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                       {period}
                     </td>
                     {DAYS.map(day => {
@@ -526,10 +526,10 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       const showAsFree = isFree || isSplit;
                       
                       return (
-                        <td key={day} className={`px-4 py-3 border-l border-gray-100 dark:border-slate-700 align-top ${showAsFree ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                        <td key={day} className={`px-4 py-3 border-l border-slate-100 dark:border-slate-700 align-top ${showAsFree ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}>
                           <div className="flex flex-col gap-1.5">
                             {isSplit && (
-                              <span className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-0.5">
+                              <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase tracking-wider mb-0.5">
                                 Split Lunch/Break
                               </span>
                             )}
@@ -541,19 +541,19 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                               return (
                                 <div key={idx} className="flex items-start gap-1.5 min-w-0" title={`${person.name}: ${person.subject || (isPersonFree ? 'Free' : 'Busy')}`}>
                                   {isPersonFree ? (
-                                    <Check className="w-3 h-3 mt-0.5 text-green-500 shrink-0" />
+                                    <Check className="w-3 h-3 mt-0.5 text-primary-500 shrink-0" />
                                   ) : isUnknown ? (
-                                    <Loader2 className="w-3 h-3 mt-0.5 text-gray-400 shrink-0" />
+                                    <Loader2 className="w-3 h-3 mt-0.5 text-slate-400 shrink-0" />
                                   ) : (
                                     <X className="w-3 h-3 mt-0.5 text-red-500 shrink-0" />
                                   )}
                                   
                                   <div className="flex flex-col min-w-0">
-                                    <span className={`text-xs font-medium truncate ${isPersonFree ? 'text-gray-700 dark:text-gray-300' : isUnknown ? 'text-gray-400' : 'text-red-700 dark:text-red-400'}`}>
+                                    <span className={`text-xs font-medium truncate ${isPersonFree ? 'text-slate-700 dark:text-slate-300' : isUnknown ? 'text-slate-400' : 'text-red-700 dark:text-red-400'}`}>
                                       {person.name}
                                     </span>
                                     {!isPersonFree && person.subject && (
-                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate italic">
+                                      <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate italic">
                                         {person.subject}
                                       </span>
                                     )}
@@ -563,8 +563,8 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                             })}
 
                             {isFree && participants.length > 1 && (
-                              <div className="mt-1 pt-1 border-t border-green-200 dark:border-green-800/50">
-                                <span className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase">
+                              <div className="mt-1 pt-1 border-t border-primary-200 dark:border-primary-800/50">
+                                <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase">
                                   Perfect Match
                                 </span>
                               </div>
@@ -584,10 +584,10 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       {/* View Timetable Modal */}
       {viewingColleague && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setViewingColleague(null)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-4 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <FileText size={20} className="text-green-600 dark:text-green-400" />
+                <FileText size={20} className="text-primary-600 dark:text-primary-400" />
                 Timetable: {viewingColleague.name}
               </h2>
               <button 
@@ -597,18 +597,18 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-gray-100 dark:bg-slate-950 overflow-auto p-4 flex items-center justify-center">
+            <div className="flex-1 bg-slate-100 dark:bg-slate-950 overflow-auto p-4 flex items-center justify-center">
               {viewingColleague.timetableMimeType === 'application/pdf' ? (
                 <iframe 
                   src={`data:application/pdf;base64,${viewingColleague.timetableImage}`}
-                  className="w-full h-full rounded-lg shadow-lg border border-gray-200 dark:border-slate-700"
+                  className="w-full h-full rounded-lg shadow-sm border border-slate-200 dark:border-slate-700"
                   title={`Timetable for ${viewingColleague.name}`}
                 />
               ) : (
                 <img 
                   src={`data:${viewingColleague.timetableMimeType || 'image/png'};base64,${viewingColleague.timetableImage}`}
                   alt={`Timetable for ${viewingColleague.name}`}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
                 />
               )}
             </div>
@@ -619,22 +619,22 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       {/* Batch Import Modal */}
       {isImportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <div>
-                <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Import {activeRoster === 'staff' ? 'staff' : 'student'} timetables</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Upload several files at once — names are detected automatically. Review before saving.</p>
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Import {activeRoster === 'staff' ? 'staff' : 'student'} timetables</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Upload several files at once — names are detected automatically. Review before saving.</p>
               </div>
-              <button onClick={closeImport} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+              <button onClick={closeImport} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto">
-              <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
+              <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : 'border-slate-300 dark:border-slate-600 hover:border-primary-400'}`}>
                 <UploadCloud className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Choose timetable files</span>
-                <span className="text-xs text-gray-400">Select several at once</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Choose timetable files</span>
+                <span className="text-xs text-slate-400">Select several at once</span>
                 <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={handleBatchFiles} disabled={importing} />
               </label>
 
@@ -644,7 +644,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               />
 
               {importing && (
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Reading timetables… {importProgress.done}/{importProgress.total}
                 </div>
@@ -652,31 +652,31 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
 
               {importResults.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Review &amp; confirm</p>
-                  <p className="text-[11px] text-gray-400">Names are detected on-device — where a row is blank, type in whose timetable it is.</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Review &amp; confirm</p>
+                  <p className="text-[11px] text-slate-400">Names are detected on-device — where a row is blank, type in whose timetable it is.</p>
                   {importResults.map((row, idx) => (
-                    <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg border ${row.error ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-gray-200 dark:border-slate-700'}`}>
+                    <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg border ${row.error ? 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20' : 'border-slate-200 dark:border-slate-700'}`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <Pencil className="w-3 h-3 text-gray-400 shrink-0" />
+                          <Pencil className="w-3 h-3 text-slate-400 shrink-0" />
                           <input
                             value={row.name}
                             onChange={(e) => updateImportRow(idx, { name: e.target.value })}
                             placeholder="Whose timetable is this?"
-                            className="w-full bg-transparent text-sm font-medium text-gray-800 dark:text-gray-100 focus:outline-none border-b border-transparent focus:border-primary-400"
+                            className="w-full bg-transparent text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none border-b border-transparent focus:border-primary-400"
                           />
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate pl-5">{row.fileName}{row.error ? ` · ${row.error}` : ''}</p>
+                        <p className="text-[11px] text-slate-400 truncate pl-5">{row.fileName}{row.error ? ` · ${row.error}` : ''}</p>
                       </div>
                       <select
                         value={row.type}
                         onChange={(e) => updateImportRow(idx, { type: e.target.value as 'staff' | 'student' })}
-                        className="text-xs rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-gray-700 dark:text-gray-200"
+                        className="text-xs rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-slate-700 dark:text-slate-200"
                       >
                         <option value="staff">Staff</option>
                         <option value="student">Student</option>
                       </select>
-                      <button onClick={() => removeImportRow(idx)} className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30" title="Remove">
+                      <button onClick={() => removeImportRow(idx)} className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30" title="Remove">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -685,8 +685,8 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-2">
-              <button onClick={closeImport} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">Cancel</button>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
+              <button onClick={closeImport} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Cancel</button>
               <button
                 onClick={handleSaveImports}
                 disabled={savingImport || importing || importResults.filter(r => !r.error && r.name.trim()).length === 0}
@@ -703,43 +703,43 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       {/* Add Colleague Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-              <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Add {activeRoster === 'staff' ? 'Staff' : 'Student'} Manually</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Add {activeRoster === 'staff' ? 'Staff' : 'Student'} Manually</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Name
                 </label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
                   placeholder="e.g. Mrs Smith"
                 />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Timetable Source
                   </label>
-                  <div className="flex bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
+                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                     <button
                       onClick={() => setInputMode('file')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'file' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'file' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       File/Image
                     </button>
                     <button
                       onClick={() => setInputMode('text')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       Text
                     </button>
@@ -747,7 +747,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                 </div>
 
                 {inputMode === 'file' ? (
-                  <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors ${parsedWeek1 || parsedWeek2 ? 'border-green-300 bg-green-50 dark:bg-green-900/10' : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'}`}>
+                  <div className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors ${parsedWeek1 || parsedWeek2 ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
                     <input
                       type="file"
                       accept={TIMETABLE_ACCEPT}
@@ -760,23 +760,23 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       {uploading ? (
                         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
                       ) : (parsedWeek1 || parsedWeek2) ? (
-                        <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
+                        <CheckCircle2 className="w-8 h-8 text-primary-500 mb-2" />
                       ) : (
-                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                        <Upload className="w-8 h-8 text-slate-400 mb-2" />
                       )}
 
-                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
                         {uploading ? "Analyzing document..." : (parsedWeek1 || parsedWeek2) ? "Timetable Loaded" : "Click to upload"}
                       </span>
 
                       {!uploading && (
-                        <span className="text-xs text-gray-400 mt-1">
+                        <span className="text-xs text-slate-400 mt-1">
                           PNG/JPG, PDF (multi-page), Word, Excel/CSV or text
                         </span>
                       )}
 
                       {(parsedWeek1 || parsedWeek2) && !uploading && (
-                         <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                         <div className="mt-2 text-xs text-primary-600 dark:text-primary-400">
                             {parsedWeek1 && parsedWeek2 ? "Found Week 1 & Week 2" : parsedWeek1 ? "Found Week 1 Only" : "Found Week 2 Only"}
                          </div>
                       )}
@@ -788,7 +788,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       value={timetableText}
                       onChange={(e) => setTimetableText(e.target.value)}
                       placeholder="Paste timetable text here — copy the cells straight from Excel or your MIS, keeping the day and period labels…"
-                      className="w-full h-32 px-3 py-2 text-sm text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:text-gray-300 dark:border-slate-700 custom-scrollbar"
+                      className="w-full h-32 px-3 py-2 text-sm text-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 custom-scrollbar"
                       disabled={uploading}
                     />
                     <button
@@ -803,7 +803,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       )}
                     </button>
                     {(parsedWeek1 || parsedWeek2) && !uploading && (
-                       <div className="mt-1 text-xs text-green-600 dark:text-green-400 text-right">
+                       <div className="mt-1 text-xs text-primary-600 dark:text-primary-400 text-right">
                           {parsedWeek1 && parsedWeek2 ? "Found Week 1 & Week 2" : parsedWeek1 ? "Found Week 1 Only" : "Found Week 2 Only"}
                        </div>
                     )}
@@ -816,13 +816,13 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 dark:border-slate-700 flex justify-end gap-3">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
               <button
                 onClick={() => {
                   resetForm();
                   setIsModalOpen(false);
                 }}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
+                className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
               >
                 Cancel
               </button>

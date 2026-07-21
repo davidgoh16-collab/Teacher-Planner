@@ -1725,8 +1725,8 @@ const App: React.FC = () => {
 
   if (authLoading || isPlannerDataLoading || (!hasInitializedState && terms.length > 0)) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+      <div className="min-h-screen bg-[#faf7f2] dark:bg-[#1c1a17] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
       </div>
     );
   }
@@ -1880,11 +1880,11 @@ const App: React.FC = () => {
 
   // Timetable-only toolbar (term selector, class filter, week navigator).
   const timetableToolbarEl = (
-    <div className="flex flex-nowrap items-center gap-1.5 lg:gap-2 bg-gray-100 dark:bg-slate-900 p-1 rounded-lg border border-gray-300 dark:border-slate-700 shadow-sm overflow-x-auto no-scrollbar">
+    <div className="flex flex-nowrap items-center gap-1.5 lg:gap-2 overflow-x-auto no-scrollbar">
       {/* Term Selector */}
       <div className="relative group shrink-0">
         <select
-          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-3 pr-8 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors shadow-sm"
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-3 pr-8 py-1.5 rounded-lg border border-black/[0.06] dark:border-white/[0.08] focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors"
           value={selectedTermId}
           onChange={handleTermChange}
         >
@@ -1901,7 +1901,7 @@ const App: React.FC = () => {
           <Filter size={14} />
         </div>
         <select
-          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 pr-8 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors max-w-[130px] lg:max-w-[150px] truncate shadow-sm"
+          className="appearance-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white pl-8 pr-8 py-1.5 rounded-lg border border-black/[0.06] dark:border-white/[0.08] focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer transition-colors max-w-[130px] lg:max-w-[150px] truncate"
           value={viewFilter}
           onChange={(e) => setViewFilter(e.target.value)}
         >
@@ -1914,15 +1914,15 @@ const App: React.FC = () => {
       </div>
 
       {/* Week Navigator (single line) */}
-      <div className="flex items-center bg-white dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 shadow-sm shrink-0">
+      <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-black/[0.06] dark:border-white/[0.08] shrink-0">
         <button
           onClick={handlePrevWeek}
           disabled={selectedWeekIndex === 0}
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-md"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-l-lg"
         >
           <ChevronLeft size={18} />
         </button>
-        <div className="px-3 py-1.5 text-center border-l border-r border-gray-300 dark:border-slate-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors whitespace-nowrap" onClick={handleJumpToCurrent} title="Jump to current week">
+        <div className="px-3 py-1.5 text-center border-l border-r border-black/[0.06] dark:border-white/[0.08] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors whitespace-nowrap" onClick={handleJumpToCurrent} title="Jump to current week">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             {currentWeekData ? `Week ${currentWeekData.weekNumber}` : 'Loading...'}
           </span>
@@ -1936,14 +1936,14 @@ const App: React.FC = () => {
         <button
           onClick={handleNextWeek}
           disabled={selectedWeekIndex >= weeksInTerm.length - 1}
-          className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-md"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-r-lg"
         >
           <ChevronRight size={18} />
         </button>
       </div>
       <button
         onClick={() => setShareTarget({ type: 'timetable', resourceId: 'timetable', resourceName: 'My timetable' })}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 shrink-0"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shrink-0"
         title="Share your timetable"
       >
         <Share2 size={15} /> <span className="hidden lg:inline">Share</span>
@@ -2000,7 +2000,7 @@ const App: React.FC = () => {
           ) : activeTab === 'timetable' ? (
             (!isPlannerDataLoading && (academicYears.length === 0 || terms.length === 0)) ? (
             <div className="max-w-xl mx-auto md:p-8 p-4">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 text-center shadow-sm mt-6">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center shadow-sm mt-6">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 mb-4">
                   <CalendarDays size={28} />
                 </div>
@@ -2010,7 +2010,7 @@ const App: React.FC = () => {
                   <button onClick={() => setShowOnboarding(true)} className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors">
                     Start setup
                   </button>
-                  <button onClick={() => setIsSettingsOpen(true)} className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
+                  <button onClick={() => setIsSettingsOpen(true)} className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                     Open Settings
                   </button>
                 </div>
@@ -2020,14 +2020,14 @@ const App: React.FC = () => {
             <div className="min-w-[1600px] mx-auto md:p-8 p-4">
             
                 {/* Grid Header - Sticky Top */}
-                <div className="grid grid-cols-9 gap-4 sticky top-0 z-30 bg-gray-50/95 dark:bg-slate-950/95 backdrop-blur-sm py-2 pb-4 border-b border-gray-200/50 dark:border-slate-800/50">
+                <div className="grid grid-cols-9 gap-4 sticky top-0 z-30 bg-[#faf7f2]/95 dark:bg-[#1c1a17]/95 backdrop-blur-sm py-2 pb-4 border-b border-slate-200/50 dark:border-slate-800/50">
                     {/* Top Left Corner - Sticky Left & Top */}
-                    <div className="col-span-1 flex items-end pb-2 sticky left-0 z-40 bg-gray-50 dark:bg-slate-950">
-                        <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">Timetable</span>
+                    <div className="col-span-1 flex items-end pb-2 sticky left-0 z-40 bg-[#faf7f2] dark:bg-[#1c1a17]">
+                        <span className="font-serif text-2xl text-slate-400 dark:text-slate-500">Timetable</span>
                     </div>
                     {PERIOD_LABELS.map((label) => (
-                    <div key={label} className="col-span-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-3 text-center transition-colors">
-                        <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide text-sm">{label}</span>
+                    <div key={label} className="col-span-1 bg-white dark:bg-slate-800 rounded-lg border border-black/[0.06] dark:border-white/[0.08] p-3 text-center transition-colors">
+                        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">{label}</span>
                     </div>
                     ))}
                 </div>
@@ -2036,7 +2036,7 @@ const App: React.FC = () => {
                 <div className="space-y-4">
                     {isDataLoading && Object.keys(lessonPlans).length === 0 ? (
                     <div className="py-20 text-center col-span-9 flex flex-col items-center justify-center text-slate-400">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mb-2"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-2"></div>
                         <p>Loading your planner...</p>
                     </div>
                     ) : DAYS.map((day, dayIndex) => {
@@ -2054,8 +2054,8 @@ const App: React.FC = () => {
                         <div key={day} className="grid grid-cols-9 gap-4 group">
                         
                         {/* Day Label & Daily Tasks Column - Sticky Left */}
-                        <div className="col-span-1 sticky left-0 z-20 flex flex-col bg-slate-200 dark:bg-slate-900 rounded-lg p-3 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-800 dark:group-hover:border-slate-700 h-full overflow-hidden">
-                            <div className="flex flex-col justify-center text-center pb-2 mb-2 border-b border-slate-300 dark:border-slate-700 shrink-0">
+                        <div className="col-span-1 sticky left-0 z-20 flex flex-col bg-white dark:bg-slate-800 rounded-lg p-3 border border-black/[0.06] dark:border-white/[0.08] transition-colors h-full overflow-hidden">
+                            <div className="flex flex-col justify-center text-center pb-2 mb-2 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
                                 <span className="text-lg font-bold text-slate-700 dark:text-slate-200">{day}</span>
                                 <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{formatDate(rowDate)}</span>
                             </div>
@@ -2116,7 +2116,7 @@ const App: React.FC = () => {
                                             </div>
                                             <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+                                                    className="h-full bg-primary-500 rounded-full transition-all duration-300 ease-out"
                                                     style={{ width: `${progressPercentage}%` }}
                                                 />
                                             </div>
@@ -2137,10 +2137,10 @@ const App: React.FC = () => {
                                                     <div className="space-y-1.5">
                                                         {activeRoutines.map(task => (
                                             <div key={task.id}
-                                                 className={`flex items-start gap-1.5 bg-green-50/50 dark:bg-green-900/10 p-1.5 rounded border border-green-200/50 dark:border-green-800/50 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
+                                                 className={`flex items-start gap-1.5 bg-primary-50/50 dark:bg-primary-900/10 p-1.5 rounded border border-primary-200/50 dark:border-primary-800/50 shadow-sm text-xs relative group/dailytask cursor-pointer hover:shadow-md transition-shadow`}>
                                                 <button
                                                     onClick={(e) => handleToggleRoutineTask(e, task, dateStr)}
-                                                    className={`mt-0.5 shrink-0 text-slate-300 dark:text-slate-600 hover:text-green-500`}
+                                                    className={`mt-0.5 shrink-0 text-slate-300 dark:text-slate-600 hover:text-primary-500`}
                                                 >
                                                     <Circle size={12} />
                                                 </button>
@@ -2187,7 +2187,7 @@ const App: React.FC = () => {
                                                             {task.title}
                                                         </span>
                                                         <div className={`flex items-center gap-1.5 mt-1 text-[10px] ${project?.colorClass ? textColorClass + ' opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
-                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
+                                                            {isScheduled && <span className="flex items-center gap-0.5" title="Scheduled today"><CalendarDays size={10} className={project?.colorClass ? '' : 'text-primary-600 dark:text-primary-400'} /> Sch</span>}
                                                             {isDue && <span className="flex items-center gap-0.5" title="Due today"><Clock size={10} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
                                                         </div>
                                                     </div>
@@ -2218,7 +2218,7 @@ const App: React.FC = () => {
                                                                  onClick={(e) => handleToggleRoutineTask(e, task, dateStr)}
                                                             >
                                                                 <button
-                                                                    className={`mt-0.5 shrink-0 text-green-500`}
+                                                                    className={`mt-0.5 shrink-0 text-primary-500`}
                                                                 >
                                                                     <CheckCircle2 size={12} />
                                                                 </button>
@@ -2246,7 +2246,7 @@ const App: React.FC = () => {
                                                             >
                                                                 <button
                                                                     onClick={(e) => toggleTaskCompletion(e, task.id, task._parentTaskId)}
-                                                                    className={`mt-0.5 shrink-0 text-green-500`}
+                                                                    className={`mt-0.5 shrink-0 text-primary-500`}
                                                                 >
                                                                     <CheckCircle2 size={12} />
                                                                 </button>
@@ -2288,7 +2288,7 @@ const App: React.FC = () => {
                                 return (
                                    <div 
                                       key={period} 
-                                      className="col-span-1 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-800 opacity-40 min-h-[140px]" 
+                                      className="col-span-1 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 opacity-40 min-h-[140px]" 
                                    />
                                 );
                             }
@@ -2298,7 +2298,7 @@ const App: React.FC = () => {
                                 key={period} 
                                 className={`col-span-1 relative flex flex-col rounded-lg border shadow-sm transition-all duration-200 
                                 ${getEntryClassName(entry)}
-                                ${!entry ? 'opacity-60' : 'hover:shadow-md hover:scale-[1.01] cursor-pointer'}
+                                ${!entry ? 'opacity-60' : 'hover:shadow-sm hover:scale-[1.01] cursor-pointer'}
                                 ${isMeeting ? 'border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400/30' : ''}
                                 min-h-[140px]
                                 `}
@@ -2313,7 +2313,7 @@ const App: React.FC = () => {
                                     {entry ? (
                                         <p className="font-bold text-sm leading-tight">{entry.subject}</p>
                                     ) : (
-                                        <p className="text-xs text-gray-400 dark:text-slate-500 text-center uppercase mt-1">Free / Admin</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center uppercase mt-1">Free / Admin</p>
                                     )}
                                 </div>
 
@@ -2330,13 +2330,13 @@ const App: React.FC = () => {
                                                 </div>
                                                 )}
                                                 <p className={`text-sm font-medium line-clamp-3 ${plan.completed ? 'line-through text-opacity-50' : ''} dark:text-slate-200`}>
-                                                    {plan.title || <span className="italic text-gray-500 dark:text-slate-400 font-normal">No title...</span>}
+                                                    {plan.title || <span className="italic text-slate-500 dark:text-slate-400 font-normal">No title...</span>}
                                                 </p>
                                                 
                                                 {plan.links && plan.links.length > 0 && (
                                                     <div className="flex flex-col gap-0.5 mt-1">
                                                         {plan.links.map((link, i) => (
-                                                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-green-700 dark:text-green-400 hover:underline" onClick={(e) => e.stopPropagation()}>
+                                                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary-700 dark:text-primary-400 hover:underline" onClick={(e) => e.stopPropagation()}>
                                                             <LinkIcon size={10} />
                                                             <span className="truncate max-w-[120px]">Link {i+1}</span>
                                                         </a>
@@ -2354,7 +2354,7 @@ const App: React.FC = () => {
                                                 <div className="flex justify-end mt-2 pt-2 border-t border-black/5 dark:border-white/10">
                                                     <button 
                                                         onClick={(e) => toggleCompletion(e, dateStr, period)}
-                                                        className={`p-1 rounded-full transition-colors ${plan.completed ? 'text-green-600 bg-green-100 dark:bg-green-900/50 dark:text-green-300' : 'text-gray-400 hover:text-green-600 hover:bg-white dark:hover:bg-slate-700 dark:hover:text-green-400'}`}
+                                                        className={`p-1 rounded-full transition-colors ${plan.completed ? 'text-primary-600 bg-primary-100 dark:bg-primary-900/50 dark:text-primary-300' : 'text-slate-400 hover:text-primary-600 hover:bg-white dark:hover:bg-slate-700 dark:hover:text-primary-400'}`}
                                                         title="Mark as complete"
                                                     >
                                                         <CheckCircle2 size={16} />
@@ -2486,8 +2486,8 @@ const App: React.FC = () => {
                         const isExpandedActive = expandedActiveDays['weekend'] !== false;
 
                         return (
-                            <div className="col-span-9 bg-slate-200 dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-800 shadow-sm transition-colors mt-6">
-                                <div className="flex items-center gap-2 mb-3 border-b border-slate-300 dark:border-slate-700 pb-2">
+                            <div className="col-span-9 bg-white dark:bg-slate-800 rounded-lg p-4 border border-black/[0.06] dark:border-white/[0.08] transition-colors mt-6">
+                                <div className="flex items-center gap-2 mb-3 border-b border-black/[0.06] dark:border-white/[0.08] pb-2">
                                     <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">
                                         {hasHolidayBacklog ? 'Weekend Tasks & Holiday Backlog' : 'Weekend Tasks'}
                                     </h3>
@@ -2501,7 +2501,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="h-2 w-full bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+                                            className="h-full bg-primary-500 rounded-full transition-all duration-300 ease-out"
                                             style={{ width: `${progressPercentage}%` }}
                                         />
                                     </div>
@@ -2521,10 +2521,10 @@ const App: React.FC = () => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                                                 {activeRoutines.map((task, idx) => (
                                                     <div key={`${task.id}_${idx}`}
-                                                         className="flex items-start gap-2 bg-green-50/50 dark:bg-green-900/10 p-2 rounded border border-green-200/50 dark:border-green-800/50 shadow-sm text-sm relative group/dailytask cursor-pointer hover:shadow-md transition-shadow">
+                                                         className="flex items-start gap-2 bg-primary-50/50 dark:bg-primary-900/10 p-2 rounded border border-primary-200/50 dark:border-primary-800/50 shadow-sm text-sm relative group/dailytask cursor-pointer hover:shadow-md transition-shadow">
                                                         <button
                                                             onClick={(e) => handleToggleRoutineTask(e, task, task.targetDateStr)}
-                                                            className="mt-0.5 shrink-0 text-slate-300 dark:text-slate-600 hover:text-green-500"
+                                                            className="mt-0.5 shrink-0 text-slate-300 dark:text-slate-600 hover:text-primary-500"
                                                         >
                                                             <Circle size={14} />
                                                         </button>
@@ -2580,7 +2580,7 @@ const App: React.FC = () => {
                                                                     <span className="opacity-50">|</span>
                                                                     <span className="font-semibold">{task.priority}</span>
                                                                     <span className="opacity-50">|</span>
-                                                                    {(isSatSch || isSunSch) && <span className="flex items-center gap-0.5" title="Scheduled"><CalendarDays size={12} className={project?.colorClass ? '' : 'text-green-600 dark:text-green-400'} /> Sch</span>}
+                                                                    {(isSatSch || isSunSch) && <span className="flex items-center gap-0.5" title="Scheduled"><CalendarDays size={12} className={project?.colorClass ? '' : 'text-primary-600 dark:text-primary-400'} /> Sch</span>}
                                                                     {(isSatDue || isSunDue) && <span className="flex items-center gap-0.5" title="Due"><Clock size={12} className={project?.colorClass ? '' : 'text-red-600 dark:text-red-400'} /> Due</span>}
                                                                 </div>
                                                             </div>
@@ -2609,7 +2609,7 @@ const App: React.FC = () => {
                                                          className="flex items-start gap-2 bg-slate-100/50 dark:bg-slate-800/30 p-2 rounded border border-slate-200/50 dark:border-slate-700/50 text-sm cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
                                                          onClick={(e) => handleToggleRoutineTask(e, task, task.targetDateStr)}
                                                     >
-                                                        <button className="mt-0.5 shrink-0 text-green-500">
+                                                        <button className="mt-0.5 shrink-0 text-primary-500">
                                                             <CheckCircle2 size={14} />
                                                         </button>
                                                         <div className="flex-1 flex flex-col min-w-0">
@@ -2636,7 +2636,7 @@ const App: React.FC = () => {
                                                     >
                                                         <button
                                                             onClick={(e) => toggleTaskCompletion(e, task.id, task._parentTaskId)}
-                                                            className="mt-0.5 shrink-0 text-green-500"
+                                                            className="mt-0.5 shrink-0 text-primary-500"
                                                         >
                                                             <CheckCircle2 size={14} />
                                                         </button>
@@ -2782,10 +2782,10 @@ const App: React.FC = () => {
       
       {isCalendarOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-4 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <CalendarDays size={20} className="text-green-600 dark:text-green-400" />
+                <CalendarDays size={20} className="text-primary-600 dark:text-primary-400" />
                 School Calendar
               </h2>
               <button 

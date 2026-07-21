@@ -304,7 +304,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
                     <button
                         onClick={handleExecuteAction}
                         disabled={isExecuting}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
                         {isExecuting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                         Mark Selected Complete ({selectedTaskIds.size})
@@ -339,7 +339,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="bg-slate-100 dark:bg-slate-800 p-4 flex justify-between items-center shrink-0 border-b border-slate-200 dark:border-slate-700 z-10">
@@ -410,7 +410,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
                                                 {t.priority}
                                             </span>
                                             {t.status === 'Completed' && (
-                                                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full flex items-center gap-1 font-medium">
+                                                <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 rounded-full flex items-center gap-1 font-medium">
                                                     <CheckCircle2 size={10} /> Completed
                                                 </span>
                                             )}

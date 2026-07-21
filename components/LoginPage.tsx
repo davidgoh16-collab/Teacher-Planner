@@ -80,13 +80,13 @@ const LoginPage: React.FC = () => {
   const busy = loading !== null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm overflow-hidden border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-300">
 
         {/* Header Section */}
         <div className="bg-slate-900 dark:bg-slate-950 p-8 text-center border-b border-slate-800 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-indigo-500 to-purple-500"></div>
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg shadow-green-900/50">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-indigo-500 to-purple-500"></div>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4 shadow-sm shadow-primary-900/50">
             <BookOpen size={32} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Teacher Planner</h1>
@@ -96,10 +96,10 @@ const LoginPage: React.FC = () => {
         {/* Login Body */}
         <div className="p-8 space-y-5">
           <div className="text-center space-y-1">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+            <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
               {mode === 'register' ? 'Create your account' : 'Welcome'}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {mode === 'register' ? 'Set up your own planner in minutes.' : 'Sign in to access your planner.'}
             </p>
           </div>
@@ -129,7 +129,7 @@ const LoginPage: React.FC = () => {
             <button
               onClick={() => handlePopup(googleProvider, 'google')}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-600 py-2.5 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-600 py-2.5 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                 <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
@@ -142,44 +142,44 @@ const LoginPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
-            <span className="text-xs text-gray-400 dark:text-slate-500 uppercase tracking-wide">or</span>
-            <div className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
+            <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
+            <span className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">or</span>
+            <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
           </div>
 
           <form onSubmit={handleEmailSubmit} className="space-y-3">
             {mode === 'register' && (
               <div className="relative">
-                <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             )}
             <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
                 autoComplete="email"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div className="relative">
-              <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <button
@@ -192,7 +192,7 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          <p className="text-sm text-center text-gray-500 dark:text-slate-400">
+          <p className="text-sm text-center text-slate-500 dark:text-slate-400">
             {mode === 'register' ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               onClick={() => { setMode(mode === 'register' ? 'signin' : 'register'); setError(null); }}
@@ -202,7 +202,7 @@ const LoginPage: React.FC = () => {
             </button>
           </p>
 
-          <p className="text-xs text-center text-gray-400 dark:text-slate-600">
+          <p className="text-xs text-center text-slate-400 dark:text-slate-600">
             Secure authentication powered by Firebase
           </p>
         </div>

@@ -98,38 +98,38 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
           <div>
-            <h3 className="font-semibold text-lg text-gray-800 dark:text-gray-100">Share {type === 'timetable' ? 'timetable' : 'project'}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[20rem]">{resourceName}</p>
+            <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Share {type === 'timetable' ? 'timetable' : 'project'}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[20rem]">{resourceName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Invite by email</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Invite by email</label>
             <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@school.uk"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
             {type === 'project' && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Permission:</span>
+                <span className="text-slate-600 dark:text-slate-400">Permission:</span>
                 <select
                   value={permission}
                   onChange={(e) => setPermission(e.target.value as SharePermission)}
-                  className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-gray-700 dark:text-gray-200"
+                  className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-slate-700 dark:text-slate-200"
                 >
                   <option value="view">Can view</option>
                   <option value="edit">Can edit</option>
@@ -137,15 +137,15 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
               </div>
             )}
             {type === 'timetable' && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">Shared timetables are read-only and always show your latest version.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Shared timetables are read-only and always show your latest version.</p>
             )}
 
             {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {success && <p className="text-xs text-green-600 dark:text-green-400 flex items-start gap-1"><Check size={14} className="shrink-0 mt-0.5" /> <span>{success}</span></p>}
+            {success && <p className="text-xs text-primary-600 dark:text-primary-400 flex items-start gap-1"><Check size={14} className="shrink-0 mt-0.5" /> <span>{success}</span></p>}
 
             {invite && (
-              <div className="rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 p-3 space-y-2">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
                   Let them know — the app doesn't send emails itself:
                 </p>
                 <div className="flex gap-2">
@@ -157,7 +157,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
                   </a>
                   <button
                     onClick={handleCopyInvite}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
                     {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy invite'}
                   </button>
@@ -176,11 +176,11 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
           </div>
 
           {shares.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-slate-700">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Shared with</p>
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Shared with</p>
               {shares.map(s => (
                 <div key={s.id} className="flex items-center gap-2 text-sm">
-                  <span className="flex-1 truncate text-gray-700 dark:text-gray-200">
+                  <span className="flex-1 truncate text-slate-700 dark:text-slate-200">
                     {s.recipientEmail}
                     {s.recipientUid === null && (
                       <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 align-middle">
@@ -192,7 +192,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
                     <select
                       value={s.permission}
                       onChange={async (e) => { await setSharePermission(s, e.target.value as SharePermission); loadShares(); }}
-                      className="text-xs rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-1.5 py-1 text-gray-700 dark:text-gray-200"
+                      className="text-xs rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-1.5 py-1 text-slate-700 dark:text-slate-200"
                     >
                       <option value="view">View</option>
                       <option value="edit">Edit</option>
@@ -200,7 +200,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
                   )}
                   <button
                     onClick={async () => { await revokeShare(s); loadShares(); }}
-                    className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30"
+                    className="p-1 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30"
                     title="Stop sharing"
                   >
                     <Trash2 className="w-4 h-4" />

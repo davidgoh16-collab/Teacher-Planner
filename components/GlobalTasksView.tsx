@@ -296,14 +296,14 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800/50';
             case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
-            case 'Low': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800/50';
+            case 'Low': return 'text-primary-600 bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400 border-primary-200 dark:border-primary-800/50';
             default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
         }
     };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case 'Completed': return <CheckCircle2 size={16} className="text-green-500" />;
+            case 'Completed': return <CheckCircle2 size={16} className="text-primary-500" />;
             case 'In Progress': return <Clock size={16} className="text-amber-500" />;
             default: return <Circle size={16} className="text-slate-300 dark:text-slate-600" />;
         }
@@ -371,9 +371,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 checked={selectedTaskIds.has(task.id)}
                                 onChange={(e) => toggleTaskSelection(task.id, e as any)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                className="mt-1.5 shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                             />
-                            <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                            <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-primary-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                 {getStatusIcon(task.status)}
                             </button>
                             <div className="flex flex-col">
@@ -460,13 +460,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                 </div>
 
                 {/* Q2: Schedule */}
-                <div className="bg-green-50/50 dark:bg-green-950/20 rounded-xl p-4 border border-green-100 dark:border-green-900/30 flex flex-col">
-                    <h3 className="font-bold text-green-800 dark:text-green-400 mb-4 flex items-center justify-between">
+                <div className="bg-primary-50/50 dark:bg-primary-950/20 rounded-xl p-4 border border-primary-100 dark:border-primary-900/30 flex flex-col">
+                    <h3 className="font-bold text-primary-800 dark:text-primary-400 mb-4 flex items-center justify-between">
                         <span>Schedule (Important, Not Urgent)</span>
-                        <span className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
+                        <span className="bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
                     </h3>
                     <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
-                        {q2.length === 0 ? <p className="text-sm italic text-green-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
+                        {q2.length === 0 ? <p className="text-sm italic text-primary-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
                     </div>
                 </div>
 
@@ -578,8 +578,8 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 {/* Timeline Line */}
                                 <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
 
-                                <h3 className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-950 py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
-                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-gray-50 dark:border-slate-950 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm shrink-0">
+                                <h3 className="sticky top-0 z-10 bg-[#faf7f2] dark:bg-[#1c1a17] py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-950 rounded-full flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm shrink-0">
                                         <Calendar size={20} />
                                     </div>
                                     {month}
@@ -623,9 +623,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                 checked={selectedTaskIds.has(task.id)}
                                 onChange={(e) => toggleTaskSelection(task.id, e as any)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                className="mt-1.5 shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                             />
-                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-primary-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                             {getStatusIcon(task.status)}
                                                         </button>
 
@@ -764,9 +764,9 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                                                                         checked={selectedTaskIds.has(task.id)}
                                                                         onChange={(e) => toggleTaskSelection(task.id, e as any)}
                                                                         onClick={(e) => e.stopPropagation()}
-                                                                        className="mt-1.5 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                        className="mt-1.5 shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                                                     />
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-green-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleToggleStatus(task); }} disabled={isReadOnly} className={`mt-0.5 shrink-0 ${isReadOnly ? '' : 'hover:scale-110'} ${task.status === 'Completed' ? 'text-primary-500' : task.status === 'In Progress' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'}`}>
                                                                         {getStatusIcon(task.status)}
                                                                     </button>
 
@@ -846,8 +846,8 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 sticky top-0 z-20">
 
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start w-full sm:w-auto">
-                    <button onClick={() => setViewMode('matrix')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                    <button onClick={() => setViewMode('timeline')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                    <button onClick={() => setViewMode('matrix')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                    <button onClick={() => setViewMode('timeline')} className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                 </div>
 
                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-center w-full md:w-auto">
@@ -858,7 +858,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                             placeholder="Search tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                         />
                     </div>
 
@@ -866,7 +866,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                         <select
                             value={filterProject}
                             onChange={(e) => setFilterProject(e.target.value)}
-                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-w-[120px] max-w-[150px]"
+                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-w-[120px] max-w-[150px]"
                         >
                             <option value="All">All Projects</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -875,7 +875,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
                         <select
                             value={filterCategory}
                             onChange={(e) => setFilterCategory(e.target.value)}
-                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-w-[120px] max-w-[150px]"
+                            className="flex-1 md:flex-none bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-w-[120px] max-w-[150px]"
                         >
                             <option value="All">All Categories</option>
                             {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -885,7 +885,7 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-slate-950 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
 
                 <BriefingPanel
                     tasks={allTasks}
@@ -959,13 +959,13 @@ export default function GlobalTasksView({ allTasks, projects, categories, isRead
             />
 
             {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-sm rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
                     <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
                     <div className="w-px h-4 bg-slate-700"></div>
                     <button onClick={() => setReviewTasksModalOpen(true)} className="text-sm hover:text-blue-400 flex items-center gap-1 transition-colors">
                         <Bot size={16} /> Ask AI
                     </button>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-primary-400 flex items-center gap-1 transition-colors">
                         <CheckCircle2 size={16} /> Mark Completed
                     </button>
                     <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">

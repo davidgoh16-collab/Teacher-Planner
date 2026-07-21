@@ -215,7 +215,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50 shrink-0">
@@ -237,7 +237,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
                                 <Edit2 size={14} /> Edit
                             </button>
                         ) : (
-                            <button onClick={handleSave} className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800/50 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 flex items-center gap-1 transition-colors">
+                            <button onClick={handleSave} className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800/50 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 flex items-center gap-1 transition-colors">
                                 <Save size={14} /> Save
                             </button>
                         )}
@@ -340,7 +340,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
                         <button
                             onClick={handleRegenerateWithPro}
                             disabled={isGeneratingPro}
-                            className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800/50 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            className="px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-800/50 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                             {isGeneratingPro ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
                             Regenerate with 3.1 Pro

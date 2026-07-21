@@ -104,7 +104,7 @@ export default function GlobalSearch({
         </div>
         <input
           type="text"
-          className="w-full bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:outline-none shadow-sm transition-all"
+          className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none shadow-sm transition-all"
           placeholder="Search everywhere..."
           value={query}
           onChange={(e) => {
@@ -118,7 +118,7 @@ export default function GlobalSearch({
       </div>
 
       {isOpen && query.trim() && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 z-50 max-h-[60vh] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 z-50 max-h-[60vh] overflow-y-auto">
           {results.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
               No results found for "{query}"
@@ -129,12 +129,12 @@ export default function GlobalSearch({
                 <li key={idx}>
                   <button
                     onClick={() => handleSelect(result)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-start gap-3 transition-colors"
                   >
                     <div className="mt-0.5 shrink-0">
                       {result.type === 'task' && <Clock size={16} className="text-amber-500" />}
                       {result.type === 'project' && <Briefcase size={16} className="text-blue-500" />}
-                      {result.type === 'lesson' && <BookOpen size={16} className="text-green-500" />}
+                      {result.type === 'lesson' && <BookOpen size={16} className="text-primary-500" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">

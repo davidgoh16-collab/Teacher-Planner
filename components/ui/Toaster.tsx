@@ -25,7 +25,7 @@ const Toaster: React.FC = () => {
       {toasts.map(t => (
         <div
           key={t.id}
-          className={`pointer-events-auto flex items-center gap-2 max-w-md px-4 py-2.5 rounded-xl shadow-lg text-sm animate-in ${
+          className={`pointer-events-auto flex items-center gap-2 max-w-md px-4 py-2.5 rounded-xl shadow-sm text-sm animate-in ${
             t.kind === 'error'
               ? 'bg-red-600 text-white'
               : 'bg-slate-800 dark:bg-slate-700 text-white'

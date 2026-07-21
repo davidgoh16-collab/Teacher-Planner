@@ -78,11 +78,11 @@ export const getEntryStyle = (entry: any | null | undefined) => {
 };
 
 export const getEntryClassName = (entry: any | null | undefined) => {
-   if (!entry) return 'bg-gray-50 dark:bg-slate-800/50 border-gray-300 dark:border-slate-600';
+   if (!entry) return 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.08] border-dashed';
 
    if (entry.colorClass?.startsWith('#')) {
        return 'border-dashed border shadow-sm';
    }
 
-   return entry.colorClass || 'bg-gray-50 dark:bg-slate-800/50 border-gray-300 dark:border-slate-600 border-dashed border';
+   return entry.colorClass || 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/[0.08] border-dashed border';
 };

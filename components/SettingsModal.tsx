@@ -326,39 +326,39 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
 
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
             <X size={20} className="text-slate-500" />
           </button>
         </div>
 
-        <div className="flex border-b border-gray-200 dark:border-slate-800 shrink-0">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 shrink-0">
           <button
             onClick={() => setActiveTab('years')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'years' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'years' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Academic Years
           </button>
           <button
             onClick={() => setActiveTab('terms')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'terms' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'terms' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={!selectedAcademicYearId}
           >
             Terms {selectedAcademicYearId ? '' : '(Select Year First)'}
           </button>
           <button
             onClick={() => setActiveTab('timetables')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'timetables' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'timetables' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'} ${!selectedAcademicYearId ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={!selectedAcademicYearId}
           >
             Timetables {selectedAcademicYearId ? '' : '(Select Year First)'}
           </button>
           <button
             onClick={() => setActiveTab('appearance')}
-            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'appearance' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-3 text-sm font-medium border-b-2 ${activeTab === 'appearance' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Appearance
           </button>
@@ -430,7 +430,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Manage Academic Years</h3>
                 {!isReadOnly && (
-                  <button onClick={addYear} className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
+                  <button onClick={addYear} className="flex items-center gap-2 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors">
                     <Plus size={16} /> Add Year
                   </button>
                 )}
@@ -438,13 +438,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
               <div className="space-y-4">
                 {localYears.map((year) => (
-                  <div key={year.id} className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                  <div key={year.id} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center">
                     <div className="flex-1">
                        <input
                          type="text"
                          value={year.name}
                          onChange={(e) => updateYear(year.id, 'name', e.target.value)}
-                         className="font-bold text-lg bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-green-500 outline-none w-full max-w-xs text-slate-800 dark:text-white"
+                         className="font-bold text-lg bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary-500 outline-none w-full max-w-xs text-slate-800 dark:text-white"
                          placeholder="e.g. 2026/2027"
                          disabled={isReadOnly}
                        />
@@ -471,8 +471,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
               </div>
 
               {!isReadOnly && (
-                <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-slate-800">
-                  <button onClick={handleSaveYears} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <button onClick={handleSaveYears} className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors">
                     <Save size={18} /> Save Years
                   </button>
                 </div>
@@ -489,7 +489,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                 </div>
 
                 {!isReadOnly && (
-                  <button onClick={addTerm} className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
+                  <button onClick={addTerm} className="flex items-center gap-2 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors">
                     <Plus size={16} /> Add Term
                   </button>
                 )}
@@ -506,7 +506,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                       value={termUrl}
                       onChange={(e) => setTermUrl(e.target.value)}
                       placeholder="https://yourschool.sch.uk/term-dates"
-                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                     />
                     <button
                       onClick={handleImportTermsFromUrl}
@@ -523,19 +523,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     tips={['The page must be viewable without logging in — if it is behind a login, use the Auto-Import upload or type the dates below instead.']}
                   />
                   {termUrlError && <p className="text-xs text-red-600 dark:text-red-400">{termUrlError}</p>}
-                  {termUrlSuccess > 0 && <p className="text-xs text-green-600 dark:text-green-400">Found {termUrlSuccess} term{termUrlSuccess === 1 ? '' : 's'} — review below and save.</p>}
+                  {termUrlSuccess > 0 && <p className="text-xs text-primary-600 dark:text-primary-400">Found {termUrlSuccess} term{termUrlSuccess === 1 ? '' : 's'} — review below and save.</p>}
                 </div>
               )}
 
               <div className="space-y-4">
                 {localTerms.map((term, idx) => (
-                  <div key={term.id} className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div key={term.id} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="col-span-1 md:col-span-2 flex justify-between items-center mb-2">
                        <input
                          type="text"
                          value={term.name}
                          onChange={(e) => updateTerm(term.id, 'name', e.target.value)}
-                         className="font-bold text-lg bg-transparent border-b border-dashed border-gray-300 dark:border-slate-600 focus:border-green-500 outline-none w-full max-w-xs text-slate-800 dark:text-white"
+                         className="font-bold text-lg bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:border-primary-500 outline-none w-full max-w-xs text-slate-800 dark:text-white"
                          disabled={isReadOnly}
                        />
                        {!isReadOnly && (
@@ -551,7 +551,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={toISODate(term.startDate)}
                         onChange={(e) => updateTerm(term.id, 'startDate', new Date(e.target.value))}
-                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -561,7 +561,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={toISODate(term.endDate)}
                         onChange={(e) => updateTerm(term.id, 'endDate', new Date(e.target.value))}
-                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -572,7 +572,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={term.halfTermStart ? toISODate(term.halfTermStart) : ''}
                         onChange={(e) => updateTerm(term.id, 'halfTermStart', e.target.value ? new Date(e.target.value) : undefined)}
-                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -582,7 +582,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={term.halfTermEnd ? toISODate(term.halfTermEnd) : ''}
                         onChange={(e) => updateTerm(term.id, 'halfTermEnd', e.target.value ? new Date(e.target.value) : undefined)}
-                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -591,8 +591,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
               </div>
 
               {!isReadOnly && (
-                <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-slate-800">
-                  <button onClick={handleSaveTerms} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <button onClick={handleSaveTerms} className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors">
                     <Save size={18} /> Save Terms
                   </button>
                 </div>
@@ -627,7 +627,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     </div>
 
                     {importMode === 'file' ? (
-                       <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-gray-300 cursor-not-allowed' : 'border-indigo-300 hover:bg-indigo-100/50'}`}>
+                       <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-slate-300 cursor-not-allowed' : 'border-indigo-300 hover:bg-indigo-100/50'}`}>
                            <input type="file" className="hidden" accept={TIMETABLE_ACCEPT} onChange={handleFileUpload} disabled={isImporting} />
                            <span className="text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-2">
                                {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
@@ -655,7 +655,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     )}
 
                     {importError && <p className="text-red-500 text-sm mt-2">{importError}</p>}
-                    {importSuccess && <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-1"><CheckCircle2 size={14}/> Successfully parsed and applied. Review below and save.</p>}
+                    {importSuccess && <p className="text-primary-600 dark:text-primary-400 text-sm mt-2 flex items-center gap-1"><CheckCircle2 size={14}/> Successfully parsed and applied. Review below and save.</p>}
                  </div>
                  )}
 
@@ -667,17 +667,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     <select
                       value={selectedWeek}
                       onChange={(e) => setSelectedWeek(e.target.value as 'week1' | 'week2')}
-                      className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-800 dark:text-white font-medium"
+                      className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-800 dark:text-white font-medium"
                     >
                       <option value="week1">Week 1</option>
                       <option value="week2">Week 2</option>
                     </select>
                  </div>
 
-                 <div className="overflow-x-auto border border-gray-200 dark:border-slate-700 rounded-xl">
+                 <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
                    <table className="w-full text-left border-collapse min-w-[800px]">
                       <thead>
-                        <tr className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+                        <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-sm w-32">Period</th>
                            {DAYS.map(day => (
                              <th key={day} className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-sm">{day}</th>
@@ -686,14 +686,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                       </thead>
                       <tbody>
                          {PERIOD_LABELS.map(period => (
-                           <tr key={period} className="border-b border-gray-200 dark:border-slate-700 last:border-0 bg-white dark:bg-slate-900">
-                              <td className="p-3 text-sm font-medium text-slate-700 dark:text-slate-300 bg-gray-50 dark:bg-slate-800/50 border-r border-gray-200 dark:border-slate-700">
+                           <tr key={period} className="border-b border-slate-200 dark:border-slate-700 last:border-0 bg-white dark:bg-slate-900">
+                              <td className="p-3 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-700">
                                 {period}
                               </td>
                               {DAYS.map(day => {
                                  const entry = activeTimetable[day]?.[period];
                                  return (
-                                   <td key={`${day}-${period}`} className="p-2 border-r border-gray-200 dark:border-slate-700 last:border-0">
+                                   <td key={`${day}-${period}`} className="p-2 border-r border-slate-200 dark:border-slate-700 last:border-0">
                                       <div
                                         className={`flex flex-col gap-2 p-2 rounded-lg transition-colors ${getEntryClassName(entry)}`}
                                         style={getEntryStyle(entry)}
@@ -703,7 +703,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                                            placeholder="Free / Admin"
                                            value={entry?.subject || ''}
                                            onChange={(e) => updateTimetableEntry(day, period, 'subject', e.target.value)}
-                                           className="w-full text-sm font-bold bg-transparent outline-none placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder:font-normal"
+                                           className="w-full text-sm font-bold bg-transparent outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal"
                                            disabled={isReadOnly}
                                          />
                                          <input
@@ -733,8 +733,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                  </div>
 
                  {!isReadOnly && (
-                    <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-slate-800">
-                      <button onClick={handleSaveTimetables} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                    <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
+                      <button onClick={handleSaveTimetables} className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors">
                         <Save size={18} /> Save Timetables
                       </button>
                     </div>

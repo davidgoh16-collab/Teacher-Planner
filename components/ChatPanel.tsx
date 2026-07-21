@@ -184,7 +184,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
     p: ({node, ...props}: any) => <p className="mb-2 last:mb-0" {...props} />,
     strong: ({node, ...props}: any) => <strong className="font-bold text-white" {...props} />,
-    a: ({node, ...props}: any) => <a className="text-green-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+    a: ({node, ...props}: any) => <a className="text-primary-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
     code: ({node, ...props}: any) => <code className="bg-slate-950 px-1 py-0.5 rounded text-xs font-mono text-pink-400" {...props} />,
     pre: ({node, ...props}: any) => <pre className="bg-slate-950 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border border-slate-700" {...props} />,
     h1: ({node, ...props}: any) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
@@ -280,15 +280,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       ? 'flex flex-col h-full w-full bg-white dark:bg-slate-900 overflow-hidden'
       : layout === 'fullscreen' || isFullScreen
         ? 'fixed inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col'
-        : 'w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col border border-gray-200 dark:border-slate-700 overflow-hidden';
+        : 'w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-sm flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden';
 
   return (
     <div className={rootClass}>
       {/* Slim control strip — blends with the chat area (no branded bar) */}
-      <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50 dark:bg-slate-950/50 shrink-0">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-slate-950/50 shrink-0">
         <button
           onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${isHistoryOpen ? 'bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${isHistoryOpen ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
           title="Conversations"
         >
           <List size={16} /> <span className="hidden sm:inline">Conversations</span>
@@ -296,7 +296,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         {onToggleAgentMode && (
           <button
             onClick={onToggleAgentMode}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${agentMode ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${agentMode ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
             title={agentMode ? 'Agent mode on — runs autonomous, multi-step tasks (web, code, files). Click to switch back to quick chat.' : 'Turn on Agent mode for autonomous, multi-step tasks (web research, document generation).'}
             aria-pressed={!!agentMode}
           >
@@ -306,7 +306,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         {agentMode && onToggleViz && (
           <button
             onClick={onToggleViz}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${vizEnabled ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${vizEnabled ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
             title={vizEnabled ? 'Visualizations on — the agent builds interactive charts. Click for faster, text-only answers.' : 'Visualizations off — faster, text-only answers. Click to let the agent build interactive charts.'}
             aria-pressed={!!vizEnabled}
           >
@@ -317,7 +317,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {onToggleFullScreen && (
             <button
               onClick={onToggleFullScreen}
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title={isFullScreen ? 'Exit Full Screen' : 'Full Screen'}
             >
               {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -326,7 +326,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {onClose && !isFullScreen && (
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Close"
             >
               <X size={18} />
@@ -338,8 +338,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="flex-1 overflow-hidden flex relative">
         {/* History sidebar */}
         {isHistoryOpen && (
-          <div className={`${historyInline ? 'w-64 border-r' : 'absolute inset-0 z-10 w-full'} bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 flex flex-col`}>
-            <div className="p-3 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-950">
+          <div className={`${historyInline ? 'w-64 border-r' : 'absolute inset-0 z-10 w-full'} bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 flex flex-col`}>
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-950">
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Conversations</h3>
               {!historyInline && (
                 <button onClick={() => setIsHistoryOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
@@ -359,7 +359,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 <div
                   key={conv.id}
                   onClick={() => onPickConversation(conv)}
-                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${currentConversationId === conv.id ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300' : 'hover:bg-gray-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
+                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${currentConversationId === conv.id ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
                 >
                   {editingConvId === conv.id ? (
                     <form onSubmit={(e) => handleRenameSave(e, conv)} className="flex-1 mr-2" onClick={e => e.stopPropagation()}>
@@ -392,10 +392,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-slate-950/50 flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-950/50 flex flex-col">
           {messages.length === 0 && (
             emptyState ?? (
-              <div className="text-center text-gray-400 dark:text-slate-500 text-sm mt-10">
+              <div className="text-center text-slate-400 dark:text-slate-500 text-sm mt-10">
                 <p>Hello! I can help you plan lessons.</p>
                 <p className="mt-2 text-xs">Try: "Plan a revision lesson for Year 13 on Friday"</p>
               </div>
@@ -517,7 +517,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-3 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shrink-0">
+      <form onSubmit={handleSubmit} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
         {selectedFile && (
           <div className="mb-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-medium truncate">
@@ -528,7 +528,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </button>
           </div>
         )}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl pl-2 pr-1.5 py-1 focus-within:ring-2 focus-within:ring-primary-500/50 transition-all">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl pl-2 pr-1.5 py-1 focus-within:ring-2 focus-within:ring-primary-500/50 transition-all">
           <input
             type="file"
             ref={fileInputRef}

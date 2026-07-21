@@ -305,7 +305,7 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
             {/* Mobile backdrop */}
             <div onClick={onClose} className="lg:hidden fixed inset-0 bg-black/40 z-30 animate-in fade-in" />
 
-            <aside className="fixed lg:relative inset-y-0 right-0 z-40 w-full max-w-sm lg:max-w-none lg:w-[380px] shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col h-full shadow-2xl lg:shadow-none animate-in slide-in-from-right duration-200">
+            <aside className="fixed lg:relative inset-y-0 right-0 z-40 w-full max-w-sm lg:max-w-none lg:w-[380px] shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col h-full shadow-sm lg:shadow-none animate-in slide-in-from-right duration-200">
 
                 {/* Header */}
                 <div className="bg-blue-600 px-4 py-3 flex justify-between items-center text-white shrink-0 shadow-md z-10">
@@ -343,11 +343,11 @@ export default function ProjectAssistantPanel({ project, tasks, allCategories, i
                             <span className="font-semibold text-slate-700 dark:text-slate-200">{progressPct}%</span>
                         </div>
                         <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                            <div className="h-full bg-primary-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
                         </div>
                         <div className="flex flex-wrap gap-1.5 pt-2.5 text-[11px] font-medium">
                             <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">{totalCount} total</span>
-                            <span className="px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">{completedCount} done</span>
+                            <span className="px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">{completedCount} done</span>
                             <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">{inProgressCount} in progress</span>
                             <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">{todoCount} to do</span>
                         </div>

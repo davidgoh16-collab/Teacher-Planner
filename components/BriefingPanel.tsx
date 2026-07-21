@@ -50,7 +50,7 @@ const iconFor = (kind: BriefingItem['kind']) => {
         case 'overdue': return <AlertTriangle size={15} className="text-red-500" />;
         case 'due_today': return <CalendarClock size={15} className="text-amber-500" />;
         case 'lesson': return <BookOpen size={15} className="text-blue-500" />;
-        default: return <Lightbulb size={15} className="text-green-500" />;
+        default: return <Lightbulb size={15} className="text-primary-500" />;
     }
 };
 
@@ -131,23 +131,23 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
     const hasContent = briefing && (briefing.summary || briefing.items.length > 0);
 
     return (
-        <div className={`bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl ${isCollapsed ? 'p-4' : 'p-5'} shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden`}>
-            <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-400/10 dark:bg-emerald-500/10 blur-3xl -translate-y-1/2 translate-x-1/3 rounded-full pointer-events-none" />
+        <div className={`bg-gradient-to-r from-primary-50 to-teal-50 dark:from-primary-950/30 dark:to-teal-950/30 border border-primary-200 dark:border-primary-900/50 rounded-xl ${isCollapsed ? 'p-4' : 'p-5'} shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden`}>
+            <div className="absolute right-0 top-0 w-64 h-64 bg-primary-400/10 dark:bg-primary-500/10 blur-3xl -translate-y-1/2 translate-x-1/3 rounded-full pointer-events-none" />
 
             <div className={`flex justify-between items-center ${isCollapsed ? '' : 'mb-3'} relative z-10`}>
-                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 font-bold">
-                    <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1.5 rounded-lg shadow-sm">
-                        <Sparkles size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <div className="flex items-center gap-2 text-primary-800 dark:text-primary-400 font-bold">
+                    <div className="bg-primary-100 dark:bg-primary-900/50 p-1.5 rounded-lg shadow-sm">
+                        <Sparkles size={18} className="text-primary-600 dark:text-primary-400" />
                     </div>
                     Your Briefing
                 </div>
                 <div className="flex gap-2">
                     {!isCollapsed && briefing && (
-                        <button onClick={() => loadBriefing(true)} disabled={isLoading} className="text-emerald-600/60 hover:text-emerald-800 dark:text-emerald-400/60 dark:hover:text-emerald-300 transition-colors p-1" title="Refresh briefing">
+                        <button onClick={() => loadBriefing(true)} disabled={isLoading} className="text-primary-600/60 hover:text-primary-800 dark:text-primary-400/60 dark:hover:text-primary-300 transition-colors p-1" title="Refresh briefing">
                             {isLoading ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
                         </button>
                     )}
-                    <button onClick={toggleCollapsed} className="text-emerald-600/60 hover:text-emerald-800 dark:text-emerald-400/60 dark:hover:text-emerald-300 transition-colors p-1" title={isCollapsed ? 'Show briefing' : 'Hide briefing'}>
+                    <button onClick={toggleCollapsed} className="text-primary-600/60 hover:text-primary-800 dark:text-primary-400/60 dark:hover:text-primary-300 transition-colors p-1" title={isCollapsed ? 'Show briefing' : 'Hide briefing'}>
                         {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                     </button>
                 </div>
@@ -155,7 +155,7 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
 
             {!isCollapsed && (
                 isLoading && !briefing ? (
-                    <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300 relative z-10">
+                    <div className="flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300 relative z-10">
                         <Loader2 size={16} className="animate-spin" /> Putting together your day...
                     </div>
                 ) : !briefing ? (
@@ -164,7 +164,7 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
                         <button
                             onClick={() => loadBriefing()}
                             disabled={isLoading}
-                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-60"
+                            className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-60"
                         >
                             <Sparkles size={15} /> Generate today's briefing
                         </button>
@@ -176,7 +176,7 @@ export default function BriefingPanel({ tasks, todaysLessons = [], upcomingKeyDa
                         {briefing!.items.length > 0 && (
                             <ul className="mt-3 space-y-1.5">
                                 {briefing!.items.map((item, idx) => (
-                                    <li key={idx} className="flex items-start gap-2 bg-white/70 dark:bg-slate-900/60 rounded-lg px-3 py-2 border border-emerald-100 dark:border-emerald-900/30">
+                                    <li key={idx} className="flex items-start gap-2 bg-white/70 dark:bg-slate-900/60 rounded-lg px-3 py-2 border border-primary-100 dark:border-primary-900/30">
                                         <span className="mt-0.5 shrink-0">{iconFor(item.kind)}</span>
                                         <div className="min-w-0">
                                             <p className="text-sm text-slate-800 dark:text-slate-100 leading-tight">{item.title}</p>

@@ -156,7 +156,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
 
     return (
         <>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-5 mb-6 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-primary-50 dark:from-blue-950/30 dark:to-primary-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-5 mb-6 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
                 {/* Decorative background element */}
                 <div className="absolute right-0 top-0 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/10 blur-3xl -translate-y-1/2 translate-x-1/3 rounded-full pointer-events-none"></div>
 
@@ -187,7 +187,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
                                     ) : insight.type === 'suggestion' ? (
                                         <CheckCircle2 size={16} className="text-amber-500" />
                                     ) : (
-                                        <Sparkles size={16} className="text-green-500" />
+                                        <Sparkles size={16} className="text-primary-500" />
                                     )}
                                 </div>
                                 <div>
@@ -230,7 +230,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
             {/* Generated Content Modal */}
             {isGenerating ? (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center justify-center text-slate-500 space-y-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-md p-6 flex flex-col items-center justify-center text-slate-500 space-y-4">
                         <Loader2 size={32} className="animate-spin text-blue-500" />
                         <p className="text-sm font-medium">Generating content based on "{generatingAction?.title}"...</p>
                     </div>

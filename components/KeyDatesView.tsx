@@ -232,7 +232,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Key Date
@@ -317,7 +317,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm w-full max-w-md overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <h3 className="text-lg font-semibold dark:text-white">
                 {editingDate ? 'Edit Key Date' : 'Add Key Date'}
@@ -340,7 +340,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                   placeholder="e.g., Parent Teacher Evening"
                   autoFocus
                 />
@@ -356,7 +356,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                     type="date"
                     value={dateStr}
                     onChange={(e) => setDateStr(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
                 <div>
@@ -371,7 +371,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                        setTime(e.target.value);
                        if(e.target.value) setIsAllDay(false);
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
                     disabled={isAllDay}
                   />
                 </div>
@@ -386,7 +386,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                      setIsAllDay(e.target.checked);
                      if(e.target.checked) setTime('');
                   }}
-                  className="rounded text-green-600 focus:ring-green-500 bg-slate-100 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                  className="rounded text-primary-600 focus:ring-primary-500 bg-slate-100 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
                 />
                 <label htmlFor="keyDateAllDay" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
                   All Day Event
@@ -401,7 +401,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   id="keyDateNotes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white min-h-[80px]"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white min-h-[80px]"
                   placeholder="Additional details..."
                 />
               </div>
@@ -414,7 +414,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   id="keyDateCategory"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">None</option>
                   {categories.map(cat => (
@@ -434,7 +434,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
               <button
                 onClick={handleSave}
                 disabled={!title.trim() || !dateStr}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save
               </button>

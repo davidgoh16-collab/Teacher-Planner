@@ -98,7 +98,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
         {/* Header */}
         <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
@@ -115,7 +115,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
           ) : (
             <div className="space-y-8">
@@ -131,7 +131,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
                       required
                       value={newCatName}
                       onChange={(e) => setNewCatName(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                       placeholder="e.g. Planning Tools"
                     />
                   </div>
@@ -144,7 +144,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
                           key={color.class}
                           type="button"
                           onClick={() => setNewCatColor(color.class)}
-                          className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-green-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                          className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${newCatColor === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
                           title={color.label}
                         />
                       ))}
@@ -154,7 +154,7 @@ const ManageAppCategoriesModal: React.FC<ManageAppCategoriesModalProps> = ({ isO
                   <div className="flex justify-end pt-2">
                     <button
                       type="submit"
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                      className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
                     >
                       <Plus size={16} /> Add Category
                     </button>

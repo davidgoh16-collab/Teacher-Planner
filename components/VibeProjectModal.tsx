@@ -155,17 +155,17 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Header */}
-                <div className="px-6 py-4 flex justify-between items-center bg-gradient-to-r from-purple-600 to-indigo-600 text-white shrink-0">
+                <div className="px-6 py-4 flex justify-between items-center bg-gradient-to-r from-primary-600 to-primary-600 text-white shrink-0">
                     <div className="flex items-center gap-2.5">
                         <div className="bg-white/20 p-2 rounded-lg">
                             <Wand2 size={20} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold leading-tight">Vibe a Project</h2>
-                            <p className="text-xs text-purple-100">Describe it — AI drafts the project, tasks & category.</p>
+                            <p className="text-xs text-primary-100">Describe it — AI drafts the project, tasks & category.</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
@@ -183,14 +183,14 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                             onChange={(e) => setPrompt(e.target.value)}
                             autoFocus
                             placeholder={"e.g. I need to organise the Year 8 parents' evening for the end of term — book the hall, send invites to parents, arrange the room layout, brief staff, and prepare a feedback form."}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 min-h-[160px] resize-y text-slate-900 dark:text-white"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500 min-h-[160px] resize-y text-slate-900 dark:text-white"
                             disabled={isGenerating}
                         />
                         <div className="flex justify-end">
                             <button
                                 onClick={handleGenerate}
                                 disabled={!prompt.trim() || isGenerating || isReadOnly}
-                                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                className="bg-gradient-to-r from-primary-600 to-primary-600 hover:from-primary-700 hover:to-primary-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                             >
                                 {isGenerating ? <><Loader2 size={16} className="animate-spin" /> Drafting…</> : <><Sparkles size={16} /> Generate Project</>}
                             </button>
@@ -206,7 +206,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                     type="text"
                                     value={projectName}
                                     onChange={(e) => setProjectName(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
 
@@ -217,7 +217,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 min-h-[60px] resize-y focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 min-h-[60px] resize-y focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
                             )}
@@ -228,7 +228,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                 <select
                                     value={categoryChoice}
                                     onChange={(e) => setCategoryChoice(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                 >
                                     <option value="">No category</option>
                                     {projectCategories.map(c => (
@@ -238,12 +238,12 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                 </select>
                                 {categoryChoice === NEW_CATEGORY && (
                                     <div className="mt-2 flex items-center gap-2">
-                                        <span className="text-xs text-purple-600 dark:text-purple-400 font-medium shrink-0">New category name:</span>
+                                        <span className="text-xs text-primary-600 dark:text-primary-400 font-medium shrink-0">New category name:</span>
                                         <input
                                             type="text"
                                             value={newCatName}
                                             onChange={(e) => setNewCatName(e.target.value)}
-                                            className="flex-1 bg-white dark:bg-slate-950 border border-purple-300 dark:border-purple-800 rounded-lg px-2.5 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
+                                            className="flex-1 bg-white dark:bg-slate-950 border border-primary-300 dark:border-primary-800 rounded-lg px-2.5 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
                                 )}
@@ -253,7 +253,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tasks ({tasks.filter(t => t.title.trim()).length})</label>
-                                    <button onClick={addBlankTask} className="text-xs font-semibold text-purple-600 hover:text-purple-700 dark:text-purple-400 flex items-center gap-1">
+                                    <button onClick={addBlankTask} className="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 flex items-center gap-1">
                                         <Plus size={14} /> Add task
                                     </button>
                                 </div>
@@ -300,7 +300,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                             <button
                                 onClick={handleCreate}
                                 disabled={isCreating || isReadOnly || !projectName.trim()}
-                                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                             >
                                 {isCreating ? <><Loader2 size={16} className="animate-spin" /> Creating…</> : <><Plus size={16} /> Create Project</>}
                             </button>

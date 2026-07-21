@@ -30,7 +30,7 @@ const currentAcademicYearName = (): string => {
 };
 
 const StepDot: React.FC<{ active: boolean; done: boolean }> = ({ active, done }) => (
-  <span className={`h-1.5 rounded-full transition-all ${active ? 'w-6 bg-primary-600' : done ? 'w-1.5 bg-primary-400' : 'w-1.5 bg-gray-300 dark:bg-slate-600'}`} />
+  <span className={`h-1.5 rounded-full transition-all ${active ? 'w-6 bg-primary-600' : done ? 'w-1.5 bg-primary-400' : 'w-1.5 bg-slate-300 dark:bg-slate-600'}`} />
 );
 
 const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, themeColor, userUid, onThemeColorChange, onFinish }) => {
@@ -215,13 +215,13 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
         <div className="space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">Name the academic year you're planning. Everything else (terms, timetable) is saved under it.</p>
           {activeYearId ? (
-            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-sm text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 rounded-lg p-3">
               <Check size={16} /> Using academic year <strong>{activeYearName}</strong>.
             </div>
           ) : (
             <div className="flex gap-2 flex-wrap">
               <input value={yearName} onChange={(e) => setYearName(e.target.value)} placeholder="2025/2026"
-                className="flex-1 min-w-[160px] bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
+                className="flex-1 min-w-[160px] bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
               <button onClick={handleCreateYear} disabled={creatingYear || !yearName.trim()}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {creatingYear ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Create
@@ -241,13 +241,13 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
             <>
               <div className="flex gap-2 flex-wrap">
                 <input type="url" value={termUrl} onChange={(e) => setTermUrl(e.target.value)} placeholder="https://yourschool.sch.uk/term-dates"
-                  className="flex-1 min-w-[200px] bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
+                  className="flex-1 min-w-[200px] bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
                 <button onClick={handleImportTerms} disabled={importingTerms || !termUrl.trim()}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                   {importingTerms ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />} Import
                 </button>
               </div>
-              {termsMsg && <p className="text-xs text-green-600 dark:text-green-400">{termsMsg}</p>}
+              {termsMsg && <p className="text-xs text-primary-600 dark:text-primary-400">{termsMsg}</p>}
               {termsErr && <p className="text-xs text-red-600 dark:text-red-400">{termsErr}</p>}
               <ImportHelp
                 formats="a link to a public webpage listing your term dates (your school or council site)"
@@ -268,12 +268,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
           <p className="text-sm text-slate-600 dark:text-slate-300">Upload your own timetable — the AI reads it into your weekly grid.</p>
           {!activeYearId ? noYet : (
             <>
-              <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${ttBusy ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
+              <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${ttBusy ? 'opacity-60 pointer-events-none' : 'border-slate-300 dark:border-slate-600 hover:border-primary-400'}`}>
                 {ttBusy ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <UploadCloud className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{ttBusy ? 'Reading your timetable…' : 'Choose your timetable file'}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{ttBusy ? 'Reading your timetable…' : 'Choose your timetable file'}</span>
                 <input type="file" accept={TIMETABLE_ACCEPT} className="hidden" onChange={handleOwnTimetable} disabled={ttBusy} />
               </label>
-              {ttMsg && <p className="text-xs text-green-600 dark:text-green-400">{ttMsg}</p>}
+              {ttMsg && <p className="text-xs text-primary-600 dark:text-primary-400">{ttMsg}</p>}
               {ttErr && <p className="text-xs text-red-600 dark:text-red-400">{ttErr}</p>}
               <ImportHelp
                 formats="photo or screenshot (PNG, JPG), PDF, Word (.docx), Excel (.xlsx), CSV or plain text"
@@ -294,13 +294,13 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
       body: (
         <div className="space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">Upload your colleagues' timetables — select several at once and the AI identifies each person by name.</p>
-          <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'staff' ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
+          <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'staff' ? 'opacity-60 pointer-events-none' : 'border-slate-300 dark:border-slate-600 hover:border-primary-400'}`}>
             {peopleBusy === 'staff' ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <Users className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{peopleBusy === 'staff' ? 'Adding staff…' : 'Choose staff timetable files'}</span>
-            <span className="text-xs text-gray-400">Select several at once</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{peopleBusy === 'staff' ? 'Adding staff…' : 'Choose staff timetable files'}</span>
+            <span className="text-xs text-slate-400">Select several at once</span>
             <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={(e) => handlePeople(e, 'staff')} disabled={peopleBusy !== null} />
           </label>
-          {staffMsg && <p className="text-xs text-green-600 dark:text-green-400">{staffMsg}</p>}
+          {staffMsg && <p className="text-xs text-primary-600 dark:text-primary-400">{staffMsg}</p>}
           <ImportHelp
             formats="PNG/JPG, PDF, Word, Excel/CSV or text — one person per file, several files at once"
             tips={["Names are read from the document; if it doesn't show one, the file name is used — so name files like 'J Smith.pdf'."]}
@@ -314,13 +314,13 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
       body: (
         <div className="space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">Add student timetables the same way — later you can match your timetable against a student's to find when to meet or observe them.</p>
-          <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'student' ? 'opacity-60 pointer-events-none' : 'border-gray-300 dark:border-slate-600 hover:border-primary-400'}`}>
+          <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${peopleBusy === 'student' ? 'opacity-60 pointer-events-none' : 'border-slate-300 dark:border-slate-600 hover:border-primary-400'}`}>
             {peopleBusy === 'student' ? <Loader2 className="w-7 h-7 text-primary-600 animate-spin" /> : <GraduationCap className="w-7 h-7 text-primary-600 dark:text-primary-400" />}
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{peopleBusy === 'student' ? 'Adding students…' : 'Choose student timetable files'}</span>
-            <span className="text-xs text-gray-400">Select several at once</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{peopleBusy === 'student' ? 'Adding students…' : 'Choose student timetable files'}</span>
+            <span className="text-xs text-slate-400">Select several at once</span>
             <input type="file" accept={TIMETABLE_ACCEPT} multiple className="hidden" onChange={(e) => handlePeople(e, 'student')} disabled={peopleBusy !== null} />
           </label>
-          {studentMsg && <p className="text-xs text-green-600 dark:text-green-400">{studentMsg}</p>}
+          {studentMsg && <p className="text-xs text-primary-600 dark:text-primary-400">{studentMsg}</p>}
           <ImportHelp
             formats="PNG/JPG, PDF, Word, Excel/CSV or text — one student per file, several files at once"
             tips={["Names are read from the document; if it doesn't show one, the file name is used — so name files like 'A Jones.pdf'."]}
@@ -346,7 +346,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden animate-in">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden animate-in">
         <div className="bg-slate-900 dark:bg-slate-950 px-6 py-5 flex items-center gap-3 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 via-primary-500 to-primary-700" />
           <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-600 text-white shrink-0">{current.icon}</div>
@@ -362,7 +362,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
           {steps.map((_, i) => <StepDot key={i} active={i === step} done={i < step} />)}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
           <button onClick={onFinish} className="text-sm text-slate-500 dark:text-slate-400 hover:underline">Skip setup</button>
           <div className="flex items-center gap-2">
             {step > 0 && (

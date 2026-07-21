@@ -38,14 +38,14 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
             case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400';
-            case 'Low': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+            case 'Low': return 'text-primary-600 bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400';
             default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
         }
     };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case 'Completed': return <CheckCircle2 size={24} className="text-green-500" />;
+            case 'Completed': return <CheckCircle2 size={24} className="text-primary-500" />;
             case 'In Progress': return <Clock size={24} className="text-amber-500" />;
             default: return <Circle size={24} className="text-slate-300 dark:text-slate-600" />;
         }
@@ -53,7 +53,7 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
 
     const getSubtaskStatusIcon = (status: string) => {
         switch (status) {
-            case 'Completed': return <CheckCircle2 size={16} className="text-green-500" />;
+            case 'Completed': return <CheckCircle2 size={16} className="text-primary-500" />;
             case 'In Progress': return <Clock size={16} className="text-amber-500" />;
             default: return <Circle size={16} className="text-slate-300 dark:text-slate-600" />;
         }
@@ -61,7 +61,7 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start bg-slate-50 dark:bg-slate-950/50">
@@ -106,7 +106,7 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
                     <div className="flex flex-wrap gap-6 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                         {task.scheduledDateStr ? (
                             <span className="flex items-center gap-2">
-                                <CalendarDays size={16} className="text-green-500"/>
+                                <CalendarDays size={16} className="text-primary-500"/>
                                 <span>Scheduled: <span className="text-slate-900 dark:text-white">{new Date(task.scheduledDateStr).toLocaleDateString()}</span></span>
                             </span>
                         ) : (

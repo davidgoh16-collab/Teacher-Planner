@@ -426,7 +426,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-200">
         
         {/* Header */}
         <div className={`px-6 py-4 flex justify-between items-center text-white border-b transition-colors ${headerBgColor}`}>
@@ -453,48 +453,48 @@ const LessonModal: React.FC<LessonModalProps> = ({
               // DUPLICATION FORM
               <div className="space-y-4 h-full flex flex-col">
                   {/* Filter Header */}
-                  <div className="flex flex-col gap-2 pb-3 border-b border-gray-100 dark:border-slate-800">
+                  <div className="flex flex-col gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
+                          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
                              Copy to any session in this term
                           </span>
                       </div>
                       
                       <div className="flex gap-2">
                           <div className="relative flex-1">
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                   <Filter size={14} />
                               </div>
                               <select 
                                   value={classFilter} 
                                   onChange={(e) => setClassFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-green-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary-500 outline-none transition-colors"
                               >
                                   <option value="All">All Classes</option>
                                   {uniqueSubjects.map(subj => (
                                       <option key={subj} value={subj}>{subj}</option>
                                   ))}
                               </select>
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                   <ChevronDown size={14} />
                               </div>
                           </div>
 
                           <div className="relative flex-1">
-                              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                   <CalendarRange size={14} />
                               </div>
                               <select 
                                   value={monthFilter} 
                                   onChange={(e) => setMonthFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-green-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary-500 outline-none transition-colors"
                               >
                                   <option value="All">All Months</option>
                                   {uniqueMonths.map(m => (
                                       <option key={m} value={m}>{m}</option>
                                   ))}
                               </select>
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                   <ChevronDown size={14} />
                               </div>
                           </div>
@@ -502,7 +502,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                           <button 
                              onClick={handleToggleSelectAllVisible}
                              disabled={filteredSlots.length === 0}
-                             className="px-3 py-2 bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                             className="px-3 py-2 bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                              {filteredSlots.length > 0 && filteredSlots.every(s => selectedSlots.includes(s.id)) ? 'Deselect All' : 'Select All'}
                           </button>
@@ -512,7 +512,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                   {/* Slots List */}
                   <div className="flex-1 overflow-y-auto space-y-1 pr-1">
                       {filteredSlots.length === 0 && (
-                          <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+                          <div className="text-center py-10 text-slate-400 flex flex-col items-center">
                               <Filter size={32} className="mb-2 opacity-20" />
                               <p>No slots found for this filter.</p>
                           </div>
@@ -528,11 +528,11 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => toggleSlotSelection(slot.id)}
                                 className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                                     isSelected 
-                                    ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
-                                    : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700'
+                                    ? 'bg-primary-50 border-primary-300 dark:bg-primary-900/20 dark:border-primary-700'
+                                    : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700'
                                 }`}
                               >
-                                  <div className={`shrink-0 ${isSelected ? 'text-green-600 dark:text-green-400' : 'text-gray-300 dark:text-slate-600'}`}>
+                                  <div className={`shrink-0 ${isSelected ? 'text-primary-600 dark:text-primary-400' : 'text-slate-300 dark:text-slate-600'}`}>
                                       {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
                                   </div>
                                   <div className="flex-1">
@@ -545,10 +545,10 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                           </span>
                                       </div>
                                       <div className="flex justify-between items-center mt-0.5">
-                                          <span className={`text-xs font-medium ${isSameSubject ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                          <span className={`text-xs font-medium ${isSameSubject ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400'}`}>
                                               {slot.subject}
                                           </span>
-                                          <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-1.5 rounded">
+                                          <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 rounded">
                                               {slot.period}
                                           </span>
                                       </div>
@@ -561,13 +561,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
           ) : isRecurringMode ? (
               // RECURRING FORM
               <div className="space-y-6">
-                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-sm text-green-800 dark:text-green-200">
+                  <div className="bg-primary-50 dark:bg-primary-900/20 p-4 rounded-lg text-sm text-primary-800 dark:text-primary-200">
                       <p>Create repeating events for <strong>{initialData.periodLabel}</strong> on <strong>{new Date(initialData.dateStr).toLocaleDateString('en-GB', {weekday: 'long'})}s</strong>.</p>
                   </div>
 
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                               Duration (Scope)
                           </label>
                           <div className="grid grid-cols-2 gap-3">
@@ -575,8 +575,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrenceScope('term')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                                     recurrenceScope === 'term' 
-                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+                                    ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/40 dark:border-primary-400 dark:text-primary-200'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
                                 <CalendarRange size={16} /> This Term Only
@@ -585,8 +585,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrenceScope('year')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                                     recurrenceScope === 'year' 
-                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+                                    ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/40 dark:border-primary-400 dark:text-primary-200'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
                                 <CalendarRange size={16} /> Whole Year
@@ -595,7 +595,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                       </div>
 
                       <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
+                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                               Frequency
                           </label>
                           <div className="grid grid-cols-2 gap-3">
@@ -603,8 +603,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrencePattern('cycle')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex flex-col items-center justify-center gap-1 transition-all ${
                                     recurrencePattern === 'cycle' 
-                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+                                    ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/40 dark:border-primary-400 dark:text-primary-200'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
                                 <div className="flex items-center gap-2"><RotateCw size={16} /> Fortnightly</div>
@@ -614,8 +614,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                 onClick={() => setRecurrencePattern('every')}
                                 className={`p-3 rounded-lg border text-sm font-medium flex flex-col items-center justify-center gap-1 transition-all ${
                                     recurrencePattern === 'every' 
-                                    ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/40 dark:border-green-400 dark:text-green-200'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+                                    ? 'bg-primary-50 border-primary-500 text-primary-700 dark:bg-primary-900/40 dark:border-primary-400 dark:text-primary-200'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                 }`}
                               >
                                 <div className="flex items-center gap-2"><Repeat size={16} /> Weekly</div>
@@ -625,8 +625,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
                       </div>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
-                      <p className="text-sm text-gray-600 dark:text-slate-400 text-center">
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
                           This will create <strong>{recurrencePreview.length}</strong> lesson entries.
                       </p>
                   </div>
@@ -636,13 +636,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
               <>
                 {/* Type Toggle - Hide in Read Only mode */}
                 {!isReadOnly && (
-                    <div className="flex p-1 bg-gray-100 dark:bg-slate-800 rounded-lg">
+                    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                         <button
                         onClick={() => setType('lesson')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
                             type === 'lesson' 
-                            ? 'bg-white dark:bg-slate-700 text-green-600 dark:text-green-400 shadow-sm'
-                            : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                            ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                         }`}
                         >
                         <BookOpen size={16} /> Lesson
@@ -652,7 +652,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
                             type === 'meeting' 
                             ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                            : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                         }`}
                         >
                         <Users size={16} /> Meeting
@@ -662,12 +662,12 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
                 {/* Title */}
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">
                     {type === 'meeting' ? 'Meeting Agenda / Title' : 'Lesson Title / Topic'}
                     </label>
                     <input
                     type="text"
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-green-500 focus:border-green-500'}`}
+                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:ring-2 focus:ring-primary-500 focus:border-primary-500'}`}
                     placeholder={type === 'meeting' ? "e.g. Dept Performance Review" : "e.g. Introduction to Coastal Erosion"}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -678,7 +678,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
                 {/* Resource Links */}
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-2 flex items-center gap-2">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2">
                     <LinkIcon size={14} /> {type === 'meeting' ? 'Meeting Links / Docs' : 'Resource Links'}
                     </label>
                     
@@ -686,12 +686,12 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     {links.length > 0 ? (
                         <div className="space-y-2 mb-3">
                             {links.map((link, idx) => (
-                                <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700 text-sm">
+                                <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 text-sm">
                                     <a 
                                         href={link} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="flex-1 truncate text-green-600 dark:text-green-400 hover:underline flex items-center gap-1.5"
+                                        className="flex-1 truncate text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1.5"
                                     >
                                         <ExternalLink size={12} />
                                         {link}
@@ -699,7 +699,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                                     {!isReadOnly && (
                                         <button 
                                             onClick={() => removeLink(idx)}
-                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                            className="text-slate-400 hover:text-red-500 transition-colors p-1"
                                             title="Remove link"
                                         >
                                             <MinusCircle size={16} />
@@ -709,7 +709,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             ))}
                         </div>
                     ) : (
-                        isReadOnly && <p className="text-sm text-gray-400 italic">No links added.</p>
+                        isReadOnly && <p className="text-sm text-slate-400 italic">No links added.</p>
                     )}
 
                     {/* Add New Link Input - Hide in Read Only */}
@@ -717,7 +717,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         <div className="flex gap-2">
                             <input
                                 type="url"
-                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm placeholder-gray-400 dark:placeholder-slate-500"
+                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm placeholder-slate-400 dark:placeholder-slate-500"
                                 placeholder="https://meet.google.com/..."
                                 value={currentLinkInput}
                                 onChange={(e) => setCurrentLinkInput(e.target.value)}
@@ -726,7 +726,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             <button 
                                 onClick={addLink}
                                 disabled={!currentLinkInput.trim()}
-                                className="bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100 text-slate-700 px-3 py-2 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Add Link"
                             >
                                 <Plus size={18} />
@@ -738,7 +738,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                 {/* Notes */}
                 <div>
                     <div className="flex justify-between items-end mb-1">
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
                         {type === 'meeting' ? 'Meeting Notes' : 'Notes / Homework'}
                         </label>
                         {!isReadOnly && (
@@ -773,7 +773,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     )}
 
                     <textarea
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-gray-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-gray-50 text-gray-600 dark:text-gray-300' : 'focus:ring-2 focus:ring-green-500 focus:border-green-500'}`}
+                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:ring-2 focus:ring-primary-500 focus:border-primary-500'}`}
                     placeholder={type === 'meeting' ? "Minutes, action items..." : "Don't forget to collect homework..."}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -786,21 +786,21 @@ const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 dark:bg-slate-950 px-6 py-4 flex justify-between items-center border-t border-gray-100 dark:border-slate-800">
+        <div className="bg-slate-50 dark:bg-slate-950 px-6 py-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
           
           {isDuplicating ? (
               // DUPLICATE MODE FOOTER
               <>
                  <button 
                     onClick={() => setIsDuplicating(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+                    className="px-4 py-2 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                  >
                     Back to Edit
                  </button>
                  <button 
                     onClick={handleDuplicate}
                     disabled={selectedSlots.length === 0}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-green-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm shadow-primary-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                     Copy to {selectedSlots.length} Session{selectedSlots.length !== 1 ? 's' : ''} <ArrowRight size={16} />
                  </button>
@@ -810,14 +810,14 @@ const LessonModal: React.FC<LessonModalProps> = ({
               <>
                  <button 
                     onClick={() => setIsRecurringMode(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+                    className="px-4 py-2 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                  >
                     Back to Edit
                  </button>
                  <button 
                     onClick={handleRecurringSave}
                     disabled={recurrencePreview.length === 0}
-                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-purple-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm shadow-purple-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                     <Repeat size={16} /> Create Recurring
                  </button>
@@ -837,7 +837,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             </button>
                             <button 
                                 onClick={() => setIsDuplicating(true)}
-                                className="flex items-center justify-center text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 p-2 rounded-lg transition-colors"
+                                className="flex items-center justify-center text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-2 rounded-lg transition-colors"
                                 title="Duplicate Lesson"
                             >
                                 <Copy size={18} />
@@ -856,17 +856,17 @@ const LessonModal: React.FC<LessonModalProps> = ({
                 <div className="flex gap-3">
                     <button 
                         onClick={onClose}
-                        className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+                        className="px-4 py-2 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                     >
                         {isReadOnly ? 'Close' : 'Cancel'}
                     </button>
                     {!isReadOnly && (
                         <button 
                             onClick={handleSave}
-                            className={`flex items-center gap-2 text-white px-6 py-2 rounded-lg font-medium shadow-lg transition-all transform active:scale-95 ${
+                            className={`flex items-center gap-2 text-white px-6 py-2 rounded-lg font-medium shadow-sm transition-all transform active:scale-95 ${
                             type === 'meeting' 
                             ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none' 
-                            : 'bg-slate-800 hover:bg-slate-900 dark:bg-green-600 dark:hover:bg-green-700 shadow-slate-300 dark:shadow-none'
+                            : 'bg-slate-800 hover:bg-slate-900 dark:bg-primary-600 dark:hover:bg-primary-700 shadow-slate-300 dark:shadow-none'
                             }`}
                         >
                             <Save size={18} /> Save

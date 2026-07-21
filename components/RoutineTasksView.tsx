@@ -136,20 +136,20 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
         switch (priority) {
             case 'High': return 'text-red-600 border-red-200 bg-red-50 dark:bg-red-900/30 dark:border-red-800';
             case 'Medium': return 'text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/30 dark:border-amber-800';
-            case 'Low': return 'text-green-600 border-green-200 bg-green-50 dark:bg-green-900/30 dark:border-green-800';
+            case 'Low': return 'text-primary-600 border-primary-200 bg-primary-50 dark:bg-primary-900/30 dark:border-primary-800';
             default: return 'text-slate-600 border-slate-200';
         }
     };
 
     if (loading) {
-        return <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div></div>;
+        return <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
     }
 
     return (
         <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-green-50/50 dark:bg-green-900/10">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-primary-50/50 dark:bg-primary-900/10">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <RotateCw className="text-green-500" /> Routine Tasks
+                    <RotateCw className="text-primary-500" /> Routine Tasks
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">Daily recurring tasks. Status resets every midnight.</p>
             </div>
@@ -163,13 +163,13 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                 placeholder="E.g., Check emails, Plan tomorrow's lesson..."
                                 value={newTaskTitle}
                                 onChange={(e) => setNewTaskTitle(e.target.value)}
-                                className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                 required
                             />
                             <select
                                 value={newTaskPriority}
                                 onChange={(e) => setNewTaskPriority(e.target.value as any)}
-                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 w-full sm:w-auto"
+                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
                             >
                                 <option value="High">High</option>
                                 <option value="Medium">Medium</option>
@@ -181,13 +181,13 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                     setNewTaskType(e.target.value as 'daily' | 'weekly');
                                     if (e.target.value === 'daily') setNewTaskDays([]);
                                 }}
-                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 w-full sm:w-auto"
+                                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
                             >
                                 <option value="daily">Daily</option>
                                 <option value="weekly">Weekly</option>
                             </select>
 
-                            <button type="submit" disabled={!newTaskTitle.trim() || (newTaskType === 'weekly' && newTaskDays.length === 0)} className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                            <button type="submit" disabled={!newTaskTitle.trim() || (newTaskType === 'weekly' && newTaskDays.length === 0)} className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                                 <Plus size={16} /> Add
                             </button>
                         </form>
@@ -207,7 +207,7 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                             setNewTaskDays([...newTaskDays, idx]);
                                         }
                                     }}
-                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${newTaskDays.includes(idx) ? 'bg-green-500 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${newTaskDays.includes(idx) ? 'bg-primary-500 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                 >
                                     {day}
                                 </button>
@@ -260,7 +260,7 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                         <li key={task.id} className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${completed ? 'bg-slate-50 border-slate-200 dark:bg-slate-800/30 dark:border-slate-800 opacity-60' : (isDueToday ? 'bg-white border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700' : 'bg-slate-50/50 border-slate-200/50 dark:bg-slate-800/20 dark:border-slate-700/50 opacity-80')}`}>
                                             <div className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer" onClick={() => handleToggleComplete(task)}>
                                                 <button onClick={(e) => { e.stopPropagation(); handleToggleComplete(task); }} className={`shrink-0 transition-transform ${isReadOnly ? '' : 'hover:scale-110'}`}>
-                                                    {completed ? <CheckCircle2 className="text-green-500" size={24} /> : <Circle className="text-slate-300 dark:text-slate-600" size={24} />}
+                                                    {completed ? <CheckCircle2 className="text-primary-500" size={24} /> : <Circle className="text-slate-300 dark:text-slate-600" size={24} />}
                                                 </button>
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">

@@ -567,7 +567,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
         switch (priority) {
             case 'High': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
             case 'Medium': return 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400';
-            case 'Low': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+            case 'Low': return 'text-primary-600 bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400';
             default: return 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400';
         }
     };
@@ -591,7 +591,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
         if (total === 0) return [];
 
         return [
-            { name: 'Completed', value: stats['Completed'], color: '#22c55e' }, // green-500
+            { name: 'Completed', value: stats['Completed'], color: '#22c55e' }, // primary-500
             { name: 'In Progress', value: stats['In Progress'], color: '#f59e0b' }, // amber-500
             { name: 'Uncompleted', value: stats['Uncompleted'], color: '#cbd5e1' } // slate-300
         ].filter(item => item.value > 0);
@@ -601,7 +601,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case 'Completed': return <CheckCircle2 size={20} className="text-green-500" />;
+            case 'Completed': return <CheckCircle2 size={20} className="text-primary-500" />;
             case 'In Progress': return <Clock size={20} className="text-amber-500" />;
             default: return <Circle size={20} className="text-slate-300 dark:text-slate-600" />;
         }
@@ -653,7 +653,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                     <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 flex-1 min-w-0">
                             <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                 />
                                 <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                     {getStatusIcon(task.status)}
@@ -728,13 +728,13 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                 </div>
 
                 {/* Q2: Schedule */}
-                <div className="bg-green-50/50 dark:bg-green-950/20 rounded-xl p-4 border border-green-100 dark:border-green-900/30 flex flex-col">
-                    <h3 className="font-bold text-green-800 dark:text-green-400 mb-4 flex items-center justify-between">
+                <div className="bg-primary-50/50 dark:bg-primary-950/20 rounded-xl p-4 border border-primary-100 dark:border-primary-900/30 flex flex-col">
+                    <h3 className="font-bold text-primary-800 dark:text-primary-400 mb-4 flex items-center justify-between">
                         <span>Schedule (Important, Not Urgent)</span>
-                        <span className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
+                        <span className="bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full text-xs">{q2.length}</span>
                     </h3>
                     <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
-                        {q2.length === 0 ? <p className="text-sm italic text-green-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
+                        {q2.length === 0 ? <p className="text-sm italic text-primary-400/60 text-center mt-10">No unscheduled high-priority tasks.</p> : q2.map(t => <TaskCard key={t.id} task={t} />)}
                     </div>
                 </div>
 
@@ -835,8 +835,8 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                             <div key={month} className="relative">
                                 <div className="absolute left-[27px] top-8 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
 
-                                <h3 className="sticky top-0 z-10 bg-gray-50/90 dark:bg-slate-950/90 backdrop-blur-sm py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
-                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-gray-50 dark:border-slate-950 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm shrink-0">
+                                <h3 className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm py-2 text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                                    <div className="w-14 h-14 bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-950 rounded-full flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm shrink-0">
                                         <CalendarDays size={20} />
                                     </div>
                                     {month}
@@ -872,7 +872,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                 <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                     <div className="flex items-start gap-3 flex-1 min-w-0">
                                                         <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                            <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                            <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                                             />
                                                             <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                                 {getStatusIcon(task.status)}
@@ -983,7 +983,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                             <div className="flex-1 flex items-start justify-between gap-3 group/task">
                                                                 <div className="flex items-start gap-3 flex-1 min-w-0">
                                                                     <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                                        <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                        <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                                                         />
                                                                         <button onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} disabled={isReadOnly} className={`shrink-0 ${isReadOnly ? '' : 'hover:scale-110'}`}>
                                                                             {getStatusIcon(task.status)}
@@ -1053,7 +1053,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
     };
 
     return (
-        <div className={`flex flex-col h-full overflow-hidden transition-colors duration-300 ${project.colorClass || 'bg-gray-50 dark:bg-slate-950'}`}>
+        <div className={`flex flex-col h-full overflow-hidden transition-colors duration-300 ${project.colorClass || 'bg-slate-50 dark:bg-slate-950'}`}>
 
             {/* Header Area */}
             <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-slate-200/50 dark:border-slate-800/50 p-4 md:px-8 shrink-0 flex items-center justify-between z-10 sticky top-0 flex-wrap gap-4">
@@ -1112,7 +1112,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         type="text"
                                         value={editName}
                                         onChange={(e) => setEditName(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                         required
                                     />
                                 </div>
@@ -1157,7 +1157,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             <button
                                                 key={bg.class}
                                                 onClick={() => setEditBgColor(bg.class)}
-                                                className={`px-3 py-1.5 rounded-md text-sm border font-medium ${bg.class} ${editBgColor === bg.class ? 'ring-2 ring-green-500 border-transparent shadow-sm' : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'}`}
+                                                className={`px-3 py-1.5 rounded-md text-sm border font-medium ${bg.class} ${editBgColor === bg.class ? 'ring-2 ring-primary-500 border-transparent shadow-sm' : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'}`}
                                             >
                                                 {bg.label}
                                             </button>
@@ -1166,7 +1166,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                 </div>
                                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     <button onClick={() => setIsEditingSettings(false)} className="px-4 py-2 text-sm rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
-                                    <button onClick={handleSaveSettings} className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700">Save Changes</button>
+                                    <button onClick={handleSaveSettings} className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700">Save Changes</button>
                                 </div>
                             </div>
                         </div>
@@ -1226,7 +1226,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                 <div className="flex justify-between items-center mb-3">
                                     <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resources & Links</h3>
                                     {!isReadOnly && !isAddingLink && (
-                                        <button onClick={() => setIsAddingLink(true)} className="text-green-600 hover:text-green-700 bg-green-50 dark:bg-green-900/30 p-1 rounded-md">
+                                        <button onClick={() => setIsAddingLink(true)} className="text-primary-600 hover:text-primary-700 bg-primary-50 dark:bg-primary-900/30 p-1 rounded-md">
                                             <Plus size={16} />
                                         </button>
                                     )}
@@ -1238,7 +1238,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         <input type="url" placeholder="URL (https://...)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} required className="w-full text-sm px-2 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900" />
                                         <div className="flex justify-end gap-2 pt-1">
                                             <button type="button" onClick={() => setIsAddingLink(false)} className="text-xs text-slate-500">Cancel</button>
-                                            <button type="submit" className="text-xs bg-green-600 text-white px-2 py-1 rounded">Add</button>
+                                            <button type="submit" className="text-xs bg-primary-600 text-white px-2 py-1 rounded">Add</button>
                                         </div>
                                     </form>
                                 )}
@@ -1249,7 +1249,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     )}
                                     {project.links.map((link, idx) => (
                                         <div key={idx} className="flex items-center justify-between group bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:underline truncate">
+                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline truncate">
                                                 <LinkIcon size={14} className="shrink-0" />
                                                 <span className="truncate">{link.displayName}</span>
                                             </a>
@@ -1272,15 +1272,15 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                             <div className="flex flex-wrap items-center gap-4">
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                        <CheckCircle2 className="text-green-500" /> Tasks & Ideas
+                                        <CheckCircle2 className="text-primary-500" /> Tasks & Ideas
                                     </h2>
                                     <p className="text-xs text-slate-500 mt-0.5">{tasks.length} tasks • {ideas.length} ideas</p>
                                 </div>
 
                                 <div className="hidden sm:flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
-                                    <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
-                                    <button onClick={() => setViewMode('matrix')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                                    <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                    <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
+                                    <button onClick={() => setViewMode('matrix')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                                    <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                                     <button onClick={() => setViewMode('ideas')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
                                         <Lightbulb size={12} /> Ideas
                                     </button>
@@ -1304,9 +1304,9 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     </div>
                                 )}
                                 <div className="sm:hidden flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg flex-wrap">
-                                    <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
-                                    <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                                    <button onClick={() => setViewMode('timeline')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-green-700 dark:text-green-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                    <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
+                                    <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                                    <button onClick={() => setViewMode('timeline')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                                     <button onClick={() => setViewMode('ideas')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
                                         <Lightbulb size={10} />
                                     </button>
@@ -1315,7 +1315,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                 {!isReadOnly && viewMode !== 'ideas' && (
                                     <button
                                         onClick={() => setIsAddingTask(!isAddingTask)}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+                                        className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap"
                                     >
                                         {isAddingTask ? <X size={16} /> : <Plus size={16} />}
                                         <span className="hidden sm:inline">{isAddingTask ? 'Cancel' : 'Add Task'}</span>
@@ -1326,7 +1326,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
 
                         {/* Add Task Form inline */}
                         {isAddingTask && !isReadOnly && (
-                            <div className="p-4 md:p-6 bg-green-50/50 dark:bg-green-900/10 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-4 fade-in">
+                            <div className="p-4 md:p-6 bg-primary-50/50 dark:bg-primary-900/10 border-b border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-4 fade-in">
                                 <form onSubmit={handleAddTask} className="space-y-4">
                                     <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 mb-4 flex items-center gap-3">
                                         <Bot className="text-blue-500 shrink-0" size={20} />
@@ -1364,7 +1364,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             required
                                             placeholder="What needs to be done?"
                                             autoFocus
-                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
                                     <div>
@@ -1373,7 +1373,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             value={newTaskDescription}
                                             onChange={(e) => setNewTaskDescription(e.target.value)}
                                             placeholder="Add details, notes, or steps..."
-                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[80px]"
                                         />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1402,7 +1402,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         </div>
                                     </div>
                                     <div className="flex justify-end pt-2">
-                                        <button type="submit" disabled={!newTaskTitle.trim()} className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
+                                        <button type="submit" disabled={!newTaskTitle.trim()} className="bg-primary-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
                                             Save Task
                                         </button>
                                     </div>
@@ -1441,7 +1441,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             name="ideaInput"
                                             type="text"
                                             placeholder="Jot down a new idea for this project..."
-                                            className="flex-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                                            className="flex-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                                             autoComplete="off"
                                         />
                                         <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
@@ -1470,7 +1470,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                 <button onClick={(e) => handleDeleteIdea(idea.id, e)} className="p-1.5 text-slate-400 hover:text-red-500 rounded bg-white dark:bg-slate-900 shadow-sm transition-colors" title="Delete Idea">
                                                                     <Trash2 size={14} />
                                                                 </button>
-                                                                <button onClick={() => handleConvertIdeaToTask(idea)} className="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded shadow-sm transition-colors flex items-center gap-1">
+                                                                <button onClick={() => handleConvertIdeaToTask(idea)} className="px-2 py-1 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded shadow-sm transition-colors flex items-center gap-1">
                                                                     Convert to Task
                                                                 </button>
                                                             </>
@@ -1533,7 +1533,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className={`cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 flex flex-col gap-2 ${isCompleted ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start gap-4">
                                                 <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                                     />
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
@@ -1580,7 +1580,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
 
                                                 <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
                                                     {task.scheduledDateStr && (
-                                                        <span className="flex items-center gap-1.5"><CalendarDays size={12} className="text-green-500"/> Scheduled: {new Date(task.scheduledDateStr).toLocaleDateString()}</span>
+                                                        <span className="flex items-center gap-1.5"><CalendarDays size={12} className="text-primary-500"/> Scheduled: {new Date(task.scheduledDateStr).toLocaleDateString()}</span>
                                                     )}
                                                     {task.deadlineDateStr && (
                                                         <span className="flex items-center gap-1.5"><Clock size={12} className="text-red-500"/> Due: {new Date(task.deadlineDateStr).toLocaleDateString()}</span>
@@ -1649,7 +1649,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                     )}
                                                                     <div className="flex flex-wrap gap-3 text-[10px] font-medium text-slate-400 dark:text-slate-500">
                                                                         {st.scheduledDateStr && (
-                                                                            <span className="flex items-center gap-1"><CalendarDays size={10} className="text-green-500"/> Scheduled: {new Date(st.scheduledDateStr).toLocaleDateString()}</span>
+                                                                            <span className="flex items-center gap-1"><CalendarDays size={10} className="text-primary-500"/> Scheduled: {new Date(st.scheduledDateStr).toLocaleDateString()}</span>
                                                                         )}
                                                                         {st.deadlineDateStr && (
                                                                             <span className="flex items-center gap-1"><Clock size={10} className="text-red-500"/> Due: {new Date(st.deadlineDateStr).toLocaleDateString()}</span>
@@ -1683,7 +1683,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                             required
                                                                             placeholder="What needs to be done?"
                                                                             autoFocus
-                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -1692,7 +1692,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                             value={newSubtaskDescription}
                                                                             onChange={(e) => setNewSubtaskDescription(e.target.value)}
                                                                             placeholder="Add details, notes, or steps..."
-                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500 min-h-[60px]"
+                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[60px]"
                                                                         />
                                                                     </div>
                                                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1814,7 +1814,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                         <li key={task.id} onClick={(e) => openCardModal(task, e)} className="cursor-pointer group p-4 md:px-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex flex-col gap-2 opacity-60 hover:opacity-100">
                                                             <div className="flex items-start gap-4">
                                                                 <div className="flex items-start gap-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-green-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-green-500 cursor-pointer"
+                                                                    <input type="checkbox" checked={selectedTaskIds.has(task.id)} onChange={(e) => toggleTaskSelection(task.id, e as any)} onClick={(e) => e.stopPropagation()} className="mt-1 shrink-0 w-4 h-4 text-primary-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded focus:ring-primary-500 cursor-pointer"
                                                                     />
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
@@ -1846,7 +1846,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                     </div>
                                                                     <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-400 dark:text-slate-500">
                                                                         {task.completedAt && (
-                                                                            <span className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-green-600"/> Completed: {new Date(task.completedAt).toLocaleDateString()}</span>
+                                                                            <span className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-primary-600"/> Completed: {new Date(task.completedAt).toLocaleDateString()}</span>
                                                                         )}
                                                                         {task.deadlineDateStr && (
                                                                             <span className="flex items-center gap-1.5"><Clock size={12}/> Due: {new Date(task.deadlineDateStr).toLocaleDateString()}</span>
@@ -1981,13 +1981,13 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
             />
 
             {selectedTaskIds.size > 0 && !isReadOnly && (
-                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
+                <div className="bulk-action-bar fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white dark:bg-slate-800 shadow-sm rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10 fade-in">
                     <span className="text-sm font-medium">{selectedTaskIds.size} selected</span>
                     <div className="w-px h-4 bg-slate-700"></div>
                     <button onClick={() => setReviewTasksModalOpen(true)} className="text-sm hover:text-blue-400 flex items-center gap-1 transition-colors">
                         <Bot size={16} /> Ask AI
                     </button>
-                    <button onClick={handleBulkComplete} className="text-sm hover:text-green-400 flex items-center gap-1 transition-colors">
+                    <button onClick={handleBulkComplete} className="text-sm hover:text-primary-400 flex items-center gap-1 transition-colors">
                         <CheckCircle2 size={16} /> Mark Completed
                     </button>
                     <button onClick={handleBulkDelete} className="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">

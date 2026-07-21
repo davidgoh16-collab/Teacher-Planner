@@ -74,7 +74,7 @@ const HomePage: React.FC<HomePageProps> = ({
           <button
             key={i}
             onClick={() => sendPrompt(p)}
-            className="text-xs font-medium px-3 py-2 rounded-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            className="text-xs font-medium px-3 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
           >
             {p}
           </button>
@@ -93,9 +93,9 @@ const HomePage: React.FC<HomePageProps> = ({
           </div>
         </main>
 
-        <aside className="lg:w-80 xl:w-96 shrink-0 lg:border-l border-gray-200 dark:border-slate-800 p-4 space-y-4 lg:h-full lg:overflow-y-auto">
+        <aside className="lg:w-80 xl:w-96 shrink-0 lg:border-l border-slate-200 dark:border-slate-800 p-4 space-y-4 lg:h-full lg:overflow-y-auto">
           {/* Today's Lessons — full vertical list (no horizontal scrolling) */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-soft">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><BookOpen size={15} className="text-primary-600 dark:text-primary-400" /> Today's Lessons</h3>
               <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{headerDate}</span>
@@ -112,7 +112,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   const className = l.subject;
                   const lessonTitle = l.title && l.title !== l.subject ? l.title : undefined;
                   return (
-                    <li key={i} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60">
+                    <li key={i} className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
                       <div className="flex items-center gap-2.5">
                         {l.hasPlan
                           ? <CheckCircle2 size={15} className="text-primary-500 shrink-0" />
@@ -162,7 +162,7 @@ const HomePage: React.FC<HomePageProps> = ({
           </div>
 
           {/* Today's Tasks — vertical list */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-soft">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><CheckCircle2 size={15} className="text-primary-600 dark:text-primary-400" /> Today's Tasks</h3>
               {overdueCount > 0 && (
@@ -185,7 +185,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   <li
                     key={t.id}
                     onClick={() => onOpenTask?.(t)}
-                    className={`flex items-start gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 ${onOpenTask ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors' : ''}`}
+                    className={`flex items-start gap-2.5 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 ${onOpenTask ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' : ''}`}
                   >
                     <button
                       onClick={(e) => onToggleTask?.(e, t)}
@@ -203,7 +203,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
             {/* Overdue tasks — collapsible */}
             {overdueCount > 0 && showOverdue && (
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+              <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5 mb-2">
                   <AlertTriangle size={12} /> Overdue ({overdueCount})
                 </h4>
@@ -238,13 +238,13 @@ const HomePage: React.FC<HomePageProps> = ({
           <BriefingPanel tasks={globalTasks} todaysLessons={todaysLessons} upcomingKeyDates={upcomingKeyDates} />
 
           {/* Favourite apps */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-4 shadow-soft">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-soft">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-sm"><Star size={15} className="text-amber-500" /> Favourite Apps</h3>
               <button onClick={() => onNavigate('apps')} className="text-xs text-primary-600 dark:text-primary-400 hover:underline">Manage</button>
             </div>
             {favouriteApps.length === 0 ? (
-              <button onClick={() => onNavigate('apps')} className="w-full text-sm text-slate-400 dark:text-slate-500 flex flex-col items-center gap-2 py-5 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              <button onClick={() => onNavigate('apps')} className="w-full text-sm text-slate-400 dark:text-slate-500 flex flex-col items-center gap-2 py-5 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                 <Plus size={20} /> Pin apps from the Apps page
               </button>
             ) : (
@@ -256,7 +256,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   </button>
                 ))}
                 <button onClick={() => onNavigate('apps')} className="flex flex-col items-center gap-1.5 group" title="Add app">
-                  <div className="w-11 h-11 rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:border-primary-400 group-hover:text-primary-500 transition-colors">
+                  <div className="w-11 h-11 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:border-primary-400 group-hover:text-primary-500 transition-colors">
                     <Plus size={18} />
                   </div>
                   <span className="text-[10px] text-slate-500">Add</span>

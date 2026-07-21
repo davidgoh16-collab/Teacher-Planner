@@ -40,7 +40,7 @@ const AppsHub: React.FC<AppsHubProps> = ({ isReadOnly, apps, categories, onSaveA
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-950 p-4 md:p-8 animate-in fade-in duration-300">
+    <div className="flex flex-col h-full p-4 md:p-8 animate-in fade-in duration-300">
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>

@@ -111,11 +111,11 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
           <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
             <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <LayoutGrid className="text-green-600 dark:text-green-400" />
+              <LayoutGrid className="text-primary-600 dark:text-primary-400" />
               {initialData ? 'Edit App' : 'Add New App'}
             </h2>
             <button
@@ -137,7 +137,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                       placeholder="e.g. Google Drive"
                       autoFocus
                   />
@@ -150,7 +150,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                       required
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                       placeholder="e.g. https://drive.google.com"
                   />
               </div>
@@ -160,7 +160,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">None (Uncategorized)</option>
                   {categories.map(cat => (
@@ -175,13 +175,13 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Icon Choice</label>
 
               <div className="flex gap-4">
-                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${iconType === 'preset' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${iconType === 'preset' ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                       <input type="radio" name="iconType" value="preset" checked={iconType === 'preset'} onChange={() => setIconType('preset')} className="hidden" />
                       <LayoutGrid size={18} />
                       <span className="font-medium text-sm">Preset Icon</span>
                   </label>
 
-                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${iconType === 'imageUrl' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${iconType === 'imageUrl' ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                       <input type="radio" name="iconType" value="imageUrl" checked={iconType === 'imageUrl'} onChange={() => setIconType('imageUrl')} className="hidden" />
                       <Image size={18} />
                       <span className="font-medium text-sm">Image URL</span>
@@ -201,7 +201,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                                       key={iconName}
                                       type="button"
                                       onClick={() => setIconValue(iconName)}
-                                      className={`p-2 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-green-600 text-white shadow-md scale-110' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}
+                                      className={`p-2 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-primary-600 text-white shadow-md scale-110' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}
                                       title={iconName}
                                   >
                                       <IconComponent size={20} />
@@ -216,7 +216,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                           type="text"
                           value={iconValue}
                           onChange={(e) => setIconValue(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
                           placeholder="https://example.com/icon.png"
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Provide a direct link to an image (PNG, JPG, SVG, etc.). For best results, use a square image.</p>
@@ -233,7 +233,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                   key={color.class}
                   type="button"
                   onClick={(e) => { e.preventDefault(); setColorClass(color.class); }}
-                  className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${colorClass === color.class ? 'ring-2 ring-offset-2 ring-green-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                  className={`w-8 h-8 rounded-full border-2 ${color.class.split(' ')[0]} ${colorClass === color.class ? 'ring-2 ring-offset-2 ring-primary-500 border-transparent dark:ring-offset-slate-900' : 'border-transparent opacity-80 hover:opacity-100'}`}
                   title={color.label}
                 />
               ))}
@@ -264,7 +264,7 @@ const AppModal: React.FC<AppModalProps> = ({ isOpen, onClose, initialData, onSav
                 <button
                     type="submit"
                     disabled={!name.trim() || !url.trim()}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                 >
                     <Save size={16} /> Save App
                 </button>
