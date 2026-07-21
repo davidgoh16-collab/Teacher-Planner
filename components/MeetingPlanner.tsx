@@ -584,7 +584,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
       {/* View Timetable Modal */}
       {viewingColleague && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setViewingColleague(null)}>
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-4 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <FileText size={20} className="text-primary-600 dark:text-primary-400" />

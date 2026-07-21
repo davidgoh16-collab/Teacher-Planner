@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Loader2, Check, Trash2, UserPlus, Copy, Send } from 'lucide-react';
+import { Mail, Loader2, Check, Trash2, UserPlus, Copy, Send } from 'lucide-react';
+import Sheet from './ui/Sheet';
 import {
   Share, ShareType, SharePermission,
   createShare, listSharesByMe, revokeShare, setSharePermission,
@@ -97,19 +98,13 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-          <div>
-            <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Share {type === 'timetable' ? 'timetable' : 'project'}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[20rem]">{resourceName}</p>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
+    <Sheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Share ${type === 'timetable' ? 'timetable' : 'project'}`}
+      subtitle={resourceName}
+    >
+        <div className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Invite by email</label>
             <div className="relative">
@@ -119,7 +114,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@school.uk"
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-sm focus:outline-none focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
 
@@ -210,8 +205,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, owner, type,
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 };
 

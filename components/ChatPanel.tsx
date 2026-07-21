@@ -280,7 +280,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       ? 'flex flex-col h-full w-full bg-white dark:bg-slate-900 overflow-hidden'
       : layout === 'fullscreen' || isFullScreen
         ? 'fixed inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col'
-        : 'w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-sm flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden';
+        : 'w-96 max-w-[90vw] h-[500px] max-h-[70vh] bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden';
 
   return (
     <div className={rootClass}>

@@ -59,7 +59,7 @@ const AppsHub: React.FC<AppsHubProps> = ({ isReadOnly, apps, categories, onSaveA
                     placeholder="Search apps..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 w-full md:w-64"
+                    className="pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 w-full md:w-64"
                 />
             </div>
 

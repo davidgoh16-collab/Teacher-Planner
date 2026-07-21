@@ -2781,22 +2781,22 @@ const App: React.FC = () => {
       />
       
       {isCalendarOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-4 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-              <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4 backdrop-blur-[2px]">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <CalendarDays size={20} className="text-primary-600 dark:text-primary-400" />
                 School Calendar
               </h2>
-              <button 
-                onClick={() => setIsCalendarOpen(false)} 
-                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400"
+              <button
+                onClick={() => setIsCalendarOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition-colors"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             <div className="flex-1 bg-white relative">
-              <iframe 
+              <iframe
                 src="https://outlook.office365.com/owa/calendar/c4d9729873e4455aa6f874ce73e7cbaf@thamesview.kent.sch.uk/cba66eaff3b747aa8f6a37a9c9b8c03514736536730011714319/calendar.html"
                 className="w-full h-full border-0"
                 title="School Calendar"

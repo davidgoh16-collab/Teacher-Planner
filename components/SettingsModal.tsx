@@ -326,7 +326,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
 
         <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
@@ -506,7 +506,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                       value={termUrl}
                       onChange={(e) => setTermUrl(e.target.value)}
                       placeholder="https://yourschool.sch.uk/term-dates"
-                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                      className="flex-1 min-w-[220px] bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                     />
                     <button
                       onClick={handleImportTermsFromUrl}
@@ -551,7 +551,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={toISODate(term.startDate)}
                         onChange={(e) => updateTerm(term.id, 'startDate', new Date(e.target.value))}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -561,7 +561,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={toISODate(term.endDate)}
                         onChange={(e) => updateTerm(term.id, 'endDate', new Date(e.target.value))}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -572,7 +572,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={term.halfTermStart ? toISODate(term.halfTermStart) : ''}
                         onChange={(e) => updateTerm(term.id, 'halfTermStart', e.target.value ? new Date(e.target.value) : undefined)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>
@@ -582,7 +582,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                         type="date"
                         value={term.halfTermEnd ? toISODate(term.halfTermEnd) : ''}
                         onChange={(e) => updateTerm(term.id, 'halfTermEnd', e.target.value ? new Date(e.target.value) : undefined)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white"
                         disabled={isReadOnly}
                       />
                     </div>

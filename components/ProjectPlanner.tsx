@@ -553,16 +553,16 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
             {/* View Toggle */}
-            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg shrink-0 w-full sm:w-auto overflow-x-auto">
+            <div className="flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-lg shrink-0 w-full sm:w-auto overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('projects')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'projects' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'projects' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Briefcase size={16} className="shrink-0" /> Projects
                 </button>
                 <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'tasks' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <Clock size={16} className="shrink-0" /> Tasks
                 </button>
@@ -574,7 +574,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                 </button>
                 <button
                     onClick={() => setActiveTab('routines')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'routines' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap ${activeTab === 'routines' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     <RotateCw size={16} className="shrink-0" /> Routines
                 </button>
@@ -584,7 +584,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
 
             <button
                 onClick={() => setIsManageCategoriesOpen(true)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 rounded-lg transition-colors shadow-sm hover:shadow"
+                className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] px-3 py-2 rounded-lg transition-colors shadow-sm hover:shadow"
             >
                 <Settings size={16} /> <span className="hidden sm:inline">Categories</span>
             </button>
@@ -628,7 +628,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                             placeholder="Search..."
                             value={projectSearchQuery}
                             onChange={(e) => setProjectSearchQuery(e.target.value)}
-                            className="w-40 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 shadow-sm"
+                            className="w-40 bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 shadow-sm"
                         />
                     </div>
                     <div className="relative shrink-0">
@@ -636,7 +636,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                         <select
                             value={selectedProjectCategory}
                             onChange={(e) => setSelectedProjectCategory(e.target.value)}
-                            className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 shadow-sm cursor-pointer"
+                            className="appearance-none bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg pl-9 pr-8 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 shadow-sm cursor-pointer"
                         >
                             <option value="All">All Categories</option>
                             {projectCategories.map(cat => (
@@ -654,7 +654,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
       ) : activeTab === 'ideas' ? (
-        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="flex flex-col flex-1 h-full min-h-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Lightbulb className="text-amber-500" /> Global Ideas & Notes
@@ -994,7 +994,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
       {/* Create Project Modal */}
       {isCreateProjectOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
                 <form onSubmit={handleCreateProject}>
                     <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                         <h2 className="text-xl font-bold text-slate-800 dark:text-white">Create New Project</h2>
@@ -1015,7 +1015,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                                 required
                                 value={newProjectName}
                                 onChange={(e) => setNewProjectName(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                 placeholder="e.g. End of Year Play"
                                 autoFocus
                             />
@@ -1026,7 +1026,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                             <select
                                 value={newProjectCategory}
                                 onChange={(e) => setNewProjectCategory(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                                 <option value="">No Category</option>
                                 {projectCategories.map(cat => (
@@ -1040,7 +1040,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
                             <textarea
                                 value={newProjectDesc}
                                 onChange={(e) => setNewProjectDesc(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-y"
+                                className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[100px] resize-y"
                                 placeholder="Briefly describe the project goals..."
                             />
                         </div>

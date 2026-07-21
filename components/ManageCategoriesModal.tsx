@@ -111,7 +111,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
         {/* Header */}
         <div className="px-6 py-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
@@ -145,7 +145,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                         required
                         value={newCatName}
                         onChange={(e) => setNewCatName(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                         placeholder="e.g. Extra-curricular"
                       />
                     </div>
@@ -154,7 +154,7 @@ const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({ isOpen, o
                       <select
                         value={newCatType}
                         onChange={(e) => setNewCatType(e.target.value as 'project' | 'task')}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                       >
                         <option value="project">Project Category</option>
                         <option value="task">Task Category</option>

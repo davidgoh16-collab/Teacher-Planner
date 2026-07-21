@@ -1112,7 +1112,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         type="text"
                                         value={editName}
                                         onChange={(e) => setEditName(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         required
                                     />
                                 </div>
@@ -1133,7 +1133,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     <textarea
                                         value={editDesc}
                                         onChange={(e) => setEditDesc(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[100px] text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm min-h-[100px] text-slate-900 dark:text-white"
                                         placeholder="Add notes or a description here..."
                                     />
                                 </div>
@@ -1142,7 +1142,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     <select
                                         value={editCategory}
                                         onChange={(e) => setEditCategory(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="">No Category</option>
                                         {allCategories.filter(c => c.type === 'project').map(c => (
@@ -1268,7 +1268,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                     {/* Tasks Section */}
                     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
 
-                        <div className="p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
+                        <div className="p-4 md:p-6 border-b border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center">
                             <div className="flex flex-wrap items-center gap-4">
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -1277,10 +1277,10 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                     <p className="text-xs text-slate-500 mt-0.5">{tasks.length} tasks • {ideas.length} ideas</p>
                                 </div>
 
-                                <div className="hidden sm:flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
-                                    <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
-                                    <button onClick={() => setViewMode('matrix')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                                    <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                <div className="hidden sm:flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-lg">
+                                    <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
+                                    <button onClick={() => setViewMode('matrix')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                                    <button onClick={() => setViewMode('timeline')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                                     <button onClick={() => setViewMode('ideas')} className={`px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
                                         <Lightbulb size={12} /> Ideas
                                     </button>
@@ -1303,10 +1303,10 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         </select>
                                     </div>
                                 )}
-                                <div className="sm:hidden flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg flex-wrap">
-                                    <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
-                                    <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
-                                    <button onClick={() => setViewMode('timeline')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
+                                <div className="sm:hidden flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-lg flex-wrap">
+                                    <button onClick={() => setViewMode('list')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>List</button>
+                                    <button onClick={() => setViewMode('matrix')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'matrix' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Matrix</button>
+                                    <button onClick={() => setViewMode('timeline')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Timeline</button>
                                     <button onClick={() => setViewMode('ideas')} className={`px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
                                         <Lightbulb size={10} />
                                     </button>
@@ -1364,7 +1364,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             required
                                             placeholder="What needs to be done?"
                                             autoFocus
-                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                            className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                     <div>
@@ -1373,13 +1373,13 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             value={newTaskDescription}
                                             onChange={(e) => setNewTaskDescription(e.target.value)}
                                             placeholder="Add details, notes, or steps..."
-                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[80px]"
+                                            className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[80px]"
                                         />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
-                                            <select value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as any)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                            <select value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as any)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                                 <option value="High">High Priority</option>
                                                 <option value="Medium">Medium Priority</option>
                                                 <option value="Low">Low Priority</option>
@@ -1387,18 +1387,18 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-                                            <select value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                            <select value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                                 <option value="">None</option>
                                                 {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                             </select>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Scheduled Date</label>
-                                            <input type="date" value={newTaskScheduled} onChange={(e) => setNewTaskScheduled(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                            <input type="date" value={newTaskScheduled} onChange={(e) => setNewTaskScheduled(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Deadline</label>
-                                            <input type="date" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                            <input type="date" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                                         </div>
                                     </div>
                                     <div className="flex justify-end pt-2">
@@ -1441,7 +1441,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                             name="ideaInput"
                                             type="text"
                                             placeholder="Jot down a new idea for this project..."
-                                            className="flex-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500"
+                                            className="flex-1 bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                                             autoComplete="off"
                                         />
                                         <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
@@ -1683,7 +1683,7 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                             required
                                                                             placeholder="What needs to be done?"
                                                                             autoFocus
-                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                                                            className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -1692,13 +1692,13 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                             value={newSubtaskDescription}
                                                                             onChange={(e) => setNewSubtaskDescription(e.target.value)}
                                                                             placeholder="Add details, notes, or steps..."
-                                                                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[60px]"
+                                                                            className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px]"
                                                                         />
                                                                     </div>
                                                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                                         <div>
                                                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority</label>
-                                                                            <select value={newSubtaskPriority} onChange={(e) => setNewSubtaskPriority(e.target.value as any)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                                                            <select value={newSubtaskPriority} onChange={(e) => setNewSubtaskPriority(e.target.value as any)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                                                                 <option value="High">High Priority</option>
                                                                                 <option value="Medium">Medium Priority</option>
                                                                                 <option value="Low">Low Priority</option>
@@ -1706,18 +1706,18 @@ export default function ProjectView({ project, allProjects, allCategories, allTa
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
-                                                                            <select value={newSubtaskCategory} onChange={(e) => setNewSubtaskCategory(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
+                                                                            <select value={newSubtaskCategory} onChange={(e) => setNewSubtaskCategory(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                                                                 <option value="">None</option>
                                                                                 {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                                             </select>
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Scheduled</label>
-                                                                            <input type="date" value={newSubtaskScheduled} onChange={(e) => setNewSubtaskScheduled(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                                                            <input type="date" value={newSubtaskScheduled} onChange={(e) => setNewSubtaskScheduled(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Deadline</label>
-                                                                            <input type="date" value={newSubtaskDeadline} onChange={(e) => setNewSubtaskDeadline(e.target.value)} className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
+                                                                            <input type="date" value={newSubtaskDeadline} onChange={(e) => setNewSubtaskDeadline(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex justify-end gap-2 pt-2">

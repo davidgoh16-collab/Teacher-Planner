@@ -340,7 +340,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                   placeholder="e.g., Parent Teacher Evening"
                   autoFocus
                 />
@@ -356,7 +356,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                     type="date"
                     value={dateStr}
                     onChange={(e) => setDateStr(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
                 <div>
@@ -371,7 +371,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                        setTime(e.target.value);
                        if(e.target.value) setIsAllDay(false);
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
                     disabled={isAllDay}
                   />
                 </div>
@@ -401,7 +401,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   id="keyDateNotes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white min-h-[80px]"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-slate-700 dark:text-white min-h-[80px]"
                   placeholder="Additional details..."
                 />
               </div>
@@ -414,7 +414,7 @@ const KeyDatesView: React.FC<KeyDatesViewProps> = ({
                   id="keyDateCategory"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">None</option>
                   {categories.map(cat => (

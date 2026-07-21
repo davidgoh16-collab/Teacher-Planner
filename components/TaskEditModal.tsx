@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Category, Project } from '../types';
-import { X } from 'lucide-react';
+import Sheet from './ui/Sheet';
 
 interface TaskEditModalProps {
     projects?: Project[];
@@ -62,16 +62,30 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-lg overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Edit {task.subtasks ? 'Task' : 'Subtask'}</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-                        <X size={20} />
+        <Sheet
+            isOpen={isOpen}
+            onClose={onClose}
+            title={`Edit ${task.subtasks ? 'Task' : 'Subtask'}`}
+            footer={
+                <div className="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        form="editTaskForm"
+                        disabled={!title.trim()}
+                        className="px-5 py-2 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                    >
+                        Save Changes
                     </button>
                 </div>
-
-                <div className="p-6 overflow-y-auto max-h-[70vh]">
+            }
+        >
                     <form id="editTaskForm" onSubmit={handleSave} className="space-y-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Title *</label>
@@ -80,7 +94,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 required
-                                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                             />
                         </div>
                         <div>
@@ -88,7 +102,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[100px]"
+                                className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[100px]"
                             />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -99,7 +113,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                     <select
                                         value={projectId}
                                         onChange={(e) => setProjectId(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="">General (No Project)</option>
                                         {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -112,7 +126,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                 <select
                                     value={priority}
                                     onChange={(e) => setPriority(e.target.value as any)}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 >
                                     <option value="High">High</option>
                                     <option value="Medium">Medium</option>
@@ -124,7 +138,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                 <select
                                     value={categoryId}
                                     onChange={(e) => setCategoryId(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 >
                                     <option value="">None</option>
                                     {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -136,7 +150,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                     type="date"
                                     value={scheduledDateStr}
                                     onChange={(e) => setScheduledDateStr(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 />
                             </div>
                             <div>
@@ -145,7 +159,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                     type="date"
                                     value={deadlineDateStr}
                                     onChange={(e) => setDeadlineDateStr(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 />
                             </div>
 
@@ -157,7 +171,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                         setRecurrenceType(e.target.value as any);
                                         if (e.target.value !== 'weekly') setRecurrenceDays([]);
                                     }}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 >
                                     <option value="none">Does not repeat</option>
                                     <option value="daily">Daily</option>
@@ -181,7 +195,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                                                     setRecurrenceDays([...recurrenceDays, idx]);
                                                 }
                                             }}
-                                            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${recurrenceDays.includes(idx) ? 'bg-primary-500 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${recurrenceDays.includes(idx) ? 'bg-primary-500 text-white' : 'bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                         >
                                             {day}
                                         </button>
@@ -190,27 +204,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ isOpen, onClose, task, ca
                             </div>
                         )}
                     </form>
-                </div>
-
-                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-end gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        form="editTaskForm"
-                        disabled={!title.trim()}
-                        className="px-5 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
-                    >
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
+        </Sheet>
     );
 };
 

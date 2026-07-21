@@ -426,7 +426,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-200">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors duration-200">
         
         {/* Header */}
         <div className={`px-6 py-4 flex justify-between items-center text-white border-b transition-colors ${headerBgColor}`}>
@@ -468,7 +468,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                               <select 
                                   value={classFilter} 
                                   onChange={(e) => setClassFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                               >
                                   <option value="All">All Classes</option>
                                   {uniqueSubjects.map(subj => (
@@ -487,7 +487,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                               <select 
                                   value={monthFilter} 
                                   onChange={(e) => setMonthFilter(e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary-500 outline-none transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                               >
                                   <option value="All">All Months</option>
                                   {uniqueMonths.map(m => (
@@ -667,7 +667,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     </label>
                     <input
                     type="text"
-                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:ring-2 focus:ring-primary-500 focus:border-primary-500'}`}
+                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500'}`}
                     placeholder={type === 'meeting' ? "e.g. Dept Performance Review" : "e.g. Introduction to Coastal Erosion"}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -717,7 +717,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         <div className="flex gap-2">
                             <input
                                 type="url"
-                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm placeholder-slate-400 dark:placeholder-slate-500"
+                                className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm placeholder-slate-400 dark:placeholder-slate-500"
                                 placeholder="https://meet.google.com/..."
                                 value={currentLinkInput}
                                 onChange={(e) => setCurrentLinkInput(e.target.value)}
@@ -773,7 +773,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     )}
 
                     <textarea
-                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:ring-2 focus:ring-primary-500 focus:border-primary-500'}`}
+                    className={`w-full px-4 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg outline-none transition-all h-32 resize-none placeholder-slate-400 dark:placeholder-slate-500 ${isReadOnly ? 'bg-slate-50 text-slate-600 dark:text-slate-300' : 'focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500'}`}
                     placeholder={type === 'meeting' ? "Minutes, action items..." : "Don't forget to collect homework..."}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}

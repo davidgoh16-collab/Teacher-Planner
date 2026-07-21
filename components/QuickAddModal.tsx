@@ -172,18 +172,18 @@ const handleSaveTask = (e: React.FormEvent) => {
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-lg overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-                    <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-lg overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center">
+                    <div className="flex bg-slate-100 dark:bg-slate-700/60 p-1 rounded-lg">
                         <button
                             onClick={() => setActiveTab('task')}
-                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'task' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'task' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             Quick Add Task
                         </button>
                         <button
                             onClick={() => setActiveTab('idea')}
-                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'idea' ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${activeTab === 'idea' ? 'bg-white dark:bg-slate-600 text-primary-700 dark:text-primary-200 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             Jot an Idea
                         </button>
@@ -274,7 +274,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     required
                                     autoFocus
                                     placeholder="What needs to be done?"
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                 />
                             </div>
                             <div>
@@ -283,7 +283,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     value={taskDescription}
                                     onChange={(e) => setTaskDescription(e.target.value)}
                                     placeholder="Add details, notes, or steps..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[80px]"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[80px]"
                                 />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -304,7 +304,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                             // If a General Tasks project exists, select it by default, otherwise reset
                                             setTaskProjectId(newGeneralTasksProject ? newGeneralTasksProject.id : '');
                                         }}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="">None</option>
                                         {taskCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -315,7 +315,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     <select
                                         value={taskProjectId}
                                         onChange={(e) => setTaskProjectId(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="">
                                             {selectedCategory ? 'No Specific Project' : 'No Project (Global Task)'}
@@ -334,7 +334,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     <select
                                         value={taskPriority}
                                         onChange={(e) => setTaskPriority(e.target.value as any)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     >
                                         <option value="High">High</option>
                                         <option value="Medium">Medium</option>
@@ -347,7 +347,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                         type="date"
                                         value={taskScheduledDateStr}
                                         onChange={(e) => setTaskScheduledDateStr(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     />
                                 </div>
                                 <div className="md:col-span-2">
@@ -356,7 +356,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                         type="date"
                                         value={taskDeadlineDateStr}
                                         onChange={(e) => setTaskDeadlineDateStr(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                     />
                                 </div>
                             </div>
@@ -371,7 +371,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                     required
                                     autoFocus
                                     placeholder="Write down a quick thought or idea..."
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 min-h-[120px]"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[120px]"
                                 />
                             </div>
                             <div>
@@ -379,7 +379,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                                 <select
                                     value={ideaProjectId}
                                     onChange={(e) => setIdeaProjectId(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white"
                                 >
                                     <option value="">No Project (Global Idea)</option>
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -389,7 +389,7 @@ const handleSaveTask = (e: React.FormEvent) => {
                     )}
                 </div>
 
-                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-end gap-3">
+                <div className="px-6 py-4 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-end gap-3">
                     <button
                         type="button"
                         onClick={handleClose}

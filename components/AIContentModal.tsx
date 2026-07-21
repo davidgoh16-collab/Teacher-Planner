@@ -215,10 +215,10 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50 shrink-0">
+                <div className="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center shrink-0">
                     <div>
                         <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                             <Bot size={20} className="text-blue-500" />
@@ -329,7 +329,7 @@ export default function AIContentModal({ isOpen, onClose, content, title, onSave
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center shrink-0">
+                <div className="px-6 py-4 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center shrink-0">
                     <div className="flex gap-2">
                         <button
                             onClick={() => navigator.clipboard.writeText(editedContent)}

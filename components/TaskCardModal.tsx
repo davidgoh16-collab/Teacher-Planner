@@ -61,10 +61,10 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start bg-slate-50 dark:bg-slate-950/50">
+                <div className="px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.08] flex justify-between items-start">
                     <div className="flex items-start gap-4">
                         <button
                             onClick={() => onTaskStatusChange(task)}
@@ -199,7 +199,7 @@ const TaskCardModal: React.FC<TaskCardModalProps> = ({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center gap-3">
+                <div className="px-6 py-4 border-t border-black/[0.06] dark:border-white/[0.08] flex justify-between items-center gap-3">
                     <div className="text-xs text-slate-400">
                         Created: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'Unknown'}
                     </div>

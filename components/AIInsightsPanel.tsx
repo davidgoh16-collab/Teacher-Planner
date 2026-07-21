@@ -230,7 +230,7 @@ export default function AIInsightsPanel({ contextType, tasks, project, isReadOnl
             {/* Generated Content Modal */}
             {isGenerating ? (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-md p-6 flex flex-col items-center justify-center text-slate-500 space-y-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-md p-6 flex flex-col items-center justify-center text-slate-500 space-y-4">
                         <Loader2 size={32} className="animate-spin text-blue-500" />
                         <p className="text-sm font-medium">Generating content based on "{generatingAction?.title}"...</p>
                     </div>

@@ -221,7 +221,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
           ) : (
             <div className="flex gap-2 flex-wrap">
               <input value={yearName} onChange={(e) => setYearName(e.target.value)} placeholder="2025/2026"
-                className="flex-1 min-w-[160px] bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
+                className="flex-1 min-w-[160px] bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
               <button onClick={handleCreateYear} disabled={creatingYear || !yearName.trim()}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                 {creatingYear ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Create
@@ -241,7 +241,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
             <>
               <div className="flex gap-2 flex-wrap">
                 <input type="url" value={termUrl} onChange={(e) => setTermUrl(e.target.value)} placeholder="https://yourschool.sch.uk/term-dates"
-                  className="flex-1 min-w-[200px] bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
+                  className="flex-1 min-w-[200px] bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-white" />
                 <button onClick={handleImportTerms} disabled={importingTerms || !termUrl.trim()}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                   {importingTerms ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />} Import
@@ -346,7 +346,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden animate-in">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] border border-slate-100 dark:border-slate-800 overflow-hidden animate-in">
         <div className="bg-slate-900 dark:bg-slate-950 px-6 py-5 flex items-center gap-3 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 via-primary-500 to-primary-700" />
           <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-primary-600 text-white shrink-0">{current.icon}</div>

@@ -679,7 +679,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({
   return (
     <>
       {isActive && createPortal(
-        <div className="fixed top-24 right-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-4 border border-primary-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[9999]">
+        <div className="fixed top-24 right-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] p-4 border border-primary-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300 w-72 z-[9999]">
           <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

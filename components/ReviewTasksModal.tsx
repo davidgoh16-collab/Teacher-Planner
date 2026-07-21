@@ -339,7 +339,7 @@ export default function ReviewTasksModal({ isOpen, onClose, tasks, actionType = 
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="bg-slate-100 dark:bg-slate-800 p-4 flex justify-between items-center shrink-0 border-b border-slate-200 dark:border-slate-700 z-10">

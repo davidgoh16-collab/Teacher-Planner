@@ -155,7 +155,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-black/[0.06] dark:border-white/[0.08] w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="px-6 py-4 flex justify-between items-center bg-gradient-to-r from-primary-600 to-primary-600 text-white shrink-0">
@@ -183,7 +183,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                             onChange={(e) => setPrompt(e.target.value)}
                             autoFocus
                             placeholder={"e.g. I need to organise the Year 8 parents' evening for the end of term — book the hall, send invites to parents, arrange the room layout, brief staff, and prepare a feedback form."}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500 min-h-[160px] resize-y text-slate-900 dark:text-white"
+                            className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[160px] resize-y text-slate-900 dark:text-white"
                             disabled={isGenerating}
                         />
                         <div className="flex justify-end">
@@ -206,7 +206,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                     type="text"
                                     value={projectName}
                                     onChange={(e) => setProjectName(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                 />
                             </div>
 
@@ -217,7 +217,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                     <textarea
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 min-h-[60px] resize-y focus:ring-2 focus:ring-primary-500"
+                                        className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 min-h-[60px] resize-y focus:outline-none focus:ring-1 focus:ring-primary-500"
                                     />
                                 </div>
                             )}
@@ -228,7 +228,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                 <select
                                     value={categoryChoice}
                                     onChange={(e) => setCategoryChoice(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                    className="w-full bg-white dark:bg-slate-800 border border-black/[0.08] dark:border-white/[0.1] rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                 >
                                     <option value="">No category</option>
                                     {projectCategories.map(c => (
@@ -243,7 +243,7 @@ const VibeProjectModal: React.FC<VibeProjectModalProps> = ({ isOpen, onClose, ca
                                             type="text"
                                             value={newCatName}
                                             onChange={(e) => setNewCatName(e.target.value)}
-                                            className="flex-1 bg-white dark:bg-slate-950 border border-primary-300 dark:border-primary-800 rounded-lg px-2.5 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                            className="flex-1 bg-white dark:bg-slate-950 border border-primary-300 dark:border-primary-800 rounded-lg px-2.5 py-1.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                                         />
                                     </div>
                                 )}
