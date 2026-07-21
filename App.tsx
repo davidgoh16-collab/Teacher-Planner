@@ -26,7 +26,7 @@ import {
   getMonday
 } from './utils/dateUtils';
 import { getContrastTextColor, getEntryStyle, getEntryClassName } from './utils/colorUtils';
-import { applyThemeColor, DEFAULT_THEME_COLOR } from './utils/themeColor';
+import { applyThemeColor, DEFAULT_THEME_COLOR, LEGACY_DEFAULT_THEME_COLOR, OWNER_THEME_COLOR } from './utils/themeColor';
 import LessonModal from './components/LessonModal';
 import TaskEditModal from './components/TaskEditModal';
 import ChatLauncher from './components/layout/ChatLauncher';
@@ -42,7 +42,7 @@ import AppsHub from './components/AppsHub';
 import GlobalSearch from './components/GlobalSearch';
 import KeyDatesView from './components/KeyDatesView';
 import { fetchLessonPlans, saveLessonPlan, deleteLessonPlan } from './services/lessonService';
-import { bootstrapUser } from './services/migrationService';
+import { bootstrapUser, LEGACY_OWNER_UID } from './services/migrationService';
 import { getProfile, updatePreferences, UserProfile } from './services/userService';
 import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCategories, saveIdea, fetchIdeas, fetchRoutineTasks, saveRoutineTask, fetchKeyDates, saveKeyDate, deleteKeyDate } from './services/projectService';
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
@@ -136,7 +136,12 @@ const App: React.FC = () => {
   });
   // App-wide accent colour (Pillar 3). Seeded from localStorage for instant paint, then synced
   // from the user's Firestore preferences after login.
-  const [themeColor, setThemeColor] = useState<string>(() => localStorage.getItem('eduPlan_themeColor') || DEFAULT_THEME_COLOR);
+  const [themeColor, setThemeColor] = useState<string>(() => {
+    const stored = localStorage.getItem('eduPlan_themeColor');
+    // Retired default green maps to the new default; per-user (owner sage) mapping happens on profile load.
+    if (!stored || stored === LEGACY_DEFAULT_THEME_COLOR) return DEFAULT_THEME_COLOR;
+    return stored;
+  });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   
@@ -358,7 +363,16 @@ const App: React.FC = () => {
         const prof = await getProfile(user.uid);
         if (prof) {
           setProfile(prof);
-          if (prof.preferences?.themeColor) setThemeColor(prof.preferences.themeColor);
+          const storedAccent = prof.preferences?.themeColor;
+          if (user.uid === LEGACY_OWNER_UID && (!storedAccent || storedAccent === LEGACY_DEFAULT_THEME_COLOR)) {
+            // Owner migration: old brand green (or nothing) -> personal sage accent.
+            setThemeColor(OWNER_THEME_COLOR);
+          } else if (storedAccent === LEGACY_DEFAULT_THEME_COLOR) {
+            // Retired default green for everyone else -> new default.
+            setThemeColor(DEFAULT_THEME_COLOR);
+          } else if (storedAccent) {
+            setThemeColor(storedAccent);
+          }
           setShowOnboarding(!prof.preferences?.onboardingComplete);
         }
         const [plans, tasks, projs, cats, routines, fetchedIdeas, fetchedApps, fetchedAppCategories, fetchedKeyDates] = await Promise.all([
@@ -2711,6 +2725,7 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         isReadOnly={actualIsReadOnly}
         themeColor={themeColor}
+        userUid={user?.uid}
         onThemeColorChange={handleSetThemeColor}
         onReplayOnboarding={() => { setIsSettingsOpen(false); setShowOnboarding(true); }}
         initialTab={settingsInitialTab}
@@ -2720,6 +2735,7 @@ const App: React.FC = () => {
         isOpen={showOnboarding && !!user}
         userName={profile?.displayName || user?.displayName || undefined}
         themeColor={themeColor}
+        userUid={user?.uid}
         onThemeColorChange={handleSetThemeColor}
         onFinish={handleFinishOnboarding}
       />

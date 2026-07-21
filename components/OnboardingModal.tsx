@@ -3,7 +3,7 @@ import {
   Sparkles, Palette, ArrowRight, ArrowLeft, Check, CalendarRange, CalendarDays,
   UploadCloud, GraduationCap, Users, Link2, Rocket, Loader2, Plus,
 } from 'lucide-react';
-import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
+import { getThemePresets, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
 import { usePlannerData } from '../src/context/PlannerContext';
 import { saveAcademicYear, saveTerm, saveTimetable } from '../services/plannerDataService';
 import { extractTermsFromUrl } from '../services/termImportService';
@@ -17,6 +17,7 @@ interface OnboardingModalProps {
   isOpen: boolean;
   userName?: string;
   themeColor: string;
+  userUid?: string;
   onThemeColorChange: (hex: string) => void;
   onFinish: () => void;
 }
@@ -32,7 +33,7 @@ const StepDot: React.FC<{ active: boolean; done: boolean }> = ({ active, done })
   <span className={`h-1.5 rounded-full transition-all ${active ? 'w-6 bg-primary-600' : done ? 'w-1.5 bg-primary-400' : 'w-1.5 bg-gray-300 dark:bg-slate-600'}`} />
 );
 
-const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, themeColor, onThemeColorChange, onFinish }) => {
+const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, themeColor, userUid, onThemeColorChange, onFinish }) => {
   const { academicYears, selectedAcademicYearId, setSelectedAcademicYearId, refreshPlannerData } = usePlannerData();
 
   const [step, setStep] = useState(0);
@@ -168,7 +169,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, userName, the
 
   const themePicker = (
     <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
-      {THEME_PRESETS.map(preset => {
+      {getThemePresets(userUid).map(preset => {
         const selected = (themeColor || DEFAULT_THEME_COLOR).toLowerCase() === preset.hex.toLowerCase();
         return (
           <button key={preset.hex} title={preset.name} onClick={() => onThemeColorChange(preset.hex)}

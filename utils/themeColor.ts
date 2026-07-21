@@ -6,21 +6,34 @@
  * usage across the app at runtime. From a single base colour we derive a full 50–950 ramp.
  */
 
-export const DEFAULT_THEME_COLOR = '#16a34a'; // brand green (matches the original primary-600)
+import { LEGACY_OWNER_UID } from '../services/migrationService';
 
-// A set of friendly presets offered in onboarding / settings.
+export const DEFAULT_THEME_COLOR = '#436d88'; // ocean (default accent for new users)
+
+/** Sage — the owner's personal brand colour, not offered to other accounts. */
+export const OWNER_THEME_COLOR = '#5d7752';
+export const SAGE_PRESET: { name: string; hex: string } = { name: 'Sage', hex: OWNER_THEME_COLOR };
+
+/** Legacy brand green — old accounts that never picked an accent still store this. */
+export const LEGACY_DEFAULT_THEME_COLOR = '#16a34a';
+
+// Muted, earthy presets offered in onboarding / settings.
 export const THEME_PRESETS: { name: string; hex: string }[] = [
-  { name: 'Green', hex: '#16a34a' },
-  { name: 'Blue', hex: '#2563eb' },
-  { name: 'Indigo', hex: '#4f46e5' },
-  { name: 'Violet', hex: '#7c3aed' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Orange', hex: '#ea580c' },
-  { name: 'Amber', hex: '#d97706' },
-  { name: 'Teal', hex: '#0d9488' },
-  { name: 'Cyan', hex: '#0891b2' },
-  { name: 'Slate', hex: '#475569' },
+  { name: 'Ocean', hex: '#436d88' },
+  { name: 'Teal', hex: '#5f8f8b' },
+  { name: 'Denim', hex: '#55628e' },
+  { name: 'Heather', hex: '#7f6d9e' },
+  { name: 'Plum', hex: '#8a5a6e' },
+  { name: 'Terracotta', hex: '#b3684e' },
+  { name: 'Clay', hex: '#b08968' },
+  { name: 'Ochre', hex: '#c1972f' },
+  { name: 'Rose', hex: '#a56a6a' },
+  { name: 'Slate', hex: '#5b6470' },
 ];
+
+/** Presets for a given user: everyone gets the muted set; the owner also gets Sage (first). */
+export const getThemePresets = (uid?: string | null): { name: string; hex: string }[] =>
+  uid === LEGACY_OWNER_UID ? [SAGE_PRESET, ...THEME_PRESETS] : THEME_PRESETS;
 
 // Target lightness for each Tailwind stop (0–1). Hue + saturation come from the chosen colour.
 const LIGHTNESS: Record<string, number> = {
@@ -73,11 +86,34 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   ];
 };
 
+/**
+ * Hand-tuned ramps that the HSL formula can't reproduce faithfully — the canonical
+ * sage scale shared with David's other apps sits darker/warmer than the formula's
+ * lightness targets would place it.
+ */
+const EXACT_SCALES: Record<string, Record<string, string>> = {
+  [OWNER_THEME_COLOR]: {
+    '50': '244 247 242',
+    '100': '230 237 226',
+    '200': '206 220 198',
+    '300': '173 194 162',
+    '400': '139 165 125',
+    '500': '121 148 110',
+    '600': '93 119 82',
+    '700': '74 95 66',
+    '800': '61 78 55',
+    '900': '51 64 46',
+    '950': '26 34 23',
+  },
+};
+
 /** Derive the 50–950 ramp from a base hex, as "R G B" channel strings for CSS vars. */
 export const deriveScale = (baseHex: string): Record<string, string> => {
+  const exact = EXACT_SCALES[(baseHex || '').toLowerCase()];
+  if (exact) return { ...exact };
   const rgb = hexToRgb(baseHex) || hexToRgb(DEFAULT_THEME_COLOR)!;
   const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-  const sat = Math.min(1, Math.max(0.32, s)); // keep enough tint even for muted inputs
+  const sat = Math.min(1, Math.max(0.1, s)); // low floor: muted presets must stay muted
   const scale: Record<string, string> = {};
   for (const [stop, lightness] of Object.entries(LIGHTNESS)) {
     const [r, g, b] = hslToRgb(h, sat, lightness);

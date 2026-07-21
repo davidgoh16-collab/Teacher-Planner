@@ -1,0 +1,97 @@
+/* Self-hosted fonts (offline-safe, matches Journal/Smart-Budget) */
+@import '@fontsource/inter/300.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/merriweather/400.css';
+@import '@fontsource/merriweather/700.css';
+@import '@fontsource/merriweather/400-italic.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default accent ramp (sage — David's brand). Overridden at runtime via utils/themeColor.ts
+   for users with their own accent preference. Channels are "R G B" for rgb(var(...)). */
+:root {
+  --primary-50: 244 247 242;
+  --primary-100: 230 237 226;
+  --primary-200: 206 220 198;
+  --primary-300: 173 194 162;
+  --primary-400: 139 165 125;
+  --primary-500: 121 148 110;
+  --primary-600: 93 119 82;
+  --primary-700: 74 95 66;
+  --primary-800: 61 78 55;
+  --primary-900: 51 64 46;
+  --primary-950: 26 34 23;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  overscroll-behavior-y: none;
+}
+
+/* Custom scrollbar for better aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Hide scrollbar (toolbars, chip rows) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Thin styled scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* Subtle enter animation for panels & modals using the `animate-in` class */
+@keyframes tp-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: tp-enter 0.2s ease-out both;
+}

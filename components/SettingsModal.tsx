@@ -11,19 +11,21 @@ import { TIMETABLE_ACCEPT, confirmScanConsent } from '../services/timetableImpor
 import { readFileContent } from '../utils/fileUtils';
 import ImportHelp from './ui/ImportHelp';
 import { PERIOD_LABELS, DAYS } from '../constants';
-import { THEME_PRESETS, DEFAULT_THEME_COLOR, isValidHex } from '../utils/themeColor';
+import { getThemePresets, DEFAULT_THEME_COLOR, OWNER_THEME_COLOR, isValidHex } from '../utils/themeColor';
+import { LEGACY_OWNER_UID } from '../services/migrationService';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   isReadOnly?: boolean;
   themeColor?: string;
+  userUid?: string;
   onThemeColorChange?: (hex: string) => void;
   onReplayOnboarding?: () => void;
   initialTab?: 'years' | 'terms' | 'timetables' | 'appearance';
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOnly, themeColor, onThemeColorChange, onReplayOnboarding, initialTab }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOnly, themeColor, userUid, onThemeColorChange, onReplayOnboarding, initialTab }) => {
   const { academicYears, selectedAcademicYearId, terms, timetableWeek1, timetableWeek2, refreshPlannerData, setSelectedAcademicYearId } = usePlannerData();
   const [activeTab, setActiveTab] = useState<'years' | 'terms' | 'timetables' | 'appearance'>('years');
 
@@ -371,7 +373,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
               </div>
 
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
-                {THEME_PRESETS.map(preset => {
+                {getThemePresets(userUid).map(preset => {
                   const selected = (themeColor || DEFAULT_THEME_COLOR).toLowerCase() === preset.hex.toLowerCase();
                   return (
                     <button
@@ -395,7 +397,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                   className="h-9 w-14 rounded cursor-pointer bg-transparent border border-slate-300 dark:border-slate-700"
                 />
                 <button
-                  onClick={() => onThemeColorChange?.(DEFAULT_THEME_COLOR)}
+                  onClick={() => onThemeColorChange?.(userUid === LEGACY_OWNER_UID ? OWNER_THEME_COLOR : DEFAULT_THEME_COLOR)}
                   className="text-sm text-slate-500 dark:text-slate-400 hover:underline"
                 >
                   Reset to default
