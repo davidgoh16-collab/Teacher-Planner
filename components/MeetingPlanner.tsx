@@ -458,7 +458,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               className={`
                 cursor-pointer px-3 py-2 rounded-lg border flex items-center gap-2 transition-all
                 ${selectedColleagueIds.has(colleague.id)
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-700 dark:text-indigo-300'
+                  ? 'bg-heather-50 border-heather-200 text-heather-700 dark:bg-heather-900/30 dark:border-heather-700 dark:text-heather-300'
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'}
               `}
             >
@@ -720,7 +720,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-heather-500"
                   placeholder="e.g. Mrs Smith"
                 />
               </div>
@@ -733,13 +733,13 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                   <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                     <button
                       onClick={() => setInputMode('file')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'file' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'file' ? 'bg-white dark:bg-slate-700 text-heather-600 dark:text-heather-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       File/Image
                     </button>
                     <button
                       onClick={() => setInputMode('text')}
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white dark:bg-slate-700 text-heather-600 dark:text-heather-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
                       Text
                     </button>
@@ -758,7 +758,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                     />
                     <label htmlFor="timetable-upload" className="cursor-pointer flex flex-col items-center w-full">
                       {uploading ? (
-                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
+                        <Loader2 className="w-8 h-8 text-heather-500 animate-spin mb-2" />
                       ) : (parsedWeek1 || parsedWeek2) ? (
                         <CheckCircle2 className="w-8 h-8 text-primary-500 mb-2" />
                       ) : (
@@ -788,13 +788,13 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
                       value={timetableText}
                       onChange={(e) => setTimetableText(e.target.value)}
                       placeholder="Paste timetable text here — copy the cells straight from Excel or your MIS, keeping the day and period labels…"
-                      className="w-full h-32 px-3 py-2 text-sm text-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 custom-scrollbar"
+                      className="w-full h-32 px-3 py-2 text-sm text-slate-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-heather-500 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 custom-scrollbar"
                       disabled={uploading}
                     />
                     <button
                       onClick={handleTextSubmit}
                       disabled={uploading || !timetableText.trim()}
-                      className="self-end px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                      className="self-end px-4 py-2 bg-heather-50 dark:bg-heather-900/30 text-heather-600 dark:text-heather-400 rounded-lg hover:bg-heather-100 dark:hover:bg-heather-900/50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
                     >
                       {uploading ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</>
@@ -829,7 +829,7 @@ const MeetingPlanner: React.FC<MeetingPlannerProps> = ({ initialWeekNumber, user
               <button
                 onClick={handleSaveColleague}
                 disabled={!newName || !parsedWeek1 || !parsedWeek2 || uploading || saving}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-heather-600 text-white rounded-lg hover:bg-heather-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 {saving ? "Saving..." : "Save Colleague"}

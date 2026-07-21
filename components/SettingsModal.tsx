@@ -605,11 +605,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
           {activeTab === 'timetables' && selectedAcademicYearId && (
              <div className="space-y-6">
                  {!isReadOnly && (
-                 <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl">
-                    <h4 className="font-semibold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
+                 <div className="bg-primary-50 dark:bg-primary-900/10 border border-primary-200 dark:border-primary-800 p-4 rounded-xl">
+                    <h4 className="font-semibold text-primary-800 dark:text-primary-300 mb-2 flex items-center gap-2">
                        <Upload size={18} /> Auto-Import Timetable & Terms via AI
                     </h4>
-                    <p className="text-sm text-indigo-700 dark:text-indigo-400 mb-4">
+                    <p className="text-sm text-primary-700 dark:text-primary-400 mb-4">
                        Upload your school schedule, or paste it as text. The AI extracts the term dates and both weeks of your timetable — review below, then Save.
                     </p>
                     <div className="mb-4">
@@ -624,14 +624,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                     </div>
 
                     <div className="flex items-center gap-4 mb-4">
-                       <button onClick={() => setImportMode('file')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'file' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>File Upload</button>
-                       <button onClick={() => setImportMode('text')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'text' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>Paste Text</button>
+                       <button onClick={() => setImportMode('file')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'file' ? 'bg-primary-600 text-white' : 'bg-white text-primary-600 border border-primary-200'}`}>File Upload</button>
+                       <button onClick={() => setImportMode('text')} className={`text-sm px-3 py-1 rounded-md font-medium ${importMode === 'text' ? 'bg-primary-600 text-white' : 'bg-white text-primary-600 border border-primary-200'}`}>Paste Text</button>
                     </div>
 
                     {importMode === 'file' ? (
-                       <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-slate-300 cursor-not-allowed' : 'border-indigo-300 hover:bg-indigo-100/50'}`}>
+                       <label className={`cursor-pointer flex justify-center items-center h-24 border-2 border-dashed rounded-lg bg-white dark:bg-slate-800 transition-colors ${isImporting ? 'opacity-50 border-slate-300 cursor-not-allowed' : 'border-primary-300 hover:bg-primary-100/50'}`}>
                            <input type="file" className="hidden" accept={TIMETABLE_ACCEPT} onChange={handleFileUpload} disabled={isImporting} />
-                           <span className="text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-2">
+                           <span className="text-primary-600 dark:text-primary-400 font-medium flex items-center gap-2">
                                {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                                {isImporting ? 'Analyzing document...' : 'Click to select a file'}
                            </span>
@@ -642,13 +642,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, isReadOn
                               value={importText}
                               onChange={e => setImportText(e.target.value)}
                               placeholder="Paste your schedule as text — copy the cells straight from Excel or your MIS, keeping the day and period labels…"
-                              className="w-full h-24 p-2 text-sm rounded-lg border border-indigo-200 dark:bg-slate-800 dark:border-indigo-800"
+                              className="w-full h-24 p-2 text-sm rounded-lg border border-primary-200 dark:bg-slate-800 dark:border-primary-800"
                               disabled={isImporting}
                            />
                            <button
                               onClick={() => handleAIImport(undefined, undefined, importText)}
                               disabled={isImporting || !importText.trim()}
-                              className="self-end flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                              className="self-end flex items-center gap-2 bg-primary-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
                            >
                               {isImporting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                               Analyze Text

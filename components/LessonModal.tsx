@@ -354,7 +354,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
     }
   };
 
-  const headerBgColor = type === 'meeting' ? 'bg-indigo-600 border-indigo-500' : 'bg-slate-800 dark:bg-slate-950 border-slate-700';
+  const headerBgColor = type === 'meeting' ? 'bg-heather-600 border-heather-500' : 'bg-slate-800 dark:bg-slate-950 border-slate-700';
 
   // Identify the last lesson
   const lastLessonInfo = useMemo(() => {
@@ -432,7 +432,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
         <div className={`px-6 py-4 flex justify-between items-center text-white border-b transition-colors ${headerBgColor}`}>
           <div>
             <div className="flex items-center gap-2 mb-1">
-               {type === 'meeting' ? <Users size={18} className="text-indigo-200" /> : <BookOpen size={18} className="text-slate-400" />}
+               {type === 'meeting' ? <Users size={18} className="text-heather-200" /> : <BookOpen size={18} className="text-slate-400" />}
                <span className="text-xs font-semibold uppercase tracking-wider opacity-80">
                    {isDuplicating ? 'Duplicate' : isRecurringMode ? 'Recurring' : type}
                </span>
@@ -651,7 +651,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         onClick={() => setType('meeting')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
                             type === 'meeting' 
-                            ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                            ? 'bg-white dark:bg-slate-700 text-heather-600 dark:text-heather-400 shadow-sm' 
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                         }`}
                         >
@@ -865,7 +865,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                             onClick={handleSave}
                             className={`flex items-center gap-2 text-white px-6 py-2 rounded-lg font-medium shadow-sm transition-all transform active:scale-95 ${
                             type === 'meeting' 
-                            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none' 
+                            ? 'bg-heather-600 hover:bg-heather-700 shadow-none dark:shadow-none' 
                             : 'bg-slate-800 hover:bg-slate-900 dark:bg-primary-600 dark:hover:bg-primary-700 shadow-slate-300 dark:shadow-none'
                             }`}
                         >

@@ -268,7 +268,7 @@ export default function RoutineTasksView({ isReadOnly }: RoutineTasksViewProps) 
                                                             {task.title}
                                                         </span>
                                                         {task.type === 'weekly' && task.daysOfWeek && task.daysOfWeek.length > 0 && (
-                                                            <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-1.5 py-0.5 rounded">
+                                                            <span className="text-[10px] bg-heather-100 text-heather-700 dark:bg-heather-900/30 dark:text-heather-300 px-1.5 py-0.5 rounded">
                                                                 {getDayNames(task.daysOfWeek)}
                                                             </span>
                                                         )}

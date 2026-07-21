@@ -603,7 +603,7 @@ const ProjectPlanner: React.FC<ProjectPlannerProps> = ({ isReadOnly, globalTasks
             {activeTab === 'projects' && !isReadOnly && (
                 <button
                     onClick={() => setIsVibeOpen(true)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow"
+                    className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow"
                 >
                     <Wand2 size={16} /> Vibe Project
                 </button>
