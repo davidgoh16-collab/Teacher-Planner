@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import admin from 'firebase-admin';
 import { GoogleGenAI } from '@google/genai';
+import { requireSandboxToken, SCOPES } from './server/lib/sandboxToken.mjs';
+import { assembleEnvironment } from './server/lib/environment.mjs';
+import { saveAgentArtifact, readResource } from './server/lib/adminData.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +43,11 @@ app.use((req, res, next) => {
 });
 
 // Base64 images/PDFs can be large, so allow a generous JSON body.
-app.use(express.json({ limit: '50mb' }));
+// Sandbox uploads are raw file bytes with their own parser on the route, and a .docx announced as
+// application/json would otherwise be swallowed here and arrive as a broken object.
+const jsonParser = express.json({ limit: '50mb' });
+app.use((req, res, next) =>
+  req.path === '/api/sandbox/artifacts' ? next() : jsonParser(req, res, next));
 
 // Runtime environment for the browser. ONLY the Firebase web API key is exposed — it is an
 // identifier, not a secret (access control lives in firestore.rules). The Gemini API key is
@@ -165,10 +172,32 @@ app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) 
       return res.status(400).json({ error: 'Missing agent in request body' });
     }
 
-    // `plannerEnv` is a request to assemble a sandbox server-side (skills, brand kit, workspace
-    // files, sandbox credentials). It is never a field the Interactions API understands, so it is
-    // always removed before forwarding — expansion lands with the sandbox pipeline.
+    // `plannerEnv` asks us to assemble the sandbox: the teacher's skills, brand kit, saved files
+    // and a callback credential. It is not a field the Interactions API understands, so it is
+    // always replaced by a real `environment` (or simply dropped) before forwarding.
     const { plannerEnv, ...forwardBody } = body;
+
+    if (plannerEnv) {
+      // Only ever build an environment for the caller's own uid — never one named in the request.
+      // And only for a fresh run: continuing a turn must stay in the sandbox it started in.
+      const continuing = typeof forwardBody.environment === 'string' && forwardBody.environment !== 'remote';
+      if (!continuing) {
+        try {
+          const { environment } = await assembleEnvironment({
+            uid: req.user.uid,
+            agentId: plannerEnv.agentId,
+            skillIds: plannerEnv.skillIds,
+            conversationId: plannerEnv.conversationId,
+            includeWorkspace: plannerEnv.includeWorkspace !== false,
+          });
+          forwardBody.environment = environment;
+        } catch (e) {
+          // A sandbox we couldn't furnish is still a usable sandbox — the agent just loses its
+          // files and branding. Better a plainer answer than a failed run.
+          console.error('Environment assembly failed; falling back to a bare sandbox:', e?.message || e);
+        }
+      }
+    }
 
     // Data-minimisation backstop: strip any email address before it leaves our server.
     const safeBody = maskEmailsDeep(forwardBody);
@@ -251,6 +280,66 @@ app.post('/api/live-token', authenticate, pollLimiter, async (req, res) => {
   } catch (error) {
     console.error('live-token error:', error?.message || error);
     return res.json({ token: null, disabled: true });
+  }
+});
+
+/**
+ * Sandbox callbacks.
+ *
+ * These are authenticated by a sandbox token, not a Firebase session: the caller is an agent
+ * sandbox with no user signed in. The token names the uid it may act for, so nothing here reads an
+ * identity out of the request body.
+ *
+ * Uploads arrive as a raw body. `express.json` is mounted globally and would try to parse a .docx
+ * as JSON, so this route declares its own raw parser ahead of it.
+ */
+const sandboxUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.sandbox?.uid || req.ip,
+  message: { error: 'Too many uploads, please try again later.' },
+});
+
+app.post(
+  '/api/sandbox/artifacts',
+  requireSandboxToken(SCOPES.ARTIFACT_WRITE),
+  sandboxUploadLimiter,
+  express.raw({ type: '*/*', limit: '25mb' }),
+  async (req, res) => {
+    try {
+      const buffer = req.body;
+      if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+        return res.status(400).json({ error: 'Empty upload' });
+      }
+      const resource = await saveAgentArtifact({
+        uid: req.sandbox.uid,
+        fileName: req.get('X-File-Name') || 'document',
+        buffer,
+        contentType: req.get('Content-Type'),
+        source: req.sandbox.triggerId ? 'trigger' : 'agent',
+        conversationId: req.sandbox.conversationId,
+        triggerId: req.sandbox.triggerId,
+        summary: req.get('X-File-Summary') || undefined,
+      });
+      // Keep the reply small and boring: it goes back into the agent's context.
+      res.json({ ok: true, resourceId: resource.id, name: resource.name });
+    } catch (error) {
+      console.error('sandbox artifact upload failed:', error?.message || error);
+      res.status(500).json({ error: 'Could not save that file' });
+    }
+  },
+);
+
+app.get('/api/sandbox/workspace/:resourceId', requireSandboxToken(SCOPES.WORKSPACE_READ), async (req, res) => {
+  try {
+    const found = await readResource(req.sandbox.uid, req.params.resourceId);
+    if (!found) return res.status(404).json({ error: 'Not found' });
+    res.type(found.resource.mimeType || 'application/octet-stream').send(found.buffer);
+  } catch (error) {
+    console.error('sandbox workspace read failed:', error?.message || error);
+    res.status(500).json({ error: 'Could not read that file' });
   }
 });
 

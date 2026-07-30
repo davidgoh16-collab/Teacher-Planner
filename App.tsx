@@ -1292,11 +1292,17 @@ const App: React.FC = () => {
         input = withAttachment(buildFullInput());
       }
 
+      const resourceIdsBefore = new Set(resources.map(r => r.id));
+
       const { interaction, restarted, streamFellBack } = await runAgentTurn(
         {
           input,
           session: agentSession,
           tools: buildAgentTools(isAdmin),
+          // Ask the server to furnish the sandbox (skills, brand kit, saved files, and the
+          // credential it needs to hand finished documents back). Only meaningful on a fresh run;
+          // a continuation stays in the sandbox it started in.
+          plannerEnv: { conversationId: chatConv.currentConversationId || undefined },
           buildFreshInput: () => withAttachment(buildFullInput()),
         },
         makeStreamCallbacks(),
@@ -1314,6 +1320,24 @@ const App: React.FC = () => {
       // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
       const pendingCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
       handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
+
+      // The agent uploads finished documents to the server directly, so the only way the UI learns
+      // about them is to look. Anything new belongs to the run that just finished.
+      try {
+        const latest = await fetchResources();
+        setResources(latest);
+        const produced = latest.filter(r => !resourceIdsBefore.has(r.id));
+        if (produced.length > 0) {
+          const list = produced.map(r => `• ${r.name}`).join('\n');
+          setChatMessages(prev => [...prev, {
+            role: 'model',
+            text: `Saved to your Resources:\n${list}`,
+          }]);
+        }
+      } catch (e) {
+        console.error('Could not refresh resources after the agent run', e);
+      }
+
       if (restarted) {
         setChatMessages(prev => [...prev, {
           role: 'model',

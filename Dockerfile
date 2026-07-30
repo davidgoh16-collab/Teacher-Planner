@@ -27,6 +27,8 @@ RUN npm install --omit=dev
 # Copy the built SPA and the server.
 COPY --from=builder /app/dist ./dist
 COPY server.js .
+# Server modules (sandbox tokens, environment assembly, Admin-SDK data access).
+COPY server ./server
 
 EXPOSE 8080
 
