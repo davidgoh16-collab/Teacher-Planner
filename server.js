@@ -7,6 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 import { requireSandboxToken, SCOPES } from './server/lib/sandboxToken.mjs';
 import { assembleEnvironment } from './server/lib/environment.mjs';
 import { saveAgentArtifact, readResource } from './server/lib/adminData.mjs';
+import { runInteraction, providerName, defaultAgentConfig } from './server/lib/agentProvider.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,9 +20,6 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'school-apps-52c7
 
 // The native-audio voice model the Live API ephemeral token is scoped to.
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
-
-// The Antigravity Interactions API requires an explicit revision header on REST calls.
-const AGENT_API_REVISION = '2026-05-20';
 
 // Initialise Firebase Admin for ID-token verification (Application Default Credentials on
 // Cloud Run; only the project id is needed to verify tokens minted for this project).
@@ -57,9 +55,29 @@ app.get('/env.js', (req, res) => {
   // firestore.rules). Default to the known project key so the app works even if the runtime env var
   // is unset; it is served to the browser here rather than being hardcoded into the client bundle.
   const firebaseKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyDsHETgCAabxH8VTLI9yE9oXAyU9XlttIg';
+
+  // The whole Firebase config can be supplied at runtime. This is what lets the school edition run
+  // against its own Firebase project from the same image — without it, the project id is welded
+  // into the bundle and a second deployment would need a fork.
+  let firebaseConfig;
+  if (process.env.FIREBASE_WEB_CONFIG) {
+    try {
+      firebaseConfig = JSON.parse(process.env.FIREBASE_WEB_CONFIG);
+    } catch {
+      console.error('FIREBASE_WEB_CONFIG is not valid JSON; falling back to the built-in config.');
+    }
+  }
+
+  const env = {
+    VITE_FIREBASE_API_KEY: firebaseKey,
+    EDITION: process.env.EDITION || 'personal',
+    ...(firebaseConfig ? { FIREBASE_CONFIG: firebaseConfig } : {}),
+    ...(process.env.MINT_CUSTOM_TOKEN_URL ? { MINT_CUSTOM_TOKEN_URL: process.env.MINT_CUSTOM_TOKEN_URL } : {}),
+  };
+
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.send(`window.ENV = ${JSON.stringify({ VITE_FIREBASE_API_KEY: firebaseKey })};\n`);
+  res.send(`window.ENV = ${JSON.stringify(env)};\n`);
 });
 
 // Serve the built SPA.
@@ -164,8 +182,11 @@ app.post('/api/generate-content', authenticate, contentLimiter, async (req, res)
 app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) => {
   const upstreamAbort = new AbortController();
   try {
-    const API_KEY = process.env.GEMINI_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: 'Internal Server Error' });
+    // Only the consumer-API provider needs a key; Agent Platform authenticates with the runtime
+    // service account.
+    if (providerName() === 'gemini-api' && !process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
 
     const body = req.body;
     if (!body || !body.agent) {
@@ -206,17 +227,19 @@ app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) 
     // If the client hangs up mid-run, stop paying for the upstream generation.
     res.on('close', () => { if (!res.writableEnded) upstreamAbort.abort(); });
 
-    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': API_KEY,
-        'Api-Revision': AGENT_API_REVISION,
-        ...(wantsStream ? { Accept: 'text/event-stream' } : {}),
-      },
-      body: JSON.stringify(safeBody),
-      signal: upstreamAbort.signal,
+    // Fall back to the configured model/budget when the client didn't pin one, so the deployment
+    // controls which model a school edition is allowed to use.
+    if (!safeBody.agent_config) safeBody.agent_config = defaultAgentConfig();
+
+    const { upstream, emulatedStream } = await runInteraction({
+      body: safeBody,
+      wantsStream,
+      res,
+      abortSignal: upstreamAbort.signal,
     });
+    // The provider already wrote and closed an emulated stream (Agent Platform has no foreground
+    // streaming, so it polls a background run and emits the same events).
+    if (emulatedStream) return;
 
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => '');

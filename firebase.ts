@@ -14,7 +14,10 @@ import { getStorage } from 'firebase/storage';
 import { Capacitor } from '@capacitor/core';
 
 // Cloud Function that bridges a native Firebase session into the JS SDK (see firebase functions/).
-const MINT_CUSTOM_TOKEN_URL = 'https://europe-west2-school-apps-52c7d.cloudfunctions.net/mintCustomToken';
+// Runtime-overridable so a second deployment can point at its own project's function.
+const MINT_CUSTOM_TOKEN_URL =
+  window.ENV?.MINT_CUSTOM_TOKEN_URL ||
+  'https://europe-west2-school-apps-52c7d.cloudfunctions.net/mintCustomToken';
 
 /**
  * FIREBASE CONFIGURATION
@@ -29,17 +32,25 @@ const MINT_CUSTOM_TOKEN_URL = 'https://europe-west2-school-apps-52c7d.cloudfunct
  * the build-time import.meta.env.VITE_FIREBASE_API_KEY value baked in from .env.local.
  */
 
-const firebaseConfig = {
-  apiKey:
-    window.ENV?.VITE_FIREBASE_API_KEY ||
-    import.meta.env.VITE_FIREBASE_API_KEY ||
-    "",
+// The default (personal edition) project. The school edition serves its own config from /env.js,
+// which is what allows one image to run against a different Firebase project without a fork.
+const DEFAULT_FIREBASE_CONFIG = {
   authDomain: "school-apps-52c7d.firebaseapp.com",
   projectId: "school-apps-52c7d",
   storageBucket: "school-apps-52c7d.firebasestorage.app",
   messagingSenderId: "982739442942",
   appId: "1:982739442942:web:ce32a1929b5615332359af",
   measurementId: "G-65DLPSXREY"
+};
+
+const firebaseConfig = {
+  ...DEFAULT_FIREBASE_CONFIG,
+  ...(window.ENV?.FIREBASE_CONFIG || {}),
+  apiKey:
+    window.ENV?.FIREBASE_CONFIG?.apiKey ||
+    window.ENV?.VITE_FIREBASE_API_KEY ||
+    import.meta.env.VITE_FIREBASE_API_KEY ||
+    "",
 };
 
 export const isNative = Capacitor.isNativePlatform();
@@ -66,7 +77,8 @@ export const auth = getAuth(app);
  * is europe-west2 and registered with Firebase, so the SDK works against it normally while the
  * data stays in-country. Rules are in storage.rules.
  */
-export const RESOURCES_BUCKET = 'teacher-planner-eu-982739442942';
+export const RESOURCES_BUCKET =
+  window.ENV?.RESOURCES_BUCKET || 'teacher-planner-eu-982739442942';
 export const storage = getStorage(app, `gs://${RESOURCES_BUCKET}`);
 
 // Initialize Microsoft Provider

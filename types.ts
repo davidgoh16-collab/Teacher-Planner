@@ -4,6 +4,12 @@ declare global {
       VITE_GEMINI_API_KEY?: string;
       GEMINI_API_KEY?: string;
       VITE_FIREBASE_API_KEY?: string;
+      /** 'personal' | 'school' — lets one built image be deployed as either edition. */
+      EDITION?: string;
+      /** Full Firebase web config, so a deployment can target its own project. */
+      FIREBASE_CONFIG?: Record<string, string>;
+      MINT_CUSTOM_TOKEN_URL?: string;
+      RESOURCES_BUCKET?: string;
     };
   }
 }
