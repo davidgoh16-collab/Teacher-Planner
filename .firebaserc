@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "school-apps-52c7d"
+  },
+  "targets": {
+    "school-apps-52c7d": {
+      "storage": {
+        "resources": [
+          "teacher-planner-eu-982739442942"
+        ]
+      }
+    }
   }
 }

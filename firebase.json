@@ -4,7 +4,7 @@
   },
   "storage": [
     {
-      "bucket": "teacher-planner-eu-982739442942",
+      "target": "resources",
       "rules": "storage.rules"
     }
   ],

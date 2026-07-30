@@ -17,7 +17,7 @@ declare global {
 export type WeekType = 1 | 2;
 
 // Top-level navigable sections (left sidebar).
-export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared' | 'resources';
+export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared' | 'resources' | 'aiHub';
 
 /** File types the Resources library knows how to store, preview and hand back to the agent. */
 export type ResourceType = 'docx' | 'pptx' | 'xlsx' | 'pdf' | 'md' | 'html' | 'csv' | 'txt' | 'png' | 'jpg';
@@ -225,3 +225,80 @@ export interface RoutineTask {
   createdAt: number;
 }
 
+
+/**
+ * A way of working the teacher has taught the AI — a lesson-plan format, a marking style, a
+ * departmental proforma. Materialised into the sandbox as .agents/skills/<slug>/SKILL.md, where
+ * the agent harness discovers it automatically.
+ */
+export interface TeacherSkill {
+  id: string;
+  name: string;
+  /** Directory name in the sandbox. Lowercase, hyphenated. */
+  slug: string;
+  description: string;
+  /** The SKILL.md body: how to do this thing, in the teacher's own words. */
+  instructions: string;
+  assets?: Array<{ name: string; storagePath: string; size: number; mimeType: string }>;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** School branding applied to everything the AI produces. */
+export interface BrandKit {
+  displayName?: string;
+  logoStoragePath?: string;
+  colors: { primary: string; secondary: string; accent: string; text: string };
+  fonts: { heading: string; body: string };
+  headerText?: string;
+  footerText?: string;
+  /** Master .docx/.pptx files the agent fills in rather than building from scratch. */
+  templates: Array<{ id: string; name: string; type: 'docx' | 'pptx'; storagePath: string }>;
+  updatedAt: number;
+}
+
+/** Models a custom agent may be pinned to. */
+export type AgentModel = 'gemini-3.6-flash' | 'gemini-3.5-flash' | 'gemini-3.5-flash-lite';
+
+/**
+ * An assistant the teacher has defined — a department administrator, a parent-communications
+ * writer. Stored here and materialised onto the base agent per run, rather than registered with
+ * the provider: that keeps versioning, memory and portability in our hands.
+ */
+export interface CustomAgent {
+  id: string;
+  name: string;
+  description: string;
+  /** Standing instructions, prepended to every run of this agent. */
+  instructions: string;
+  model: AgentModel;
+  maxTotalTokens?: number;
+  tools: { plannerTools: boolean; codeExecution: boolean; googleSearch: boolean; urlContext: boolean };
+  mcpServerIds: string[];
+  skillIds: string[];
+  /** Whether the teacher's planner data is included in this agent's context. */
+  includePlannerContext: boolean;
+  memoryEnabled: boolean;
+  /**
+   * What the agent has learned. Stored PSEUDONYMISED, exactly as the agent wrote it — it is
+   * rehydrated only for display in the memory editor.
+   */
+  memory?: { content: string; updatedAt: number };
+  /** When the teacher acknowledged the warning about what not to put in an agent. */
+  sensitiveAckAt?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** An external tool server the agent can call (Model Context Protocol). */
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  url: string;
+  headers?: Record<string, string>;
+  allowedTools?: string[];
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}

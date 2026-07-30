@@ -98,9 +98,59 @@ export const DEFAULT_AGENT_TOOLS: AgentTool[] = [
   { type: 'url_context' },
 ];
 
+/**
+ * The tool a remembering assistant uses to keep a note for next time. It writes to that
+ * assistant's own record, so unlike the planner tools it runs without asking the teacher first —
+ * they can read and clear everything it saves from the AI Hub.
+ */
+export const SAVE_MEMORY_TOOL: AgentFunctionTool = {
+  type: 'function',
+  name: 'save_memory',
+  description:
+    'Remember something about how this teacher works, for future conversations. Use it for lasting '
+    + 'preferences and facts about their role, not for details about individual pupils. Pass the '
+    + 'complete memory you want kept — it replaces what was there.',
+  parameters: {
+    type: 'object',
+    properties: {
+      content: { type: 'string', description: 'The full memory to keep, in markdown.' },
+    },
+    required: ['content'],
+  },
+};
+
+/** An MCP server the agent may call. Names must be lowercase; uppercase returns a bare 400. */
+export interface McpToolConfig {
+  type: 'mcp_server';
+  name: string;
+  url: string;
+  headers?: Record<string, string>;
+  allowed_tools?: string[];
+}
+
+interface BuildToolsOptions {
+  /** Restrict the built-in tools (a custom assistant chooses what it can reach). */
+  enabled?: { codeExecution?: boolean; googleSearch?: boolean; urlContext?: boolean };
+  memory?: boolean;
+  mcpServers?: McpToolConfig[];
+}
+
 /** Build the tool set for an agent run. Planner-mutation tools are only added for admins. */
-export const buildAgentTools = (includePlannerTools: boolean): AgentTool[] =>
-  includePlannerTools ? [...DEFAULT_AGENT_TOOLS, ...PLANNER_AGENT_TOOLS] : [...DEFAULT_AGENT_TOOLS];
+export const buildAgentTools = (includePlannerTools: boolean, options: BuildToolsOptions = {}): AgentTool[] => {
+  const { enabled, memory, mcpServers } = options;
+  const base: AgentTool[] = enabled
+    ? ([
+        enabled.codeExecution !== false ? { type: 'code_execution' } as AgentTool : null,
+        enabled.googleSearch !== false ? { type: 'google_search' } as AgentTool : null,
+        enabled.urlContext !== false ? { type: 'url_context' } as AgentTool : null,
+      ].filter(Boolean) as AgentTool[])
+    : [...DEFAULT_AGENT_TOOLS];
+
+  if (includePlannerTools) base.push(...PLANNER_AGENT_TOOLS);
+  if (memory) base.push(SAVE_MEMORY_TOOL);
+  if (mcpServers?.length) base.push(...(mcpServers as unknown as AgentTool[]));
+  return base;
+};
 
 /** A single step in an interaction (function call, function result, message, etc.). */
 export interface InteractionStep {

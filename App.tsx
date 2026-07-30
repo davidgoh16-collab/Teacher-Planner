@@ -12,6 +12,7 @@ import SettingsModal from './components/SettingsModal';
 import OnboardingModal from './components/OnboardingModal';
 import SharedView from './components/SharedView';
 import ResourcesView from './components/ResourcesView';
+import AIHubView from './components/aihub/AIHubView';
 import ShareDialog from './components/ShareDialog';
 import Toaster from './components/ui/Toaster';
 import { Settings, Share2 } from 'lucide-react';
@@ -57,7 +58,8 @@ import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
 import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { fetchResources } from './services/resourceService';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource } from './types';
+import { fetchCustomAgents, fetchMcpServers, setAgentMemory } from './services/aiHubService';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource, CustomAgent, McpServerConfig } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -171,14 +173,20 @@ const App: React.FC = () => {
   const [resources, setResources] = useState<TeacherResource[]>([]);
   // A resource queued to ride along with the next chat message, as if it had been uploaded.
   const [pendingResourceAttachment, setPendingResourceAttachment] = useState<{ name: string; text: string } | null>(null);
+  // The custom assistant driving agent mode, if the teacher picked one. Null means the built-in.
+  const [activeAgent, setActiveAgent] = useState<CustomAgent | null>(null);
+  const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
+  const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
 
   // Load the Resources library once the user is known.
   // Declared here, with the other top-level hooks: App returns early with <LoginPage /> further
   // down, so a hook placed below that point is skipped while signed out and React sees the hook
   // order change the moment someone signs in.
   useEffect(() => {
-    if (!user) { setResources([]); return; }
+    if (!user) { setResources([]); setCustomAgents([]); return; }
     fetchResources().then(setResources).catch(e => console.error('Error loading resources', e));
+    fetchCustomAgents().then(setCustomAgents).catch(e => console.error('Error loading assistants', e));
+    fetchMcpServers().then(setMcpServers).catch(e => console.error('Error loading connections', e));
   }, [user]);
 
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
@@ -1257,9 +1265,15 @@ const App: React.FC = () => {
       const buildFullInput = (): string => {
         // Compact context keeps the prompt small so the agent is far less likely to hit mid-task
         // context compaction (which can derail its final answer).
-        const contextString = buildPlannerContextString(currentWeekData, true);
+        const contextString = activeAgent && !activeAgent.includePlannerContext
+          ? 'The teacher has chosen not to share their planner with this assistant. Do not guess at their timetable or tasks; ask if you need to know something.'
+          : buildPlannerContextString(currentWeekData, true);
         const systemInstruction = buildAssistantSystemInstruction(contextString);
+        const persona = activeAgent
+          ? `YOUR ROLE (standing instructions from the teacher — follow these throughout):\n${activeAgent.instructions}\n\n`
+          : '';
         return (
+          persona +
           `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${safeUserMessage}\n\n` +
           `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
           `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
@@ -1294,15 +1308,44 @@ const App: React.FC = () => {
 
       const resourceIdsBefore = new Set(resources.map(r => r.id));
 
+      // A custom assistant narrows what the run can reach and pins its model; without one the run
+      // gets the built-in defaults.
+      const mcpConfigs = activeAgent
+        ? mcpServers
+            .filter(server => server.enabled && activeAgent.mcpServerIds.includes(server.id))
+            .map(server => ({
+              type: 'mcp_server' as const,
+              name: server.name,
+              url: server.url,
+              ...(Object.keys(server.headers || {}).length ? { headers: server.headers } : {}),
+              ...(server.allowedTools?.length ? { allowed_tools: server.allowedTools } : {}),
+            }))
+        : [];
+
+      const tools = activeAgent
+        ? buildAgentTools(isAdmin && activeAgent.tools.plannerTools, {
+            enabled: activeAgent.tools,
+            memory: activeAgent.memoryEnabled,
+            mcpServers: mcpConfigs,
+          })
+        : buildAgentTools(isAdmin);
+
       const { interaction, restarted, streamFellBack } = await runAgentTurn(
         {
           input,
           session: agentSession,
-          tools: buildAgentTools(isAdmin),
+          tools,
+          agentConfig: activeAgent
+            ? { model: activeAgent.model, ...(activeAgent.maxTotalTokens ? { max_total_tokens: activeAgent.maxTotalTokens } : {}) }
+            : undefined,
           // Ask the server to furnish the sandbox (skills, brand kit, saved files, and the
           // credential it needs to hand finished documents back). Only meaningful on a fresh run;
           // a continuation stays in the sandbox it started in.
-          plannerEnv: { conversationId: chatConv.currentConversationId || undefined },
+          plannerEnv: {
+            conversationId: chatConv.currentConversationId || undefined,
+            agentId: activeAgent?.id,
+            skillIds: activeAgent?.skillIds?.length ? activeAgent.skillIds : undefined,
+          },
           buildFreshInput: () => withAttachment(buildFullInput()),
         },
         makeStreamCallbacks(),
@@ -1318,8 +1361,34 @@ const App: React.FC = () => {
       }
 
       // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
-      const pendingCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+      const allCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+
+      // save_memory writes to the assistant's own record rather than the planner, so it runs
+      // without a confirmation dialog. The memory is kept exactly as the agent wrote it — which is
+      // to say pseudonymised — so it can't quietly become a store of identifying details.
+      const memoryCalls = allCalls.filter(c => c.name === 'save_memory');
+      const pendingCalls = allCalls.filter(c => c.name !== 'save_memory');
+      if (memoryCalls.length > 0 && activeAgent) {
+        const content = String(memoryCalls[memoryCalls.length - 1].args?.content || '').trim();
+        if (content) {
+          try {
+            const saved = await setAgentMemory(activeAgent, scrubText(content, mapping));
+            setActiveAgent(saved);
+            setCustomAgents(prev => prev.map(a => (a.id === saved.id ? saved : a)));
+            memoryCalls.forEach(c => handledAgentCallIdsRef.current.add(c.id));
+          } catch (e) {
+            console.error('Could not save assistant memory', e);
+          }
+        }
+      }
+
       handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
+      if (memoryCalls.length > 0 && activeAgent) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: `_(${activeAgent.name} updated what it remembers — you can read or clear it in the AI Hub.)_`,
+        }]);
+      }
 
       // The agent uploads finished documents to the server directly, so the only way the UI learns
       // about them is to look. Anything new belongs to the run that just finished.
@@ -2210,6 +2279,20 @@ const App: React.FC = () => {
           ) : activeTab === 'shared' ? (
             <div className="max-w-7xl mx-auto md:p-8 p-4">
               <SharedView uid={user?.uid || ''} myWeek1={timetableWeek1} myWeek2={timetableWeek2} />
+            </div>
+          ) : activeTab === 'aiHub' ? (
+            <div className="max-w-7xl mx-auto md:p-8 p-4">
+              <AIHubView
+                onUseAgent={(agent) => {
+                  // Starting a fresh chat with an assistant: a new sandbox, its instructions, its
+                  // tools. Continuing an old session under a different assistant would be confusing.
+                  setActiveAgent(agent);
+                  setAgentMode(true);
+                  chatConv.handleNewConversation();
+                  setActiveTab('home');
+                  setChatMessages([{ role: 'model', text: `**${agent.name}** is ready. ${agent.description || ''}`.trim() }]);
+                }}
+              />
             </div>
           ) : activeTab === 'resources' ? (
             <div className="max-w-7xl mx-auto md:p-8 p-4">
