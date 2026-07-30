@@ -30,6 +30,10 @@ const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 // Cloud Run; only the project id is needed to verify tokens minted for this project).
 if (!admin.apps.length) {
   admin.initializeApp({ projectId: FIREBASE_PROJECT_ID });
+  // Match the client SDK, which is configured the same way. Without this an optional field left
+  // undefined (an automation with no assistant chosen, say) fails the whole write rather than
+  // simply being absent.
+  admin.firestore().settings({ ignoreUndefinedProperties: true });
 }
 
 // Trust the immediate proxy (Cloud Run ingress) so express-rate-limit sees the real client IP.

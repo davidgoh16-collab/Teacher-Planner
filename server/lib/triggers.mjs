@@ -67,10 +67,11 @@ const buildInteraction = async ({ uid, trigger }) => {
     triggerId: trigger.id,
   });
 
+  // No `background` here: a trigger's interaction is asynchronous by definition, and the API
+  // rejects the field outright ("Field 'background' is not allowed in 'interaction'").
   return {
     agent: AGENT,
     agent_config: defaultAgentConfig(),
-    background: true,
     environment,
     input: [{
       type: 'text',
@@ -102,7 +103,8 @@ export const createTrigger = async ({ uid, name, cron, timeZone, prompt, agentId
       display_name: `${name} (${uid.slice(0, 8)})`,
       // Pause rather than pile up failures if something is persistently wrong.
       max_consecutive_failures: 3,
-      execution_timeout_seconds: 1800,
+      // 600s is the ceiling the API accepts, not just its default — anything higher is rejected.
+      execution_timeout_seconds: 600,
       interaction,
     },
   });
