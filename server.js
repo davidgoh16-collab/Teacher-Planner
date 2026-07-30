@@ -58,15 +58,36 @@ app.get('/env.js', (req, res) => {
 // Serve the built SPA.
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Rate limiter for all API endpoints (authenticated-only burst guard).
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+// Coarse per-IP backstop across every API route. This exists to blunt unauthenticated floods, not
+// to meter usage — a single agent run legitimately makes many calls, so the ceiling is high and the
+// real metering is the per-user limiters below.
+const ipBackstopLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
 });
-app.use('/api/', apiLimiter);
+app.use('/api/', ipBackstopLimiter);
+
+/**
+ * Per-user limiter, keyed on the Firebase uid so one busy user can't spend everyone's budget.
+ * Must be mounted AFTER `authenticate` so `req.user` exists; falls back to IP if it somehow
+ * doesn't. Route groups get their own buckets because their costs differ by orders of magnitude
+ * (an agent step can run for minutes; a poll is nearly free).
+ */
+const userLimiter = (max, windowMs = 15 * 60 * 1000) => rateLimit({
+  windowMs,
+  max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+const agentLimiter = userLimiter(40);   // multi-minute autonomous runs
+const contentLimiter = userLimiter(120); // ordinary chat / generation calls
+const pollLimiter = userLimiter(300);   // status polling for background work
 
 // Defence-in-depth data minimisation: mask any email address in outbound Gemini payloads, in
 // case upstream client code fails to scrub it. Skips binary/base64 fields (inlineData.data) so
@@ -112,7 +133,7 @@ async function authenticate(req, res, next) {
 // Generic Gemini text/vision proxy. Keeps GEMINI_API_KEY server-side; the browser only ever
 // calls this same-origin route. maskEmailsDeep is a server-side backstop over the client-side
 // pseudonymisation.
-app.post('/api/generate-content', authenticate, async (req, res) => {
+app.post('/api/generate-content', authenticate, contentLimiter, async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     const response = await getAiClient().models.generateContent({
@@ -128,9 +149,13 @@ app.post('/api/generate-content', authenticate, async (req, res) => {
 });
 
 // Antigravity Interactions API proxy (managed agent). Forwards the interaction body to the
-// generativelanguage interactions endpoint with the server key. Buffers the response (including
-// SSE streams) and returns it verbatim so the client keeps parsing it as before.
-app.post('/api/interactions/step', authenticate, async (req, res) => {
+// generativelanguage interactions endpoint with the server key.
+//
+// Streamed runs are piped through chunk-by-chunk rather than buffered: the whole point of the
+// stream is the live thought process, and awaiting the full body before responding delayed every
+// frame until the run had already finished.
+app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) => {
+  const upstreamAbort = new AbortController();
   try {
     const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) return res.status(500).json({ error: 'Internal Server Error' });
@@ -140,8 +165,17 @@ app.post('/api/interactions/step', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Missing agent in request body' });
     }
 
+    // `plannerEnv` is a request to assemble a sandbox server-side (skills, brand kit, workspace
+    // files, sandbox credentials). It is never a field the Interactions API understands, so it is
+    // always removed before forwarding — expansion lands with the sandbox pipeline.
+    const { plannerEnv, ...forwardBody } = body;
+
     // Data-minimisation backstop: strip any email address before it leaves our server.
-    const safeBody = maskEmailsDeep(body);
+    const safeBody = maskEmailsDeep(forwardBody);
+    const wantsStream = !!safeBody.stream;
+
+    // If the client hangs up mid-run, stop paying for the upstream generation.
+    res.on('close', () => { if (!res.writableEnded) upstreamAbort.abort(); });
 
     const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
@@ -149,22 +183,50 @@ app.post('/api/interactions/step', authenticate, async (req, res) => {
         'Content-Type': 'application/json',
         'x-goog-api-key': API_KEY,
         'Api-Revision': AGENT_API_REVISION,
+        ...(wantsStream ? { Accept: 'text/event-stream' } : {}),
       },
       body: JSON.stringify(safeBody),
+      signal: upstreamAbort.signal,
     });
 
-    const text = await upstream.text();
     if (!upstream.ok) {
+      const text = await upstream.text().catch(() => '');
       console.error(`Interactions API error ${upstream.status}: ${text.slice(0, 500)}`);
+      // 404 means the referenced environment/interaction is gone (sandboxes expire after 7 days).
+      // Pass it through intact so the client can silently restart the run instead of erroring.
+      if (upstream.status === 404) {
+        return res.status(404).type('application/json').send(text || '{"error":{"code":"not_found"}}');
+      }
       const status = upstream.status === 429 ? 429 : 502;
       return res.status(status).json({ error: `Agent unavailable (${upstream.status})` });
     }
-    if (!res.headersSent) {
-      res.type(upstream.headers.get('content-type') || 'application/json').send(text);
+
+    const contentType = upstream.headers.get('content-type') || 'application/json';
+    if (!wantsStream || !upstream.body || !contentType.includes('event-stream')) {
+      const text = await upstream.text();
+      if (!res.headersSent) res.type(contentType).send(text);
+      return;
     }
+
+    // Pipe the SSE stream straight through. `no-transform` and `X-Accel-Buffering: no` stop any
+    // intermediary from coalescing frames, which would silently reintroduce the buffering bug.
+    res.status(200);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    for await (const chunk of upstream.body) {
+      if (res.writableEnded) break;
+      res.write(chunk);
+    }
+    res.end();
   } catch (error) {
+    if (upstreamAbort.signal.aborted) return; // client went away; nothing to report
     console.error('interactions proxy error:', error?.message || error);
     if (!res.headersSent) res.status(502).json({ error: 'Agent unavailable' });
+    else res.end();
   }
 });
 
@@ -172,7 +234,7 @@ app.post('/api/interactions/step', authenticate, async (req, res) => {
 // realtime session WITHOUT ever seeing the raw Gemini key. If the installed SDK can't mint one,
 // return { token: null, disabled: true } and the client shows the voice assistant as unavailable
 // rather than falling back to shipping the raw key.
-app.post('/api/live-token', authenticate, async (req, res) => {
+app.post('/api/live-token', authenticate, pollLimiter, async (req, res) => {
   try {
     const ai = getAiClient();
     if (!ai.authTokens || typeof ai.authTokens.create !== 'function') {

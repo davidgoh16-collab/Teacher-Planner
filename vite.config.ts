@@ -14,6 +14,18 @@ export default defineConfig(() => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // The AI features call same-origin /api routes that only exist on the Express server
+        // (server.js). Without this proxy they 404 under `npm run dev`, so agent mode can only be
+        // exercised against a build. Run `npm start` alongside `npm run dev` to use them locally.
+        proxy: {
+          '/api': {
+            target: process.env.DEV_API_TARGET || 'http://localhost:8080',
+            changeOrigin: true,
+            // Agent runs stream for minutes; don't let the dev proxy time them out or buffer them.
+            timeout: 600000,
+            proxyTimeout: 600000,
+          },
+        },
       },
       plugins: [
         react(),

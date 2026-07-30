@@ -53,7 +53,8 @@ import { TEXT_MODEL, buildDateContextBlock, getAiClient } from './services/aiSer
 import { fetchColleagues } from './services/colleagueService';
 import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep } from './utils/pseudonymiser';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
-import { createAgentInteraction, streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
+import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
+import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -211,11 +212,35 @@ const App: React.FC = () => {
   const handledAgentCallIdsRef = useRef<Set<string>>(new Set());
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
-  const chatConv = useChatConversations({ messages: chatMessages, onSetMessages: setChatMessages, user });
-  // Reset the agent sandbox/turn whenever the conversation changes (new chat or loaded history),
-  // so a fresh agent run does not continue a stale, unrelated sandbox.
+  // The agent session is persisted with the conversation so reopening a chat resumes the same
+  // sandbox (files, installed packages, context) instead of silently starting over.
+  const agentSessionRef = useRef(agentSession);
+  agentSessionRef.current = agentSession;
+  const agentModeRef = useRef(agentMode);
+  agentModeRef.current = agentMode;
+  const chatConv = useChatConversations({
+    messages: chatMessages,
+    onSetMessages: setChatMessages,
+    user,
+    getExtras: () => ({
+      mode: agentModeRef.current ? 'agent' : 'chat',
+      agentInteractionId: agentSessionRef.current?.interactionId,
+      agentEnvironmentId: agentSessionRef.current?.environmentId,
+    }),
+  });
+  // Restore (or clear) the agent sandbox when the conversation changes. Reading from a ref keeps
+  // this keyed on the conversation id alone — depending on the conversations array would re-run it
+  // on every autosave and could clobber a session mid-run.
+  const conversationsRef = useRef(chatConv.conversations);
+  conversationsRef.current = chatConv.conversations;
   useEffect(() => {
-    setAgentSession(null);
+    const conv = conversationsRef.current.find(c => c.id === chatConv.currentConversationId);
+    setAgentSession(
+      conv?.agentInteractionId && conv?.agentEnvironmentId
+        ? { interactionId: conv.agentInteractionId, environmentId: conv.agentEnvironmentId }
+        : null,
+    );
+    if (conv?.mode) setAgentMode(conv.mode === 'agent');
     setPendingActions(null);
     handledAgentCallIdsRef.current = new Set();
   }, [chatConv.currentConversationId]);
@@ -1205,58 +1230,61 @@ const App: React.FC = () => {
       // sandbox already holds the context, so we just send the task (plus a short viz reminder).
       // Visualization guidance depends on the user's Visuals toggle.
       const vizInstruction = vizEnabled ? AGENT_VIZ_INSTRUCTION : AGENT_NO_VIZ_INSTRUCTION;
-      let input: string | any[];
-      if (isContinuing) {
-        const reminder = vizEnabled
-          ? `(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`
-          : `(Reminder: respond concisely in plain text/markdown — no charts or HTML.)`;
-        input = `${safeUserMessage}\n\n${reminder}`;
-      } else {
+
+      // The standalone prompt: everything the agent needs with no prior sandbox context. Used for
+      // the first turn of a conversation, and again if a resumed sandbox turns out to have expired.
+      const buildFullInput = (): string => {
         // Compact context keeps the prompt small so the agent is far less likely to hit mid-task
         // context compaction (which can derail its final answer).
         const contextString = buildPlannerContextString(currentWeekData, true);
         const systemInstruction = buildAssistantSystemInstruction(contextString);
-        input =
+        return (
           `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${safeUserMessage}\n\n` +
           `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
           `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
           `IMPORTANT: Always finish by delivering the completed result for the task above. If your context is summarized or you receive a checkpoint/resume notice partway through, continue and still produce that result — never end with only a greeting or a request for more input.\n` +
           `${vizInstruction}\n\n` +
-          `--- PLANNER DATA & RULES (reference) ---\n${systemInstruction}`;
-      }
-
-      // Attach file content as a text part or an inline image, matching the chat handler.
-      if (fileData) {
-        const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
-        if (fileData.isBase64) {
-          input = [
-            { type: 'text', text: `${typeof input === 'string' ? input : safeUserMessage}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}` },
-            { type: 'image', data: fileData.text, mime_type: fileData.mimeType },
-          ];
-        } else {
-          input = `${typeof input === 'string' ? input : safeUserMessage}\n\nAttached Document Content${fileLabel}:\n${scrubText(fileData.text, mapping)}`;
-        }
-      }
-
-      const args = {
-        input,
-        environmentId: agentSession?.environmentId,
-        previousInteractionId: agentSession?.interactionId,
-        tools: buildAgentTools(isAdmin),
+          `--- PLANNER DATA & RULES (reference) ---\n${systemInstruction}`
+        );
       };
 
-      // Prefer the streamed run (live thought process); fall back to the blocking call if the
-      // SSE stream can't be opened/read (e.g. proxy/CORS quirk).
-      let interaction;
-      let liveTrace: AgentTrace | null = null;
-      try {
-        interaction = await streamAgentInteraction(args, makeStreamCallbacks());
-        liveTrace = traceRef.current;
-      } catch (streamErr) {
-        console.warn("Agent stream failed, falling back to blocking call:", streamErr);
-        setAgentTrace(null);
-        interaction = await createAgentInteraction(args);
+      // Attach file content as a text part or an inline image, matching the chat handler.
+      const withAttachment = (base: string): string | any[] => {
+        if (!fileData) return base;
+        const fileLabel = fileData.fileName ? ` (file: ${fileData.fileName})` : '';
+        if (fileData.isBase64) {
+          return [
+            { type: 'text', text: `${base}${fileLabel ? `\n\nAttached file${fileLabel}` : ''}` },
+            { type: 'image', data: fileData.text, mime_type: fileData.mimeType },
+          ];
+        }
+        return `${base}\n\nAttached Document Content${fileLabel}:\n${scrubText(fileData.text, mapping)}`;
+      };
+
+      let input: string | any[];
+      if (isContinuing) {
+        const reminder = vizEnabled
+          ? `(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`
+          : `(Reminder: respond concisely in plain text/markdown — no charts or HTML.)`;
+        input = withAttachment(`${safeUserMessage}\n\n${reminder}`);
+      } else {
+        input = withAttachment(buildFullInput());
       }
+
+      const { interaction, restarted, streamFellBack } = await runAgentTurn(
+        {
+          input,
+          session: agentSession,
+          tools: buildAgentTools(isAdmin),
+          buildFreshInput: () => withAttachment(buildFullInput()),
+        },
+        makeStreamCallbacks(),
+      );
+      if (streamFellBack) setAgentTrace(null);
+      const liveTrace: AgentTrace | null = streamFellBack ? null : traceRef.current;
+
+      // A restarted run is a different sandbox, so any call ids surfaced from the old one are dead.
+      if (restarted) handledAgentCallIdsRef.current = new Set();
 
       if (interaction && typeof interaction.output_text === 'string') {
         interaction.output_text = rehydrateText(interaction.output_text, mapping);
@@ -1265,6 +1293,12 @@ const App: React.FC = () => {
       // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
       const pendingCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
       handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
+      if (restarted) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: "_(This chat's earlier workspace had expired, so I started a fresh one — any files from previous sessions are gone.)_",
+        }]);
+      }
     } catch (error: any) {
       console.error("Agent Error:", error);
       const detail = error?.message ? `\n\n${String(error.message).slice(0, 300)}` : '';
@@ -1688,18 +1722,35 @@ const App: React.FC = () => {
               setAgentTrace({ reasoning: '', activity: [], answer: '' });
               let next;
               let liveTrace: AgentTrace | null = null;
+              let environmentGone = false;
               try {
                 next = await streamAgentInteraction(continueArgs, makeStreamCallbacks());
                 liveTrace = traceRef.current;
               } catch (streamErr) {
-                console.warn("Agent continuation stream failed, falling back:", streamErr);
-                setAgentTrace(null);
-                next = await createAgentInteraction(continueArgs);
+                // The changes are already applied at this point; an expired sandbox only means the
+                // agent can't comment on them. Say so instead of implying the run failed.
+                if (isEnvironmentGoneError(streamErr)) {
+                  environmentGone = true;
+                } else {
+                  console.warn("Agent continuation stream failed, falling back:", streamErr);
+                  setAgentTrace(null);
+                  const fallback = await continueAgentTurn(agentMeta, agentResults);
+                  next = fallback.interaction;
+                  environmentGone = fallback.environmentGone;
+                }
               } finally {
                 traceRef.current = null;
                 setAgentTrace(null);
               }
-              handleAgentInteractionResult(next, getPendingFunctionCalls(next), formatThoughts(liveTrace));
+              if (environmentGone) {
+                setAgentSession(null);
+                setChatMessages(prev => [...prev, {
+                  role: 'model',
+                  text: "_(Those changes were applied, but this chat's workspace had expired so the agent couldn't pick the thread back up. Send another message to start a fresh one.)_",
+                }]);
+              } else if (next) {
+                handleAgentInteractionResult(next, getPendingFunctionCalls(next), formatThoughts(liveTrace));
+              }
             }
     } catch (error) {
       console.error("AI Confirm Error:", error);

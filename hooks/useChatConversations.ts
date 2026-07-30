@@ -7,6 +7,12 @@ interface UseChatConversationsArgs {
   messages: ChatMessage[];
   onSetMessages: (messages: ChatMessage[]) => void;
   user: User | null;
+  /**
+   * Extra fields to persist alongside the messages — the live agent session
+   * (`mode`/`agentInteractionId`/`agentEnvironmentId`). Read at save time so the caller doesn't
+   * have to re-render this hook whenever the session changes.
+   */
+  getExtras?: () => Partial<AIConversation>;
 }
 
 export interface ChatConversationsApi {
@@ -32,7 +38,7 @@ export interface ChatConversationsApi {
  *
  * Extracted verbatim from the original ChatWidget so behaviour is unchanged.
  */
-export function useChatConversations({ messages, onSetMessages, user }: UseChatConversationsArgs): ChatConversationsApi {
+export function useChatConversations({ messages, onSetMessages, user, getExtras }: UseChatConversationsArgs): ChatConversationsApi {
   const [conversations, setConversations] = useState<AIConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
@@ -72,11 +78,15 @@ export function useChatConversations({ messages, onSetMessages, user }: UseChatC
         const currentConv = conversations.find(c => c.id === currentConversationId);
         const title = currentConv?.title || (messages.length > 0 ? messages[0].text.substring(0, 30) + '...' : 'New Conversation');
 
+        // Spread the existing doc first so fields this hook doesn't own (agent session ids set on
+        // an earlier turn) survive a save that only adds a message.
         const updatedConv: AIConversation = {
+          ...(currentConv || {}),
           id: currentConversationId,
           title,
           messages,
           updatedAt: Date.now(),
+          ...(getExtras ? getExtras() : {}),
         };
 
         try {

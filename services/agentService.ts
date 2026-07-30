@@ -34,6 +34,10 @@ const buildInteractionTransport = async (
   extraHeaders: Record<string, string> = {},
 ): Promise<{ url: string; headers: Record<string, string>; body: Record<string, any> }> => {
   if (useDirectGemini) {
+    // `plannerEnv` is an instruction to OUR proxy, not a field the Interactions API knows. The
+    // native path talks to Google directly, so drop it — the run still works, just without the
+    // server-assembled sandbox (skills/brand/workspace files).
+    const { plannerEnv, ...directBody } = body;
     return {
       url: NATIVE_INTERACTIONS_URL,
       headers: {
@@ -42,7 +46,7 @@ const buildInteractionTransport = async (
         "Api-Revision": AGENT_API_REVISION,
         ...extraHeaders,
       },
-      body: maskEmailsDeep(body),
+      body: maskEmailsDeep(directBody),
     };
   }
   return { url: ENDPOINT, headers: { ...(await authHeaders()), ...extraHeaders }, body };
@@ -51,18 +55,34 @@ const buildInteractionTransport = async (
 // Agent runs are autonomous multi-step loops that can take minutes; give them a long ceiling.
 const REQUEST_TIMEOUT_MS = 300_000;
 
+/**
+ * Marker appended to errors caused by a sandbox environment that no longer exists. Environments
+ * are snapshotted after 15 minutes idle and deleted after a 7-day TTL, so any stored session can
+ * outlive its sandbox; the API answers `404 {"error":{"code":"not_found"}}` when it does.
+ * Callers use {@link isEnvironmentGoneError} to restart the run instead of surfacing a failure.
+ */
+const ENV_GONE_MARKER = "[environment-gone]";
+
+/** True when an agent error means "that sandbox is gone" rather than a real failure. */
+export const isEnvironmentGoneError = (error: unknown): boolean =>
+  error instanceof Error && error.message.includes(ENV_GONE_MARKER);
+
 /** Turn a non-OK response into a readable error, surfacing the API's own message when present. */
 const describeHttpError = async (response: Response): Promise<string> => {
   const raw = await response.text().catch(() => "");
   let detail = raw.slice(0, 500);
+  let code = "";
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.error?.message) detail = parsed.error.message;
+    if (parsed?.error?.code) code = String(parsed.error.code);
   } catch { /* keep the raw slice */ }
   const hint =
     response.status === 429 ? " (rate limited — wait a moment and try again)" :
     response.status === 403 ? " (check that the Gemini API key is valid and has access)" : "";
-  return `Agent request failed (${response.status})${hint}: ${detail}`;
+  const gone = response.status === 404 && (code === "not_found" || /not.?found/i.test(detail))
+    ? ` ${ENV_GONE_MARKER}` : "";
+  return `Agent request failed (${response.status})${hint}: ${detail}${gone}`;
 };
 
 export type AgentTool =
@@ -116,34 +136,70 @@ export interface AgentFunctionResult {
   result: any;
 }
 
+/** Model + budget for a run. `type` is required by the API; the model is locked per interaction. */
+export interface AgentConfig {
+  type?: 'antigravity';
+  model?: string;
+  max_total_tokens?: number;
+}
+
+/**
+ * Server-side environment enrichment request. The client cannot build the real `environment` — it
+ * carries sandbox credentials and Admin-read data (skills, brand kit, memory) — so it sends this
+ * marker instead and `/api/interactions/step` expands it into the full spec and strips it.
+ */
+export interface PlannerEnvRequest {
+  agentId?: string;
+  skillIds?: string[];
+  conversationId?: string;
+  includeWorkspace?: boolean;
+}
+
 interface CreateInteractionArgs {
   input?: string | any[];
   environmentId?: string;
   previousInteractionId?: string;
   functionResults?: AgentFunctionResult[];
   tools?: AgentTool[];
+  agentConfig?: AgentConfig;
+  plannerEnv?: PlannerEnvRequest;
+  background?: boolean;
 }
 
 /**
- * Create (or continue) an agent interaction.
+ * Pull the agent's answer out of an interaction.
  *
- * - First turn: pass `input` + `tools` (and `environmentId` "remote" is the default).
- * - Continuing a turn after executing function calls: pass `previousInteractionId`, `environmentId`
- *   (the sandbox id returned earlier) and `functionResults`.
+ * The Interactions API does NOT return a top-level `output_text` (verified against the live API);
+ * the answer is carried by `model_output` steps. The streamed path accumulates text deltas itself,
+ * so this is the recovery path for blocking calls and for streams that ended without text deltas.
  */
-export const createAgentInteraction = async ({
-  input,
-  environmentId,
-  previousInteractionId,
-  functionResults,
-  tools,
-}: CreateInteractionArgs): Promise<Interaction> => {
+export const extractOutputText = (interaction: Interaction): string => {
+  const parts: string[] = [];
+  for (const step of interaction.steps || []) {
+    if (step.type !== 'model_output') continue;
+    const content = (step as any).content;
+    if (typeof content === 'string') parts.push(content);
+    else if (Array.isArray(content)) parts.push(content.map((c: any) => (typeof c === 'string' ? c : c?.text || '')).join(''));
+    else if (content?.text) parts.push(content.text);
+  }
+  return parts.join('').trim();
+};
+
+/** Build the shared request body for both the blocking and streamed calls. */
+const buildInteractionBody = (
+  { input, environmentId, previousInteractionId, functionResults, tools, agentConfig, plannerEnv, background }: CreateInteractionArgs,
+  extra: Record<string, any> = {},
+): Record<string, any> => {
   const body: Record<string, any> = {
     agent: AGENT,
     environment: environmentId || "remote",
+    ...extra,
   };
   if (previousInteractionId) body.previous_interaction_id = previousInteractionId;
   if (tools) body.tools = tools;
+  if (agentConfig) body.agent_config = { type: 'antigravity', ...agentConfig };
+  if (plannerEnv) body.plannerEnv = plannerEnv;
+  if (background) body.background = true;
 
   if (functionResults && functionResults.length > 0) {
     body.input = functionResults.map(fr => ({
@@ -155,6 +211,18 @@ export const createAgentInteraction = async ({
   } else if (input !== undefined) {
     body.input = input;
   }
+  return body;
+};
+
+/**
+ * Create (or continue) an agent interaction.
+ *
+ * - First turn: pass `input` + `tools` (and `environmentId` "remote" is the default).
+ * - Continuing a turn after executing function calls: pass `previousInteractionId`, `environmentId`
+ *   (the sandbox id returned earlier) and `functionResults`.
+ */
+export const createAgentInteraction = async (args: CreateInteractionArgs): Promise<Interaction> => {
+  const body = buildInteractionBody(args);
 
   const transport = await buildInteractionTransport(body);
   const controller = new AbortController();
@@ -170,7 +238,10 @@ export const createAgentInteraction = async ({
     if (!response.ok) {
       throw new Error(await describeHttpError(response));
     }
-    return (await response.json()) as Interaction;
+    const interaction = (await response.json()) as Interaction;
+    // The API carries the answer in `model_output` steps, not a top-level field.
+    if (!interaction.output_text) interaction.output_text = extractOutputText(interaction);
+    return interaction;
   } finally {
     clearTimeout(timeout);
   }
@@ -231,26 +302,11 @@ const stepToActivity = (step: any): AgentActivityItem | null => {
  * function-call confirmation flow keeps working unchanged.
  */
 export const streamAgentInteraction = async (
-  { input, environmentId, previousInteractionId, functionResults, tools }: CreateInteractionArgs,
+  args: CreateInteractionArgs,
   callbacks: AgentStreamCallbacks = {},
 ): Promise<Interaction> => {
-  const body: Record<string, any> = {
-    agent: AGENT,
-    environment: environmentId || "remote",
-    stream: true,
-  };
-  if (previousInteractionId) body.previous_interaction_id = previousInteractionId;
-  if (tools) body.tools = tools;
-  if (functionResults && functionResults.length > 0) {
-    body.input = functionResults.map(fr => ({
-      type: "function_result",
-      name: fr.name,
-      call_id: fr.call_id,
-      result: fr.result,
-    }));
-  } else if (input !== undefined) {
-    body.input = input;
-  }
+  const { environmentId } = args;
+  const body = buildInteractionBody(args, { stream: true });
 
   const transport = await buildInteractionTransport(body, { Accept: "text/event-stream" });
   const controller = new AbortController();
@@ -358,6 +414,9 @@ export const streamAgentInteraction = async (
     if (buffer.trim()) handleEvent(buffer);
 
     if (result.status === 'in_progress') result.status = 'completed';
+    // A run can finish without emitting text deltas (e.g. the answer only lands in the completed
+    // payload's steps). Recover it from `model_output` rather than reporting an empty answer.
+    if (!result.output_text) result.output_text = extractOutputText(result);
     return result;
   } finally {
     clearTimeout(timeout);
