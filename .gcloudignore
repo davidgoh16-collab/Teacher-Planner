@@ -1,0 +1,29 @@
+# What NOT to upload to Cloud Build. This file also determines the Docker build context, so an
+# entry here is genuinely absent from the image.
+.git
+.gitignore
+
+# SECURITY: .env.local holds VITE_GEMINI_API_KEY, which is baked into the bundle by `vite build`.
+# It exists for the native Android build, which has no server to proxy through. The web build must
+# never carry it — the server holds the key and proxies /api instead. Do not remove this line.
+.env.local
+.env.*.local
+
+# Rebuilt inside the image; uploading them wastes minutes and risks a stale bundle.
+node_modules
+dist
+
+# Not part of the web server image.
+android
+electron
+release
+build
+scripts
+tests
+docs
+.github
+.jules
+*.apk
+*.dmg
+*.log
+.DS_Store

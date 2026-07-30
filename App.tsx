@@ -882,8 +882,16 @@ const App: React.FC = () => {
   // the heaviest, rarely-needed sections (full historical lesson plans, colleague timetables, apps/
   // ideas/routines), keeping the essentials (projects, tasks, key dates, timetables, current week).
   // The single-turn chat passes compact=false and keeps the full, pretty-printed context.
-  const buildPlannerContextString = (week: WeekData, compact = false): string => {
+  const buildPlannerContextString = (week: WeekData | null, compact = false): string => {
       const j = (v: any) => compact ? JSON.stringify(v) : JSON.stringify(v, null, 2);
+      // Before setup there is no active week. The agent can still research, draft and generate
+      // documents, so say so plainly instead of refusing to run.
+      if (!week) {
+        return `This teacher has not set up their academic year or timetable yet, so there is no ` +
+          `planner data available. Do not invent term dates, lessons or timetable details — if the ` +
+          `task needs them, ask the teacher or suggest they complete setup in Settings.\n` +
+          `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n`;
+      }
       const timetable = week.weekNumber === 1 ? timetableWeek1 : timetableWeek2;
       let contextString = `Current Week Context: ${week.displayString} (Week ${week.weekNumber}).\n`;
       contextString += `\n--- DATE CONTEXT ---\n${buildDateContextBlock()}\n----------------------------\n\n`;
@@ -1056,7 +1064,6 @@ const App: React.FC = () => {
     setIsAiLoading(true);
 
     try {
-      if (!currentWeekData) throw new Error("No active week data");
 
       const ai = getAiClient();
 
@@ -1215,7 +1222,6 @@ const App: React.FC = () => {
     setAgentTrace({ reasoning: '', activity: [], answer: '' });
 
     try {
-      if (!currentWeekData) throw new Error("No active week data");
 
       // Data minimisation: pseudonymise names / mask emails in the agent's free-text input, and
       // rehydrate its answer for display. The mapping never leaves the browser.
@@ -1301,8 +1307,16 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Agent Error:", error);
-      const detail = error?.message ? `\n\n${String(error.message).slice(0, 300)}` : '';
-      setChatMessages(prev => [...prev, { role: 'model', text: `Sorry, the agent run failed. This preview feature can be slow or rate-limited — please try again.${detail}` }]);
+      // Lead with what actually went wrong. Blaming rate limits for every failure sent people off
+      // waiting when the real cause was something they could act on.
+      const raw = String(error?.message || '');
+      const lead = /\(429\)|rate limit/i.test(raw)
+        ? "The agent is rate-limited right now — give it a minute and try again."
+        : /\(403\)/.test(raw)
+        ? "The agent isn't authorised — the server's Gemini key may be missing or invalid."
+        : "Sorry, the agent run failed. Agent runs are long-running and can time out; please try again.";
+      const detail = raw ? `\n\n${raw.slice(0, 300)}` : '';
+      setChatMessages(prev => [...prev, { role: 'model', text: `${lead}${detail}` }]);
     } finally {
       traceRef.current = null;
       setAgentTrace(null);
