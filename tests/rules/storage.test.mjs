@@ -81,6 +81,25 @@ test('brand kit and skill assets follow the same owner-only rule', async () => {
   }
 });
 
+test('an imported .skill package can have nested reference/script subfolders', async () => {
+  // Real skill packages aren't flat — regression test for a bug where a single-segment
+  // {fileName} wildcard silently rejected anything not directly inside the skill's folder,
+  // so a package with references/ or scripts/ subdirectories imported its SKILL.md but none
+  // of the actual content, with the failure swallowed rather than surfaced.
+  const owner = env.authenticatedContext(OWNER).storage();
+  for (const path of [
+    `users/${OWNER}/skills/skill_2/references/existing_instances.md`,
+    `users/${OWNER}/skills/skill_2/scripts/engine.py`,
+    `users/${OWNER}/skills/skill_2/scripts/logo.png`,
+  ]) {
+    await assertSucceeds(uploadBytes(ref(owner, path), bytes()));
+    await assertSucceeds(getBytes(ref(owner, path)));
+  }
+  // And another teacher still can't reach into it.
+  const intruder = env.authenticatedContext(OTHER).storage();
+  await assertFails(getBytes(ref(intruder, `users/${OWNER}/skills/skill_2/scripts/engine.py`)));
+});
+
 test('uploads above the size ceiling are rejected', async () => {
   const storage = env.authenticatedContext(OWNER).storage();
   const path = `users/${OWNER}/resources/res_big/huge.pdf`;

@@ -81,8 +81,12 @@ const parseSkillMarkdown = (raw: string, fallbackName: string): { name: string; 
  * Falls back to treating the upload as a bare SKILL.md if it isn't a zip (or has no SKILL.md
  * inside one) — some exporters produce just the markdown file, and there's no reason to reject a
  * perfectly good skill for missing packaging.
+ *
+ * Returns which supporting files, if any, didn't make it — a skill package can legitimately
+ * contain a references/ or scripts/ subfolder, and a permission or size problem on one of those
+ * must not be swallowed. The skill itself is still saved with whatever did succeed.
  */
-export const importSkillFile = async (file: File): Promise<TeacherSkill> => {
+export const importSkillFile = async (file: File): Promise<{ skill: TeacherSkill; failedAssets: string[] }> => {
   let raw: string | null = null;
   let assetDir = '';
   let assetEntries: Array<[string, any]> = [];
@@ -111,17 +115,19 @@ export const importSkillFile = async (file: File): Promise<TeacherSkill> => {
 
   const id = newId('skill');
   const assets: TeacherSkill['assets'] = [];
+  const failedAssets: string[] = [];
   for (const [path, entry] of assetEntries) {
+    const name = path.slice(assetDir.length);
     try {
       const blob: Blob = await entry.async('blob');
-      const name = path.slice(assetDir.length);
       assets.push(await uploadSkillAsset(id, new File([blob], name, { type: blob.type || 'application/octet-stream' })));
     } catch (e) {
       console.warn(`Could not import asset "${path}" from ${file.name}`, e);
+      failedAssets.push(name);
     }
   }
 
-  return saveSkill({
+  const skill = await saveSkill({
     id,
     name: parsed.name,
     slug: slugify(dirSlug || parsed.name),
@@ -130,6 +136,7 @@ export const importSkillFile = async (file: File): Promise<TeacherSkill> => {
     assets,
     enabled: true,
   });
+  return { skill, failedAssets };
 };
 
 export const uploadSkillAsset = async (skillId: string, file: File) => {

@@ -33,8 +33,11 @@ service firebase.storage {
       allow create, update: if isOwner(uid) && withinSizeLimit();
     }
 
-    // Files attached to a skill (worked examples, blank proformas).
-    match /users/{uid}/skills/{skillId}/{fileName} {
+    // Files attached to a skill (worked examples, blank proformas, and — for an imported .skill
+    // package — whatever subfolder structure it shipped with, e.g. references/*.md, scripts/*.py).
+    // A single-segment {fileName} silently rejects anything not directly in the skill's folder, so
+    // this needs the multi-segment wildcard; a flat filename still matches it fine.
+    match /users/{uid}/skills/{skillId}/{fileName=**} {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && withinSizeLimit();
     }

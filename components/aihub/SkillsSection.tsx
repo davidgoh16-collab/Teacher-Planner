@@ -41,10 +41,14 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
     setImportStatus(null);
     const imported: string[] = [];
     const failed: string[] = [];
+    const assetFailures: string[] = [];
     for (const file of Array.from(files)) {
       try {
-        const skill = await importSkillFile(file);
+        const { skill, failedAssets } = await importSkillFile(file);
         imported.push(skill.name);
+        // A skill with SKILL.md saved but some of its reference files/scripts missing is a
+        // partial import, not a success — say so rather than reporting it as clean.
+        if (failedAssets.length) assetFailures.push(`${skill.name} (${failedAssets.join(', ')})`);
       } catch (e) {
         console.error(`Could not import ${file.name}`, e);
         failed.push(file.name);
@@ -55,6 +59,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
     if (importInput.current) importInput.current.value = '';
     const parts = [];
     if (imported.length) parts.push(`Imported ${imported.length === 1 ? '"' + imported[0] + '"' : imported.length + ' skills'}.`);
+    if (assetFailures.length) parts.push(`Some supporting files didn't come across — ${assetFailures.join('; ')}.`);
     if (failed.length) parts.push(`Couldn't read: ${failed.join(', ')}.`);
     setImportStatus(parts.join(' '));
   };
