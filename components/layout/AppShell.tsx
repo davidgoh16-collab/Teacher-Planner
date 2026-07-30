@@ -37,6 +37,7 @@ const TITLES: Record<AppTab, string> = {
   timetable: 'My Timetable',
   meetings: 'Meeting Planner',
   projects: 'Project Planner',
+  resources: 'Resources',
   apps: 'Apps',
   keyDates: 'Key Dates',
   shared: 'Shared',

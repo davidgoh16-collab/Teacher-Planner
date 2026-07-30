@@ -11,6 +11,7 @@ import { usePlannerData } from './src/context/PlannerContext';
 import SettingsModal from './components/SettingsModal';
 import OnboardingModal from './components/OnboardingModal';
 import SharedView from './components/SharedView';
+import ResourcesView from './components/ResourcesView';
 import ShareDialog from './components/ShareDialog';
 import Toaster from './components/ui/Toaster';
 import { Settings, Share2 } from 'lucide-react';
@@ -55,7 +56,8 @@ import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep } from 
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
 import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab } from './types';
+import { fetchResources } from './services/resourceService';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -165,6 +167,19 @@ const App: React.FC = () => {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [appCategories, setAppCategories] = useState<AppCategory[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDate[]>([]);
+  // Everything the teacher has made with the AI or uploaded (the Resources library).
+  const [resources, setResources] = useState<TeacherResource[]>([]);
+  // A resource queued to ride along with the next chat message, as if it had been uploaded.
+  const [pendingResourceAttachment, setPendingResourceAttachment] = useState<{ name: string; text: string } | null>(null);
+
+  // Load the Resources library once the user is known.
+  // Declared here, with the other top-level hooks: App returns early with <LoginPage /> further
+  // down, so a hook placed below that point is skipped while signed out and React sees the hook
+  // order change the moment someone signs in.
+  useEffect(() => {
+    if (!user) { setResources([]); return; }
+    fetchResources().then(setResources).catch(e => console.error('Error loading resources', e));
+  }, [user]);
 
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
   const [lessonPlans, setLessonPlans] = useState<Record<string, LessonPlan>>({});
@@ -1913,11 +1928,37 @@ const App: React.FC = () => {
   const refreshTasks = async () => {
     try { setGlobalTasks(await fetchTasks()); } catch (e) { console.error(e); }
   };
+  const refreshResources = async () => {
+    try { setResources(await fetchResources()); } catch (e) { console.error(e); }
+  };
+
+
+  /**
+   * Attach a saved resource to the next chat message, so the teacher can say "rewrite this for
+   * Year 8" about something the agent made last week. It rides the same path as an uploaded file
+   * rather than inventing a second attachment mechanism.
+   */
+  const handleUseResourceInChat = (resource: TeacherResource, text: string) => {
+    setPendingResourceAttachment({ name: resource.name, text });
+    setActiveTab('home');
+    setChatMessages(prev => [...prev, {
+      role: 'model',
+      text: `Attached **${resource.name}** — tell me what you'd like me to do with it.`,
+    }]);
+  };
 
   // Shared chat props for the embedded Home chat and the floating launcher (one conversation).
   const chatBag = {
     messages: chatMessages,
-    onSendMessage: agentMode ? handleAgentSendMessage : handleAiSendMessage,
+    onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
+      // A resource queued from the Resources tab behaves exactly like an uploaded file, unless the
+      // user also attached something — an explicit upload wins.
+      const attachment = fileData || (pendingResourceAttachment
+        ? { text: pendingResourceAttachment.text, mimeType: 'text/plain', isBase64: false, fileName: pendingResourceAttachment.name }
+        : undefined);
+      setPendingResourceAttachment(null);
+      return (agentMode ? handleAgentSendMessage : handleAiSendMessage)(message, attachment);
+    },
     isLoading: isAiLoading,
     agentMode,
     onToggleAgentMode: () => setAgentMode(m => !m),
@@ -2145,6 +2186,14 @@ const App: React.FC = () => {
           ) : activeTab === 'shared' ? (
             <div className="max-w-7xl mx-auto md:p-8 p-4">
               <SharedView uid={user?.uid || ''} myWeek1={timetableWeek1} myWeek2={timetableWeek2} />
+            </div>
+          ) : activeTab === 'resources' ? (
+            <div className="max-w-7xl mx-auto md:p-8 p-4">
+              <ResourcesView
+                resources={resources}
+                onRefresh={refreshResources}
+                onUseInChat={handleUseResourceInChat}
+              />
             </div>
           ) : (
             <AppsHub

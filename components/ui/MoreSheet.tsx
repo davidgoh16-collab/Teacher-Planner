@@ -1,7 +1,6 @@
 import React from 'react';
 import {
-  LayoutGrid, CalendarClock, Share2, CalendarDays, Download, Settings, LogOut, ChevronRight,
-} from 'lucide-react';
+  LayoutGrid, CalendarClock, Share2, CalendarDays, Download, Settings, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import Sheet from './Sheet';
 import SectionLabel from './SectionLabel';
 import { AppTab } from '../../types';
@@ -68,6 +67,7 @@ const MoreSheet: React.FC<MoreSheetProps> = ({
       </div>
 
       <SectionLabel className="mb-1 mt-6">Navigate</SectionLabel>
+      <Row icon={FolderOpen} label="Resources" onClick={nav('resources')} />
       <Row icon={LayoutGrid} label="Apps" onClick={nav('apps')} />
       <Row icon={CalendarClock} label="Key Dates" onClick={nav('keyDates')} />
       <Row icon={Share2} label="Shared" onClick={nav('shared')} />

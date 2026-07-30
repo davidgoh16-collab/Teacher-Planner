@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit",
     "cap:build": "CAP_BUILD=1 vite build",
     "cap:sync": "CAP_BUILD=1 vite build && cap sync android",
-    "rules:test": "firebase emulators:exec --only firestore --project demo-teacher-planner \"node --test tests/rules/*.test.mjs\"",
+    "rules:test": "firebase emulators:exec --only firestore,storage --project demo-teacher-planner \"node --test tests/rules/*.test.mjs\"",
     "rules:deploy": "firebase deploy --only firestore:rules",
     "desktop": "electron .",
     "desktop:build": "electron-builder --mac --publish never",

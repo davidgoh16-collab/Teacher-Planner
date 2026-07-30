@@ -1,8 +1,7 @@
 import React from 'react';
 import {
   Home, CalendarDays, Users, FolderKanban, LayoutGrid, CalendarClock,
-  Settings, LogOut, Download, ChevronDown, PanelLeftClose, PanelLeftOpen, Share2,
-} from 'lucide-react';
+  Settings, LogOut, Download, ChevronDown, PanelLeftClose, PanelLeftOpen, Share2, FolderOpen } from 'lucide-react';
 import { AppTab, AppItem, AcademicYear } from '../../types';
 import IconRenderer from '../ui/IconRenderer';
 import SectionLabel from '../ui/SectionLabel';
@@ -37,6 +36,7 @@ const NAV: { id: AppTab; label: string; icon: React.ComponentType<{ size?: numbe
   { id: 'timetable', label: 'My Timetable', icon: CalendarDays },
   { id: 'meetings', label: 'Meeting Planner', icon: Users },
   { id: 'projects', label: 'Project Planner', icon: FolderKanban },
+  { id: 'resources', label: 'Resources', icon: FolderOpen },
   { id: 'apps', label: 'Apps', icon: LayoutGrid },
   { id: 'keyDates', label: 'Key Dates', icon: CalendarClock },
   { id: 'shared', label: 'Shared', icon: Share2 },

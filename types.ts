@@ -11,7 +11,41 @@ declare global {
 export type WeekType = 1 | 2;
 
 // Top-level navigable sections (left sidebar).
-export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared';
+export type AppTab = 'home' | 'timetable' | 'meetings' | 'projects' | 'apps' | 'keyDates' | 'shared' | 'resources';
+
+/** File types the Resources library knows how to store, preview and hand back to the agent. */
+export type ResourceType = 'docx' | 'pptx' | 'xlsx' | 'pdf' | 'md' | 'html' | 'csv' | 'txt' | 'png' | 'jpg';
+
+/**
+ * Something the teacher made — a generated lesson plan, a PowerPoint the agent built, a research
+ * report, or a file they uploaded. The bytes live in Cloud Storage; this is the index.
+ */
+export interface TeacherResource {
+  id: string;
+  name: string;
+  type: ResourceType;
+  mimeType: string;
+  size: number;
+  /** Path in the resources bucket: users/{uid}/resources/{id}/{fileName} */
+  storagePath: string;
+  source: 'agent' | 'research' | 'trigger' | 'upload';
+  /** Where it came from, for "show me what this chat produced" and for cleanup. */
+  conversationId?: string;
+  interactionId?: string;
+  agentId?: string;
+  triggerId?: string;
+  summary?: string;
+  tags?: string[];
+  /** Pinned resources are mounted into every new agent sandbox (the persistent workspace). */
+  pinnedToWorkspace: boolean;
+  /**
+   * True when the file was produced inside the agent sandbox, which only ever sees pseudonymised
+   * names. Such a file may contain Student_XXXX tokens and is rehydrated on download.
+   */
+  pseudonymised: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
 
 export interface LessonPlan {
   id: string;

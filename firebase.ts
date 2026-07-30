@@ -10,6 +10,7 @@ import {
   signOut as fbSignOut,
   type UserCredential,
 } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 import { Capacitor } from '@capacitor/core';
 
 // Cloud Function that bridges a native Firebase session into the JS SDK (see firebase functions/).
@@ -56,6 +57,17 @@ export const db = initializeFirestore(app, {
 
 // Initialize Auth
 export const auth = getAuth(app);
+
+/**
+ * Cloud Storage for teacher resources (generated documents, uploads, research reports).
+ *
+ * Deliberately NOT the project's default bucket: that one lives in us-central1, and this app keeps
+ * everything in the UK (Firestore, Cloud Run and Secret Manager are all europe-west2). This bucket
+ * is europe-west2 and registered with Firebase, so the SDK works against it normally while the
+ * data stays in-country. Rules are in storage.rules.
+ */
+export const RESOURCES_BUCKET = 'teacher-planner-eu-982739442942';
+export const storage = getStorage(app, `gs://${RESOURCES_BUCKET}`);
 
 // Initialize Microsoft Provider
 export const microsoftProvider = new OAuthProvider('microsoft.com');

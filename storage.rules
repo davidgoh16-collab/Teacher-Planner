@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Rules for the Teacher Planner resources bucket (teacher-planner-eu-982739442942, europe-west2).
+//
+// Everything a teacher's AI produces or uploads lives under users/{uid}/. There is no sharing at
+// this level: shared planner data is served from Firestore, and a shared *file* would need its own
+// grant model, so the safe default is owner-only until that exists.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // 25 MB is generous for a lesson PowerPoint or a scheme-of-work document while still being far
+    // below anything that would make the app feel broken when it uploads.
+    //
+    // Only meaningful for create/update: on a delete there is no request.resource, and evaluating
+    // its size there fails the whole rule, which is why delete is granted separately below.
+    function withinSizeLimit() {
+      return request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // Generated documents, uploads, research reports.
+    match /users/{uid}/resources/{resourceId}/{fileName} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && withinSizeLimit();
+    }
+
+    // Brand kit: logo and the master .docx/.pptx templates generated documents are built from.
+    match /users/{uid}/brand/{allPaths=**} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && withinSizeLimit();
+    }
+
+    // Files attached to a skill (worked examples, blank proformas).
+    match /users/{uid}/skills/{skillId}/{fileName} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && withinSizeLimit();
+    }
+
+    // Anything else in this bucket is denied. The server writes agent-produced artifacts with the
+    // Admin SDK, which bypasses these rules, so no path needs to be open for it.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
