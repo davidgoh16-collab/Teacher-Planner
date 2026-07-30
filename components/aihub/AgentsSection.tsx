@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Loader2, Bot, MessageSquare, Brain } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, Pencil, Trash2, X, Loader2, Bot, MessageSquare, Brain, Upload } from 'lucide-react';
 import { CustomAgent, TeacherSkill, McpServerConfig, AgentModel } from '../../types';
-import { saveCustomAgent, deleteCustomAgent } from '../../services/aiHubService';
-import { buildMappingFromPeople, rehydrateText } from '../../utils/pseudonymiser';
+import { saveCustomAgent, deleteCustomAgent, setAgentMemory } from '../../services/aiHubService';
+import { buildMappingFromPeople, rehydrateText, scrubText, PseudonymMapping } from '../../utils/pseudonymiser';
 import { fetchColleagues } from '../../services/colleagueService';
 import SensitiveDataNotice from '../SensitiveDataNotice';
 
@@ -51,7 +51,9 @@ const emptyAgent = (): Partial<CustomAgent> => ({
 const AgentsSection: React.FC<AgentsSectionProps> = ({ agents, skills, servers, onRefresh, onUseAgent }) => {
   const [editing, setEditing] = useState<Partial<CustomAgent> | null>(null);
   const [saving, setSaving] = useState(false);
-  const [memoryView, setMemoryView] = useState<{ agent: CustomAgent; text: string } | null>(null);
+  const [memoryView, setMemoryView] = useState<{ agent: CustomAgent; text: string; mapping: PseudonymMapping } | null>(null);
+  const [savingMemory, setSavingMemory] = useState(false);
+  const memoryImportInput = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     if (!editing?.name?.trim() || !editing?.instructions?.trim()) return;
@@ -85,7 +87,41 @@ const AgentsSection: React.FC<AgentsSectionProps> = ({ agents, skills, servers, 
   const openMemory = async (agent: CustomAgent) => {
     const colleagues = await fetchColleagues().catch(() => []);
     const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
-    setMemoryView({ agent, text: rehydrateText(agent.memory?.content || '', mapping) });
+    setMemoryView({ agent, text: rehydrateText(agent.memory?.content || '', mapping), mapping });
+  };
+
+  /**
+   * Bring in memory from another agent — a ChatGPT export, a CLAUDE.md, a project's saved context.
+   * Appended rather than replacing, so importing doesn't wipe out what this assistant has already
+   * learned; the teacher can trim it in the textarea before saving either way.
+   */
+  const handleMemoryImport = async (file: File | undefined) => {
+    if (!file || !memoryView) return;
+    const imported = await file.text();
+    setMemoryView({
+      ...memoryView,
+      text: memoryView.text.trim() ? `${memoryView.text.trim()}\n\n---\n\n${imported.trim()}` : imported.trim(),
+    });
+    if (memoryImportInput.current) memoryImportInput.current.value = '';
+  };
+
+  const handleSaveMemory = async () => {
+    if (!memoryView) return;
+    setSavingMemory(true);
+    try {
+      // Memory is stored pseudonymised, same as everything else that reaches the sandbox — an
+      // imported file from another tool may well contain real names, so it's scrubbed on the way
+      // in exactly as if the teacher had typed it into a chat message.
+      const scrubbed = scrubText(memoryView.text, memoryView.mapping);
+      await setAgentMemory(memoryView.agent, scrubbed);
+      await onRefresh();
+      setMemoryView(null);
+    } catch (e) {
+      console.error('Could not save memory', e);
+      alert("Couldn't save that. Please try again.");
+    } finally {
+      setSavingMemory(false);
+    }
   };
 
   const toggleId = (list: string[], id: string) =>
@@ -161,12 +197,12 @@ const AgentsSection: React.FC<AgentsSectionProps> = ({ agents, skills, servers, 
                     <MessageSquare className="h-3.5 w-3.5" /> Chat
                   </button>
                 )}
-                {agent.memoryEnabled && agent.memory?.content && (
+                {agent.memoryEnabled && (
                   <button
                     onClick={() => openMemory(agent)}
                     className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
-                    <Brain className="h-3.5 w-3.5" /> What it remembers
+                    <Brain className="h-3.5 w-3.5" /> {agent.memory?.content ? 'What it remembers' : 'Add memory'}
                   </button>
                 )}
               </div>
@@ -362,7 +398,7 @@ const AgentsSection: React.FC<AgentsSectionProps> = ({ agents, skills, servers, 
 
       {memoryView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setMemoryView(null)}>
-          <div className="flex max-h-[80vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl dark:bg-slate-800" onClick={e => e.stopPropagation()}>
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl dark:bg-slate-800" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-700">
               <h2 className="font-serif text-lg text-slate-900 dark:text-white">
                 What {memoryView.agent.name} remembers
@@ -371,29 +407,55 @@ const AgentsSection: React.FC<AgentsSectionProps> = ({ agents, skills, servers, 
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-auto p-4">
-              <pre className="whitespace-pre-wrap break-words font-sans text-sm text-slate-700 dark:text-slate-200">
-                {memoryView.text || 'Nothing yet.'}
-              </pre>
+            <div className="space-y-3 overflow-auto p-4">
+              <textarea
+                value={memoryView.text}
+                onChange={e => setMemoryView({ ...memoryView, text: e.target.value })}
+                rows={12}
+                placeholder="Nothing yet. Write something, or import from a file below."
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+              <div className="flex items-center justify-between">
+                <input
+                  ref={memoryImportInput}
+                  type="file"
+                  accept=".md,.markdown,.txt,.json"
+                  className="hidden"
+                  onChange={e => handleMemoryImport(e.target.files?.[0])}
+                />
+                <button
+                  onClick={() => memoryImportInput.current?.click()}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <Upload className="h-3.5 w-3.5" /> Import from a file
+                </button>
+                <span className="text-xs text-slate-400">Added to the end — edit freely above.</span>
+              </div>
+              <SensitiveDataNotice variant="creation" />
             </div>
             <div className="flex justify-between gap-2 border-t border-slate-200 p-4 dark:border-slate-700">
               <button
-                onClick={async () => {
-                  if (!confirm('Clear what this assistant remembers?')) return;
-                  await saveCustomAgent({ ...memoryView.agent, memory: { content: '', updatedAt: Date.now() } });
-                  await onRefresh();
-                  setMemoryView(null);
-                }}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                onClick={() => setMemoryView({ ...memoryView, text: '' })}
+                disabled={!memoryView.text}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 dark:hover:bg-red-900/20"
               >
-                Clear memory
+                Clear
               </button>
-              <button
-                onClick={() => setMemoryView(null)}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-              >
-                Done
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMemoryView(null)}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveMemory}
+                  disabled={savingMemory}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {savingMemory && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                </button>
+              </div>
             </div>
           </div>
         </div>

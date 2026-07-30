@@ -4,6 +4,7 @@ import { clampTimetableColors } from "../utils/timetablePalette";
 import { auth, isNative } from "../firebase";
 import { scrubText, rehydrateText, rehydrateDeep, buildMappingFromPeople, maskEmailsDeep, type PseudonymMapping } from "../utils/pseudonymiser";
 import { fetchColleagues } from "./colleagueService";
+import type { ReadFileResult } from "../utils/fileUtils";
 
 /**
  * On web the Gemini key is held server-side and every AI call is proxied through /api/*.
@@ -1134,4 +1135,72 @@ export const parseTimetableTextWithName = async (
     console.error("Error parsing timetable text with name:", error);
     throw error;
   }
+};
+
+// --- Brand kit extraction ---------------------------------------------------------------------
+
+const BRAND_EXTRACTION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    displayName: { type: Type.STRING, nullable: true },
+    colors: {
+      type: Type.OBJECT,
+      nullable: true,
+      properties: {
+        primary: { type: Type.STRING, nullable: true },
+        secondary: { type: Type.STRING, nullable: true },
+        accent: { type: Type.STRING, nullable: true },
+        text: { type: Type.STRING, nullable: true },
+      },
+    },
+    fonts: {
+      type: Type.OBJECT,
+      nullable: true,
+      properties: {
+        heading: { type: Type.STRING, nullable: true },
+        body: { type: Type.STRING, nullable: true },
+      },
+    },
+    headerText: { type: Type.STRING, nullable: true },
+    footerText: { type: Type.STRING, nullable: true },
+  },
+};
+
+export interface BrandExtraction {
+  displayName?: string | null;
+  colors?: { primary?: string | null; secondary?: string | null; accent?: string | null; text?: string | null };
+  fonts?: { heading?: string | null; body?: string | null };
+  headerText?: string | null;
+  footerText?: string | null;
+}
+
+const BRAND_EXTRACTION_PROMPT =
+  'You are extracting brand guidelines from a document so a school can reuse them to style documents ' +
+  'an AI assistant generates for them. Identify: the organisation/school name; primary, secondary, ' +
+  'accent and body-text colours as 6-digit hex codes (#RRGGBB) — use colours explicitly stated as ' +
+  'brand colours if given, or infer from prominent, consistent use in headers/logos/titles if not; ' +
+  'heading and body font names if stated; any standard header or footer text (a strapline, motto, ' +
+  'or department name) that should appear on documents. Only include a field if you found real ' +
+  'evidence for it in the document — use null for anything not present. Do not invent colours or ' +
+  'fonts that aren\'t actually indicated.';
+
+/**
+ * Pull brand colours, fonts and standing text out of an uploaded document — a style guide, a
+ * letterhead, a slide deck template. Anything not found comes back null, so the caller only
+ * overwrites fields it has real evidence for and leaves the rest of the draft alone.
+ */
+export const extractBrandKitFields = async (file: ReadFileResult): Promise<BrandExtraction> => {
+  const ai = getAiClient();
+  const contents = file.isBase64
+    ? { parts: [{ text: BRAND_EXTRACTION_PROMPT }, { inlineData: { mimeType: file.mimeType, data: file.text } }] }
+    : `${BRAND_EXTRACTION_PROMPT}\n\nDocument (${file.fileName || 'uploaded file'}):\n${file.text.slice(0, 12000)}`;
+
+  const response = await ai.models.generateContent({
+    model: TEXT_MODEL,
+    contents,
+    config: { responseMimeType: 'application/json', responseSchema: BRAND_EXTRACTION_SCHEMA },
+  });
+
+  if (!response.text) throw new Error('No response text from Gemini');
+  return extractAndParseJSON(response.text) as BrandExtraction;
 };

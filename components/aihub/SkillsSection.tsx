@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Loader2, BookMarked } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, Pencil, Trash2, X, Loader2, BookMarked, Upload } from 'lucide-react';
 import { TeacherSkill } from '../../types';
-import { saveSkill, deleteSkill, slugify } from '../../services/aiHubService';
+import { saveSkill, deleteSkill, slugify, importSkillFile } from '../../services/aiHubService';
 
 /**
  * Skills: the teacher's own ways of doing things, taught once and reused.
@@ -29,8 +29,35 @@ Keep the language plain enough to hand to a cover teacher.`;
 const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
   const [editing, setEditing] = useState<Partial<TeacherSkill> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const importInput = useRef<HTMLInputElement>(null);
 
   const startNew = () => setEditing({ name: '', description: '', instructions: '', enabled: true });
+
+  const handleImport = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setImporting(true);
+    setImportStatus(null);
+    const imported: string[] = [];
+    const failed: string[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const skill = await importSkillFile(file);
+        imported.push(skill.name);
+      } catch (e) {
+        console.error(`Could not import ${file.name}`, e);
+        failed.push(file.name);
+      }
+    }
+    await onRefresh();
+    setImporting(false);
+    if (importInput.current) importInput.current.value = '';
+    const parts = [];
+    if (imported.length) parts.push(`Imported ${imported.length === 1 ? '"' + imported[0] + '"' : imported.length + ' skills'}.`);
+    if (failed.length) parts.push(`Couldn't read: ${failed.join(', ')}.`);
+    setImportStatus(parts.join(' '));
+  };
 
   const handleSave = async () => {
     if (!editing?.name?.trim() || !editing?.instructions?.trim()) return;
@@ -69,14 +96,41 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
         <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-400">
           Save the way you like things done — your lesson plan format, how you word a parent email,
           your department's marking codes. The assistant checks these before it writes anything.
+          Already have skills from Claude or another AI agent? Import their <code>.skill</code> files
+          straight in.
         </p>
-        <button
-          onClick={startNew}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-        >
-          <Plus className="h-4 w-4" /> New skill
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <input
+            ref={importInput}
+            type="file"
+            accept=".skill,.zip,.md,.markdown"
+            multiple
+            className="hidden"
+            onChange={e => handleImport(e.target.files)}
+          />
+          <button
+            onClick={() => importInput.current?.click()}
+            disabled={importing}
+            title="Import a .skill file — from Claude or another AI agent"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Import .skill
+          </button>
+          <button
+            onClick={startNew}
+            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4" /> New skill
+          </button>
+        </div>
       </div>
+
+      {importStatus && (
+        <p className="mb-4 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-700/50 dark:text-slate-300">
+          {importStatus}
+        </p>
+      )}
 
       {skills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white/50 p-10 text-center dark:border-slate-700 dark:bg-slate-800/40">

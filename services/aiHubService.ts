@@ -60,6 +60,78 @@ export const deleteSkill = async (skill: TeacherSkill): Promise<void> => {
   }
 };
 
+/** Pull `{ name, description }` frontmatter and the body out of a SKILL.md file. */
+const parseSkillMarkdown = (raw: string, fallbackName: string): { name: string; description: string; instructions: string } => {
+  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) return { name: fallbackName, description: '', instructions: raw.trim() };
+  const meta: Record<string, string> = {};
+  for (const line of match[1].split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx > 0) meta[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
+  }
+  return { name: meta.name || fallbackName, description: meta.description || '', instructions: match[2].trim() };
+};
+
+/**
+ * Import a skill from a `.skill` package — the same format this app materialises server-side
+ * (`.agents/skills/<slug>/SKILL.md` plus any supporting files), and the format Claude's own Agent
+ * Skills use. It's a zip: a SKILL.md with name/description frontmatter, optionally alongside
+ * reference files, scripts or assets a teacher may have bundled in.
+ *
+ * Falls back to treating the upload as a bare SKILL.md if it isn't a zip (or has no SKILL.md
+ * inside one) — some exporters produce just the markdown file, and there's no reason to reject a
+ * perfectly good skill for missing packaging.
+ */
+export const importSkillFile = async (file: File): Promise<TeacherSkill> => {
+  let raw: string | null = null;
+  let assetDir = '';
+  let assetEntries: Array<[string, any]> = [];
+
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(file);
+    const entryPath = Object.keys(zip.files).find(p => /(^|\/)SKILL\.md$/i.test(p) && !zip.files[p].dir);
+    if (entryPath) {
+      raw = await zip.files[entryPath].async('string');
+      assetDir = entryPath.includes('/') ? entryPath.slice(0, entryPath.lastIndexOf('/') + 1) : '';
+      assetEntries = Object.entries(zip.files).filter(([path, entry]: [string, any]) =>
+        !entry.dir && path !== entryPath && path.startsWith(assetDir) && !path.startsWith('__MACOSX/'));
+    }
+  } catch {
+    // Not a zip — fall through and read it as plain text below.
+  }
+
+  if (raw === null) raw = await file.text();
+
+  const fallbackName = file.name.replace(/\.(skill|zip|md|markdown)$/i, '');
+  const parsed = parseSkillMarkdown(raw, fallbackName);
+  // A skill package's directory name is often its canonical slug (e.g. "lesson-plan-format/SKILL.md")
+  // and worth keeping if the imported skill is used elsewhere too.
+  const dirSlug = assetDir ? assetDir.replace(/\/$/, '').split('/').pop() : '';
+
+  const id = newId('skill');
+  const assets: TeacherSkill['assets'] = [];
+  for (const [path, entry] of assetEntries) {
+    try {
+      const blob: Blob = await entry.async('blob');
+      const name = path.slice(assetDir.length);
+      assets.push(await uploadSkillAsset(id, new File([blob], name, { type: blob.type || 'application/octet-stream' })));
+    } catch (e) {
+      console.warn(`Could not import asset "${path}" from ${file.name}`, e);
+    }
+  }
+
+  return saveSkill({
+    id,
+    name: parsed.name,
+    slug: slugify(dirSlug || parsed.name),
+    description: parsed.description,
+    instructions: parsed.instructions,
+    assets,
+    enabled: true,
+  });
+};
+
 export const uploadSkillAsset = async (skillId: string, file: File) => {
   const uid = currentUid();
   const storagePath = `users/${uid}/skills/${skillId}/${file.name}`;

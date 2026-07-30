@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Trash2, Loader2, Check, FileText, Presentation } from 'lucide-react';
+import { Upload, Trash2, Loader2, Check, FileText, Presentation, Wand2 } from 'lucide-react';
 import { BrandKit } from '../../types';
 import { saveBrandKit, uploadBrandLogo, uploadBrandTemplate } from '../../services/aiHubService';
+import { extractBrandKitFields } from '../../services/aiService';
+import { readFileContent } from '../../utils/fileUtils';
 
 /**
  * The school's look, applied to everything the AI produces.
@@ -18,13 +20,18 @@ interface BrandKitSectionProps {
 
 const FONT_CHOICES = ['Merriweather', 'Arial', 'Calibri', 'Century Gothic', 'Comic Sans MS', 'Georgia', 'Times New Roman', 'Verdana'];
 
+/** Accept only what could plausibly hold a hex colour: reject anything the extraction hallucinated. */
+const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+
 const BrandKitSection: React.FC<BrandKitSectionProps> = ({ brand, onRefresh }) => {
   const [draft, setDraft] = useState<BrandKit>(brand);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [extractMessage, setExtractMessage] = useState<string | null>(null);
   const logoInput = useRef<HTMLInputElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
+  const extractInput = useRef<HTMLInputElement>(null);
 
   const update = (patch: Partial<BrandKit>) => {
     setDraft(prev => ({ ...prev, ...patch }));
@@ -90,6 +97,54 @@ const BrandKitSection: React.FC<BrandKitSectionProps> = ({ brand, onRefresh }) =
     await onRefresh();
   };
 
+  /**
+   * Pull colours, fonts and standing text out of a document instead of setting them by hand — a
+   * style guide, a letterhead, a slide template a school already has. Only fields the model found
+   * real evidence for are applied; nothing here is saved automatically, so it's always reviewed
+   * before it takes effect.
+   */
+  const handleExtract = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy('extract');
+    setExtractMessage(null);
+    try {
+      const content = await readFileContent(file);
+      const found = await extractBrandKitFields(content);
+
+      const applied: string[] = [];
+      const patch: Partial<BrandKit> = {};
+      if (found.displayName) { patch.displayName = found.displayName; applied.push('name'); }
+      if (found.headerText) { patch.headerText = found.headerText; applied.push('header'); }
+      if (found.footerText) { patch.footerText = found.footerText; applied.push('footer'); }
+      if (found.colors) {
+        const colors = { ...draft.colors };
+        let any = false;
+        (['primary', 'secondary', 'accent', 'text'] as const).forEach(k => {
+          if (isHex(found.colors?.[k])) { colors[k] = found.colors![k] as string; any = true; }
+        });
+        if (any) { patch.colors = colors; applied.push('colours'); }
+      }
+      if (found.fonts?.heading || found.fonts?.body) {
+        patch.fonts = { ...draft.fonts, ...(found.fonts.heading ? { heading: found.fonts.heading } : {}), ...(found.fonts.body ? { body: found.fonts.body } : {}) };
+        applied.push('fonts');
+      }
+
+      if (applied.length === 0) {
+        setExtractMessage(`Couldn't find anything usable in "${file.name}" — try a document that states the brand colours or fonts more explicitly.`);
+      } else {
+        setDraft(prev => ({ ...prev, ...patch }));
+        setSaved(false);
+        setExtractMessage(`Applied ${applied.join(', ')} from "${file.name}". Review below, then Save branding.`);
+      }
+    } catch (e) {
+      console.error('Brand extraction failed', e);
+      setExtractMessage(`Couldn't read "${file.name}". Please try a different file.`);
+    } finally {
+      setBusy(null);
+      if (extractInput.current) extractInput.current.value = '';
+    }
+  };
+
   const colourField = (key: keyof BrandKit['colors'], label: string) => (
     <div key={key}>
       <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">{label}</label>
@@ -117,6 +172,32 @@ const BrandKitSection: React.FC<BrandKitSectionProps> = ({ brand, onRefresh }) =
       </p>
 
       <div className="space-y-5">
+        <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-1 font-semibold text-slate-900 dark:text-white">Already have a style guide?</h3>
+          <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
+            Upload a brand guidelines document, a letterhead, or a slide deck that already uses your
+            school's colours and fonts, and I'll pull them out for you to check below.
+          </p>
+          <input
+            ref={extractInput}
+            type="file"
+            accept="image/*,application/pdf,.docx,.pptx"
+            className="hidden"
+            onChange={e => handleExtract(e.target.files?.[0])}
+          />
+          <button
+            onClick={() => extractInput.current?.click()}
+            disabled={busy === 'extract'}
+            className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50 dark:bg-primary-600 dark:hover:bg-primary-700"
+          >
+            {busy === 'extract' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            Extract from a document
+          </button>
+          {extractMessage && (
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{extractMessage}</p>
+          )}
+        </section>
+
         <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <h3 className="mb-3 font-semibold text-slate-900 dark:text-white">School</h3>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -185,7 +266,11 @@ const BrandKitSection: React.FC<BrandKitSectionProps> = ({ brand, onRefresh }) =
                   onChange={e => update({ fonts: { ...draft.fonts, [which]: e.target.value } })}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
-                  {FONT_CHOICES.map(f => <option key={f} value={f}>{f}</option>)}
+                  {/* Include the current value even if it's not one of the presets — an extracted
+                      font (or one typed in previously) shouldn't silently vanish from the list. */}
+                  {Array.from(new Set([...FONT_CHOICES, draft.fonts[which]])).filter(Boolean).map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
                 </select>
               </div>
             ))}
