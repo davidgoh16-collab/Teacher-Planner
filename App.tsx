@@ -59,6 +59,8 @@ import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnv
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { fetchResources } from './services/resourceService';
 import { fetchCustomAgents, fetchMcpServers, setAgentMemory } from './services/aiHubService';
+import { startResearch, pollResearch, researchReportText, refreshAutomations } from './services/automationService';
+import { saveTextResource } from './services/resourceService';
 import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource, CustomAgent, McpServerConfig } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
@@ -177,6 +179,9 @@ const App: React.FC = () => {
   const [activeAgent, setActiveAgent] = useState<CustomAgent | null>(null);
   const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
+  // Deep research runs for up to an hour, so it survives reloads: the id is kept and polled.
+  const [researchMode, setResearchMode] = useState(false);
+  const [pendingResearch, setPendingResearch] = useState<{ interactionId: string; query: string } | null>(null);
 
   // Load the Resources library once the user is known.
   // Declared here, with the other top-level hooks: App returns early with <LoginPage /> further
@@ -187,6 +192,8 @@ const App: React.FC = () => {
     fetchResources().then(setResources).catch(e => console.error('Error loading resources', e));
     fetchCustomAgents().then(setCustomAgents).catch(e => console.error('Error loading assistants', e));
     fetchMcpServers().then(setMcpServers).catch(e => console.error('Error loading connections', e));
+    // Bring any scheduled runs back in line with assistants or skills edited since they were built.
+    refreshAutomations().catch(() => { /* automations are optional; never block startup */ });
   }, [user]);
 
   // Lesson Plans: Keyed by "dateStr_periodLabel" -> LessonPlan object
@@ -1432,6 +1439,71 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Deep research: a long-running literature review rather than a chat answer. It runs in the
+   * background for up to an hour, so the interaction id is kept on the conversation and polled —
+   * closing the app and coming back later still lands the report.
+   */
+  const pollResearchUntilDone = async (interactionId: string, query: string) => {
+    const deadline = Date.now() + 60 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      let interaction;
+      try {
+        interaction = await pollResearch(interactionId);
+      } catch (e) {
+        console.error('Research poll failed', e);
+        continue;
+      }
+      if (interaction.status === 'in_progress') continue;
+
+      setPendingResearch(null);
+      setIsAiLoading(false);
+      if (interaction.status !== 'completed') {
+        setChatMessages(prev => [...prev, { role: 'model', text: `The research stopped before finishing (${interaction.status}).` }]);
+        return;
+      }
+
+      const colleagues = await fetchColleagues().catch(() => []);
+      const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+      const report = rehydrateText(researchReportText(interaction), mapping);
+      setChatMessages(prev => [...prev, { role: 'model', text: report || 'The research finished but produced no report.' }]);
+
+      // A report worth an hour of work is worth keeping.
+      try {
+        const name = `Research — ${query.slice(0, 60).replace(/[\\/:*?"<>|]/g, '')}.md`;
+        await saveTextResource(name, report, { source: 'research', summary: query.slice(0, 200), interactionId });
+        await refreshResources();
+        setChatMessages(prev => [...prev, { role: 'model', text: `Saved to your Resources: • ${name}` }]);
+      } catch (e) {
+        console.error('Could not save the research report', e);
+      }
+      return;
+    }
+    setPendingResearch(null);
+    setIsAiLoading(false);
+  };
+
+  const handleResearchSendMessage = async (userMessage: string) => {
+    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsAiLoading(true);
+    try {
+      const colleagues = await fetchColleagues().catch(() => []);
+      const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+      const interaction = await startResearch(scrubText(userMessage, mapping));
+      setPendingResearch({ interactionId: interaction.id, query: userMessage });
+      setChatMessages(prev => [...prev, {
+        role: 'model',
+        text: "Researching — this usually takes several minutes and can take up to an hour. You can close the app; I'll have the report here when you come back.",
+      }]);
+      pollResearchUntilDone(interaction.id, userMessage);
+    } catch (error: any) {
+      console.error('Research Error:', error);
+      setIsAiLoading(false);
+      setChatMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't start that research.\n\n${String(error?.message || '').slice(0, 200)}` }]);
+    }
+  };
+
   // Human-readable summary of pending AI actions, shown in the confirmation prompt.
   const describeFunctionCalls = (functionCalls: any[]): string => {
     return functionCalls.map(call => {
@@ -2050,6 +2122,7 @@ const App: React.FC = () => {
         ? { text: pendingResourceAttachment.text, mimeType: 'text/plain', isBase64: false, fileName: pendingResourceAttachment.name }
         : undefined);
       setPendingResourceAttachment(null);
+      if (researchMode) return handleResearchSendMessage(message);
       return (agentMode ? handleAgentSendMessage : handleAiSendMessage)(message, attachment);
     },
     isLoading: isAiLoading,
@@ -2057,6 +2130,8 @@ const App: React.FC = () => {
     onToggleAgentMode: () => setAgentMode(m => !m),
     vizEnabled,
     onToggleViz: () => setVizEnabled(v => !v),
+    researchMode,
+    onToggleResearchMode: () => setResearchMode(m => !m),
     agentTrace,
     pendingConfirmation: pendingActions,
     onConfirmActions: handleConfirmActions,

@@ -29,6 +29,8 @@ COPY --from=builder /app/dist ./dist
 COPY server.js .
 # Server modules (sandbox tokens, environment assembly, Admin-SDK data access).
 COPY server ./server
+# England knowledge base, read at runtime to build the agent's preamble.
+COPY knowledge ./knowledge
 
 EXPOSE 8080
 

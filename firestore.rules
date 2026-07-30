@@ -20,6 +20,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Cached summaries of current statutory guidance (KCSIE, exclusions, RSHE...). Shared
+    // reference material, not user data: readable by anyone signed in, and written only by
+    // scripts/kb-refresh.mjs through the Admin SDK, which bypasses these rules.
+    match /kb_tier2/{topicId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     function isSignedIn() { return request.auth != null; }
     function isLegacyOwner() { return isSignedIn() && request.auth.uid == 'oleZncmmoyNerACQDErqtfMcNYS2'; }
 

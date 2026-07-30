@@ -1,0 +1,74 @@
+{
+  "_comment": [
+    "Statutory guidance that is revised on a schedule. Nothing here stores the content — only where",
+    "the current version lives. Editions are superseded (KCSIE every September; exclusions and RSHE",
+    "both changed in 2026), so a copy baked into the repo would go quietly wrong. The refresh job",
+    "resolves each canonical page and writes what it finds to Firestore kb_tier2/{id}, stamped with",
+    "when it was fetched, and the agent is told to say so.",
+    "",
+    "Always link the canonical landing page, never a dated PDF filename: the PDF URL changes with",
+    "every edition, the landing page does not."
+  ],
+  "refreshMonths": [8],
+  "topics": [
+    {
+      "id": "kcsie",
+      "title": "Keeping Children Safe in Education",
+      "canonicalUrl": "https://www.gov.uk/government/publications/keeping-children-safe-in-education--2",
+      "why": "The statutory safeguarding guidance every school follows. Referenced constantly; quoted wrongly at your peril.",
+      "editionNote": "A new edition normally comes into force on 1 September. Check which is current before relying on any detail.",
+      "keywords": ["safeguarding", "kcsie", "designated safeguarding lead", "dsl", "child protection", "disclosure"]
+    },
+    {
+      "id": "suspension-exclusion",
+      "title": "Suspension and permanent exclusion",
+      "canonicalUrl": "https://www.gov.uk/government/publications/school-exclusion",
+      "why": "Sets the process and the language. Getting the terminology wrong here matters legally.",
+      "editionNote": "A revised version came into force on 26 July 2026 — seed from the current page, not from memory.",
+      "keywords": ["exclusion", "suspension", "excluded", "governors panel", "reintegration"]
+    },
+    {
+      "id": "behaviour-in-schools",
+      "title": "Behaviour in schools",
+      "canonicalUrl": "https://www.gov.uk/government/publications/behaviour-in-schools--2",
+      "why": "The companion to the exclusions guidance; the vocabulary of behaviour policies.",
+      "keywords": ["behaviour", "sanctions", "detention", "removal", "behaviour policy"]
+    },
+    {
+      "id": "rshe",
+      "title": "Relationships education, RSE and health education",
+      "canonicalUrl": "https://www.gov.uk/government/publications/relationships-education-relationships-and-sex-education-rse-and-health-education",
+      "why": "Statutory curriculum content, and a subject where being out of date is conspicuous.",
+      "editionNote": "Guidance published 15 July 2025 comes into force 1 September 2026.",
+      "keywords": ["rshe", "rse", "pshe", "relationships education", "health education", "sex education"]
+    },
+    {
+      "id": "ofsted-report-cards",
+      "title": "Ofsted report cards and grades",
+      "canonicalUrl": "https://www.gov.uk/guidance/understanding-ofsted-report-cards-and-grades",
+      "why": "The inspection scale changed in November 2025; the old one-word grades are gone.",
+      "keywords": ["ofsted", "inspection", "report card", "judgement", "graded"]
+    },
+    {
+      "id": "attendance",
+      "title": "Working together to improve school attendance",
+      "canonicalUrl": "https://www.gov.uk/government/publications/working-together-to-improve-school-attendance",
+      "why": "Registration codes and the escalation process. Codes must never be invented.",
+      "keywords": ["attendance", "register", "absence", "authorised", "persistent absence", "penalty notice"]
+    },
+    {
+      "id": "stpcd",
+      "title": "School teachers' pay and conditions",
+      "canonicalUrl": "https://www.gov.uk/government/publications/school-teachers-pay-and-conditions",
+      "why": "Directed time, PPA, pay ranges and TLRs. Revised annually, so figures date fast.",
+      "keywords": ["stpcd", "pay", "directed time", "ppa", "tlr", "upper pay range"]
+    },
+    {
+      "id": "prevent",
+      "title": "Prevent duty guidance",
+      "canonicalUrl": "https://www.gov.uk/government/publications/prevent-duty-guidance",
+      "why": "A statutory duty schools hold; background awareness rather than day-to-day planning.",
+      "keywords": ["prevent", "radicalisation", "extremism", "british values", "channel"]
+    }
+  ]
+}

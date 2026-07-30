@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bot, BookMarked, Palette, Plug, Loader2 } from 'lucide-react';
+import { Bot, BookMarked, Palette, Plug, Clock, Loader2 } from 'lucide-react';
 import { TeacherSkill, BrandKit, CustomAgent, McpServerConfig } from '../../types';
 import {
   fetchSkills, fetchBrandKit, fetchCustomAgents, fetchMcpServers,
@@ -10,6 +10,7 @@ import AgentsSection from './AgentsSection';
 import SkillsSection from './SkillsSection';
 import BrandKitSection from './BrandKitSection';
 import ConnectionsSection from './ConnectionsSection';
+import AutomationsSection from './AutomationsSection';
 
 /**
  * Everything that shapes how the AI works for this teacher, in one place: the assistants they've
@@ -19,7 +20,7 @@ import ConnectionsSection from './ConnectionsSection';
  * come back to, not switches they set once.
  */
 
-export type AIHubSection = 'agents' | 'skills' | 'brand' | 'connections';
+export type AIHubSection = 'agents' | 'skills' | 'automations' | 'brand' | 'connections';
 
 interface AIHubViewProps {
   /** Opens a chat with the given custom agent selected. */
@@ -59,6 +60,7 @@ const AIHubView: React.FC<AIHubViewProps> = ({ onUseAgent }) => {
           options={[
             { value: 'agents', label: 'Assistants', icon: <Bot className="h-3.5 w-3.5" /> },
             { value: 'skills', label: 'Skills', icon: <BookMarked className="h-3.5 w-3.5" /> },
+            { value: 'automations', label: 'Scheduled', icon: <Clock className="h-3.5 w-3.5" /> },
             { value: 'brand', label: 'Branding', icon: <Palette className="h-3.5 w-3.5" /> },
             { value: 'connections', label: 'Connections', icon: <Plug className="h-3.5 w-3.5" /> },
           ]}
@@ -75,6 +77,7 @@ const AIHubView: React.FC<AIHubViewProps> = ({ onUseAgent }) => {
             <AgentsSection agents={agents} skills={skills} servers={servers} onRefresh={refresh} onUseAgent={onUseAgent} />
           )}
           {section === 'skills' && <SkillsSection skills={skills} onRefresh={refresh} />}
+          {section === 'automations' && <AutomationsSection agents={agents} />}
           {section === 'brand' && brand && <BrandKitSection brand={brand} onRefresh={refresh} />}
           {section === 'connections' && <ConnectionsSection servers={servers} onRefresh={refresh} />}
         </>

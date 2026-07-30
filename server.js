@@ -8,6 +8,11 @@ import { requireSandboxToken, SCOPES } from './server/lib/sandboxToken.mjs';
 import { assembleEnvironment } from './server/lib/environment.mjs';
 import { saveAgentArtifact, readResource } from './server/lib/adminData.mjs';
 import { runInteraction, providerName, defaultAgentConfig } from './server/lib/agentProvider.mjs';
+import { buildKnowledgePreamble, getTier1Doc, listTier1 } from './server/lib/kb.mjs';
+import {
+  listTriggers, createTrigger, setTriggerStatus, deleteTrigger, runTriggerNow, listExecutions,
+  refreshStaleTriggers, triggersAvailable,
+} from './server/lib/triggers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -231,6 +236,29 @@ app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) 
     // controls which model a school edition is allowed to use.
     if (!safeBody.agent_config) safeBody.agent_config = defaultAgentConfig();
 
+    // Prepend the England knowledge preamble on a fresh run. Doing it here rather than in the
+    // client means the safeguarding and inspection-language rules cannot be edited or dropped by
+    // the browser, and updating them needs no client deploy. A continuation already has them.
+    const startingFresh = !safeBody.previous_interaction_id;
+    if (startingFresh && typeof safeBody.input === 'string') {
+      try {
+        const preamble = await buildKnowledgePreamble(safeBody.input);
+        safeBody.input = `${preamble}\n\n---\n\n${safeBody.input}`;
+      } catch (e) {
+        console.error('Knowledge preamble failed; continuing without it:', e?.message || e);
+      }
+    } else if (startingFresh && Array.isArray(safeBody.input)) {
+      const firstText = safeBody.input.find(part => part?.type === 'text');
+      if (firstText) {
+        try {
+          const preamble = await buildKnowledgePreamble(firstText.text || '');
+          firstText.text = `${preamble}\n\n---\n\n${firstText.text || ''}`;
+        } catch (e) {
+          console.error('Knowledge preamble failed; continuing without it:', e?.message || e);
+        }
+      }
+    }
+
     const { upstream, emulatedStream } = await runInteraction({
       body: safeBody,
       wantsStream,
@@ -364,6 +392,149 @@ app.get('/api/sandbox/workspace/:resourceId', requireSandboxToken(SCOPES.WORKSPA
     console.error('sandbox workspace read failed:', error?.message || error);
     res.status(500).json({ error: 'Could not read that file' });
   }
+});
+
+
+/**
+ * Scheduled runs ("every Monday at 7am, prepare my week") and deep research.
+ *
+ * Both are server-side because they need the Gemini key and because a scheduled run has to keep
+ * working when nobody is signed in.
+ */
+const triggerLimiter = userLimiter(60);
+
+app.get('/api/triggers', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    res.json({ available: triggersAvailable(), triggers: await listTriggers(req.user.uid) });
+  } catch (error) {
+    console.error('list triggers failed:', error?.message || error);
+    res.status(500).json({ error: 'Could not load your automations' });
+  }
+});
+
+app.post('/api/triggers', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    if (!triggersAvailable()) return res.status(501).json({ error: 'Scheduling is not available on this deployment' });
+    const { name, cron, timeZone, prompt, agentId, skillIds } = req.body || {};
+    if (!name || !cron || !timeZone || !prompt) {
+      return res.status(400).json({ error: 'name, cron, timeZone and prompt are all required' });
+    }
+    res.json(await createTrigger({ uid: req.user.uid, name, cron, timeZone, prompt, agentId, skillIds }));
+  } catch (error) {
+    console.error('create trigger failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not create that automation' });
+  }
+});
+
+app.patch('/api/triggers/:id', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    const updated = await setTriggerStatus(req.user.uid, req.params.id, !!req.body?.enabled);
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    res.json(updated);
+  } catch (error) {
+    console.error('update trigger failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not update that automation' });
+  }
+});
+
+app.delete('/api/triggers/:id', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    await deleteTrigger(req.user.uid, req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('delete trigger failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not delete that automation' });
+  }
+});
+
+app.post('/api/triggers/:id/run', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    const updated = await runTriggerNow(req.user.uid, req.params.id);
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    res.json(updated);
+  } catch (error) {
+    console.error('run trigger failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not start that automation' });
+  }
+});
+
+app.get('/api/triggers/:id/executions', authenticate, pollLimiter, async (req, res) => {
+  try {
+    res.json({ executions: await listExecutions(req.user.uid, req.params.id) });
+  } catch (error) {
+    console.error('list executions failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not load run history' });
+  }
+});
+
+app.post('/api/triggers/refresh', authenticate, triggerLimiter, async (req, res) => {
+  try {
+    res.json(await refreshStaleTriggers(req.user.uid));
+  } catch (error) {
+    console.error('refresh triggers failed:', error?.message || error);
+    res.status(500).json({ error: 'Could not refresh automations' });
+  }
+});
+
+/**
+ * Deep research. Runs for up to an hour, so it is always background: started here, polled by the
+ * client, and the report saved to Resources when it lands.
+ */
+const RESEARCH_AGENT = process.env.RESEARCH_AGENT || 'deep-research-preview-04-2026';
+
+app.post('/api/research', authenticate, agentLimiter, async (req, res) => {
+  try {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return res.status(501).json({ error: 'Research is not available on this deployment' });
+    const query = String(req.body?.query || '').trim();
+    if (!query) return res.status(400).json({ error: 'A question is required' });
+
+    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key, 'Api-Revision': '2026-05-20' },
+      body: JSON.stringify({
+        agent: RESEARCH_AGENT,
+        input: maskEmailsDeep(query),
+        background: true,
+        agent_config: { thinking_summaries: 'auto', visualization: 'off' },
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    const text = await upstream.text();
+    if (!upstream.ok) {
+      console.error(`research start failed ${upstream.status}: ${text.slice(0, 300)}`);
+      return res.status(502).json({ error: 'Could not start that research' });
+    }
+    res.type('application/json').send(text);
+  } catch (error) {
+    console.error('research start failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not start that research' });
+  }
+});
+
+app.get('/api/research/:id', authenticate, pollLimiter, async (req, res) => {
+  try {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return res.status(501).json({ error: 'Research is not available on this deployment' });
+    const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${req.params.id}`, {
+      headers: { 'x-goog-api-key': key, 'Api-Revision': '2026-05-20' },
+      signal: AbortSignal.timeout(60000),
+    });
+    const text = await upstream.text();
+    res.status(upstream.ok ? 200 : 502).type('application/json').send(text);
+  } catch (error) {
+    console.error('research poll failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not check that research' });
+  }
+});
+
+// England reference, fetched on demand rather than loaded into every prompt.
+app.get('/api/kb/topics', authenticate, pollLimiter, (req, res) => res.json({ topics: listTier1() }));
+
+app.get('/api/kb/topic/:id', authenticate, pollLimiter, (req, res) => {
+  const doc = getTier1Doc(req.params.id);
+  if (!doc) return res.status(404).json({ error: 'Not found' });
+  res.json(doc);
 });
 
 // Health check.

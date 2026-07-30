@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation } from '../types';
@@ -101,6 +101,8 @@ export interface ChatPanelProps {
   // Visualization toggle (agent mode only): off = faster, text-only answers.
   vizEnabled?: boolean;
   onToggleViz?: () => void;
+  researchMode?: boolean;
+  onToggleResearchMode?: () => void;
   // Live thought process of the in-flight agent run (reasoning + activity + streaming answer).
   agentTrace?: AgentTrace | null;
 
@@ -147,6 +149,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   onToggleAgentMode,
   vizEnabled,
   onToggleViz,
+  researchMode,
+  onToggleResearchMode,
   agentTrace,
   conversations,
   currentConversationId,
@@ -303,7 +307,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <Sparkles size={16} /> <span className="hidden sm:inline">Agent</span>
           </button>
         )}
-        {agentMode && onToggleViz && (
+        {onToggleResearchMode && (
+          <button
+            onClick={onToggleResearchMode}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${researchMode ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+            title={researchMode ? 'Research mode on — long, cited reports. Click to go back to normal answers.' : 'Turn on Research for a long, cited report on a topic. Takes several minutes.'}
+            aria-pressed={!!researchMode}
+          >
+            <Telescope size={16} /> <span className="hidden sm:inline">Research</span>
+          </button>
+        )}
+        {agentMode && !researchMode && onToggleViz && (
           <button
             onClick={onToggleViz}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${vizEnabled ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
@@ -549,7 +563,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={agentMode ? 'Give the agent a task — research, draft, multi-step…' : 'Ask me to add a lesson or extract actions...'}
+            placeholder={researchMode ? "Ask a research question — I'll read widely and write you a cited report…" : agentMode ? 'Give the agent a task — research, draft, multi-step…' : 'Ask me to add a lesson or extract actions...'}
             /* Security: limit input length to prevent excessive token usage */
             maxLength={2000}
             className="flex-1 min-w-0 bg-transparent text-slate-800 dark:text-slate-100 py-2 text-sm focus:outline-none"
