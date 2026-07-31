@@ -55,7 +55,7 @@ import { TEXT_MODEL, buildDateContextBlock, getAiClient } from './services/aiSer
 import { fetchColleagues } from './services/colleagueService';
 import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep, PseudonymMapping } from './utils/pseudonymiser';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
-import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
+import { streamAgentInteraction, cancelAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks, Interaction } from './services/agentService';
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { fetchResources } from './services/resourceService';
 import { fetchCustomAgents, fetchMcpServers, setAgentMemory, fetchSkills, markSkillUsed } from './services/aiHubService';
@@ -180,10 +180,6 @@ const App: React.FC = () => {
   const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
   const [skills, setSkills] = useState<TeacherSkill[]>([]);
-  // A skill explicitly picked with a /slash-command this turn — overrides which skills get
-  // mounted so it's guaranteed to be there, rather than hoping the model notices it among
-  // whatever else is enabled. Cleared once the turn that used it finishes.
-  const [forcedSkillId, setForcedSkillId] = useState<string | null>(null);
   // Deep research runs for up to an hour, so it survives reloads: the id is kept and polled.
   const [researchMode, setResearchMode] = useState(false);
   const [pendingResearch, setPendingResearch] = useState<{ interactionId: string; query: string } | null>(null);
@@ -246,6 +242,16 @@ const App: React.FC = () => {
   // earlier unresolved planner call would otherwise be re-detected as "pending" on every later
   // turn and re-prompt the user. Tracking handled ids keeps each call to a single confirmation.
   const handledAgentCallIdsRef = useRef<Set<string>>(new Set());
+  // Which skills the current conversation's sandbox actually holds. A sandbox is furnished once,
+  // when it's created, so a skill imported afterwards is simply not in there — and asking the agent
+  // to follow a file that doesn't exist gets a confident answer built on nothing.
+  const mountedSkillIdsRef = useRef<Set<string>>(new Set());
+  // Stop support. Every send takes a run id; Stop records that id and aborts its request, so the
+  // handler that eventually unwinds can tell "the user stopped this" from "this actually failed",
+  // and a reply that arrives late for a stopped run is discarded rather than appended.
+  const runIdRef = useRef(0);
+  const stoppedRunRef = useRef(-1);
+  const runAbortRef = useRef<AbortController | null>(null);
   // Conversation history lives here (single instance) so the Home chat and the
   // floating launcher share one continuous conversation.
   // The agent session is persisted with the conversation so reopening a chat resumes the same
@@ -279,6 +285,10 @@ const App: React.FC = () => {
     if (conv?.mode) setAgentMode(conv.mode === 'agent');
     setPendingActions(null);
     handledAgentCallIdsRef.current = new Set();
+    // A different conversation is a different sandbox, and one restored from a previous app session
+    // has contents we can't know — so assume nothing is mounted and let the first /slash-command
+    // rebuild rather than send the agent after a file that may not be there.
+    mountedSkillIdsRef.current = new Set();
   }, [chatConv.currentConversationId]);
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
@@ -289,7 +299,10 @@ const App: React.FC = () => {
   const [aiActionHistory, setAiActionHistory] = useState<Array<{ type: string, previousState: any }>>([]);
 
   // Pending AI actions awaiting user confirmation before they mutate the planner.
-  const [pendingActions, setPendingActions] = useState<{ calls: any[]; summary: string; agent?: { interactionId: string; environmentId: string } } | null>(null);
+  // `sideChannelResults` rides along when the same turn produced both a planner change and a
+  // save_memory/note_skill_used call: the agent is waiting on ALL of them, so they have to be
+  // returned together with the executed planner results, not dropped.
+  const [pendingActions, setPendingActions] = useState<{ calls: any[]; summary: string; agent?: { interactionId: string; environmentId: string }; sideChannelResults?: AgentFunctionResult[] } | null>(null);
 
   // --- Initialize state after context load ---
   useEffect(() => {
@@ -1095,7 +1108,54 @@ const App: React.FC = () => {
     setChatMessages(prev => [...prev, { role: 'model', text: 'I have undone my last changes to your planner.' }]);
   };
 
+  /** Claim a run id and a fresh abort controller for the send that's about to start. */
+  const beginRun = () => {
+    const id = ++runIdRef.current;
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+    return { id, signal: controller.signal };
+  };
+
+  /** True if the user pressed Stop on this particular run. */
+  const wasStopped = (id: number) => stoppedRunRef.current === id;
+
+  /**
+   * Stop the in-flight response.
+   *
+   * Aborting our own request only stops us listening — the managed agent keeps running at Google's
+   * end, and the abandoned task's answer then arrives in reply to the next message. So the run is
+   * also ended at the provider, and the interaction is dropped from the session while keeping the
+   * sandbox: the next message starts a new turn in the same workspace rather than resuming work the
+   * teacher deliberately stopped. Anything already streamed is kept — a half-written answer is
+   * still worth reading.
+   */
+  const handleStopResponse = () => {
+    if (!isAiLoading) return;
+    stoppedRunRef.current = runIdRef.current;
+    runAbortRef.current?.abort();
+    runAbortRef.current = null;
+    setIsAiLoading(false);
+    setAgentTrace(null);
+    const stopped = agentSessionRef.current;
+    if (stopped?.interactionId) {
+      cancelAgentInteraction(stopped.interactionId);
+      setAgentSession(stopped.environmentId && stopped.environmentId !== 'remote'
+        ? { interactionId: '', environmentId: stopped.environmentId }
+        : null);
+    }
+    // Deep research runs server-side with no client request to abort, so stopping it means we stop
+    // waiting for it; say so rather than implying the work was cancelled.
+    if (pendingResearch) {
+      setPendingResearch(null);
+      setChatMessages(prev => [...prev, {
+        role: 'model',
+        text: "_(Stopped waiting for that research. It may still be running at Google's end — I won't bring the report back now.)_",
+      }]);
+    }
+  };
+
   const handleAiSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
+    const { id: runId } = beginRun();
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
 
@@ -1147,6 +1207,9 @@ const App: React.FC = () => {
       }
 
       const response = await chat.sendMessage({ message: finalMessage });
+      // The quick chat has no cancellable request, so a stopped run is honoured by discarding what
+      // came back — including any planner changes it wanted to make.
+      if (wasStopped(runId)) return;
 
       // Handle Function Calls. Rehydrate the model's tool arguments (which may echo pseudonymous
       // tokens from the scrubbed input) back to real names BEFORE they touch the planner/DB.
@@ -1172,10 +1235,13 @@ const App: React.FC = () => {
       setChatMessages(prev => [...prev, { role: 'model', text: finalText }]);
 
     } catch (error) {
+      if (wasStopped(runId)) return;
       console.error("AI Error:", error);
       setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to Gemini. Please check console for details." }]);
     } finally {
-      setIsAiLoading(false);
+      // Only the newest run owns the loading state — a stopped run unwinding late must not clear
+      // the spinner for the send that replaced it.
+      if (runIdRef.current === runId) setIsAiLoading(false);
     }
   };
 
@@ -1221,7 +1287,7 @@ const App: React.FC = () => {
 
   // Render the result of an agent interaction: either surface pending planner mutations for
   // confirmation, or print the agent's final answer. `thoughts` is the collapsed trace to persist.
-  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>, thoughts?: string) => {
+  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>, thoughts?: string, sideChannelResults: AgentFunctionResult[] = []) => {
     const environmentId = interaction.environment_id || agentSession?.environmentId || 'remote';
     setAgentSession({ interactionId: interaction.id, environmentId });
 
@@ -1238,7 +1304,7 @@ const App: React.FC = () => {
         return;
       }
       const summary = describeFunctionCalls(freshCalls);
-      setPendingActions({ calls: freshCalls, summary, agent: { interactionId: interaction.id, environmentId } });
+      setPendingActions({ calls: freshCalls, summary, agent: { interactionId: interaction.id, environmentId }, sideChannelResults });
       setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent has prepared the following change(s). Please confirm to apply them.", thoughts }]);
       return;
     }
@@ -1256,16 +1322,32 @@ const App: React.FC = () => {
    * before this was centralised here the continuation path skipped it entirely — a save_memory or
    * note_skill_used call there would have been offered up for confirmation like a planner edit,
    * which makes no sense and has no execution case.
+   *
+   * The returned `results` matter as much as the handling: the agent ENDS ITS TURN waiting on a
+   * function call, so silently absorbing one leaves the run finished with no answer at all. They
+   * have to be handed back for it to carry on and actually reply.
    */
   const processSideChannelCalls = async (
     allCalls: ReturnType<typeof getPendingFunctionCalls>,
     mapping: PseudonymMapping,
     forcedThisTurn: string | null,
-  ): Promise<{ pendingCalls: ReturnType<typeof getPendingFunctionCalls>; notes: string[] }> => {
-    const memoryCalls = allCalls.filter(c => c.name === 'save_memory');
-    const skillUsedCalls = allCalls.filter(c => c.name === 'note_skill_used');
+  ): Promise<{
+    pendingCalls: ReturnType<typeof getPendingFunctionCalls>;
+    notes: string[];
+    results: AgentFunctionResult[];
+  }> => {
+    // A continuation replays the whole step history, so a call handled on an earlier hop must not
+    // be executed (or counted) twice.
+    const fresh = allCalls.filter(c => !handledAgentCallIdsRef.current.has(c.id));
+    const memoryCalls = fresh.filter(c => c.name === 'save_memory');
+    const skillUsedCalls = fresh.filter(c => c.name === 'note_skill_used');
     const pendingCalls = allCalls.filter(c => c.name !== 'save_memory' && c.name !== 'note_skill_used');
     const notes: string[] = [];
+    const results: AgentFunctionResult[] = [...memoryCalls, ...skillUsedCalls].map(c => ({
+      name: c.name,
+      call_id: c.id,
+      result: { ok: true },
+    }));
 
     if (memoryCalls.length > 0 && activeAgent) {
       const content = String(memoryCalls[memoryCalls.length - 1].args?.content || '').trim();
@@ -1302,15 +1384,21 @@ const App: React.FC = () => {
       if (usedNames.length) notes.push(`_(Used skill${usedNames.length > 1 ? 's' : ''}: ${usedNames.join(', ')}.)_`);
     }
 
-    return { pendingCalls, notes };
+    return { pendingCalls, notes, results };
   };
 
   // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
-  const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
+  const handleAgentSendMessage = async (
+    userMessage: string,
+    fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string },
+    /** Set when the message began with a /slug — the teacher naming a skill outright. */
+    forcedSkill?: TeacherSkill,
+  ) => {
     // Sending a new task means the user moved on from any unconfirmed planner change — drop the
     // stale confirmation so the new turn starts clean (its calls are already marked handled, so
     // they won't be re-surfaced when the next interaction replays the step history).
     setPendingActions(null);
+    const { id: runId, signal } = beginRun();
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage + (fileData ? ' [File Attached]' : '') }]);
     setIsAiLoading(true);
     traceRef.current = { reasoning: '', activity: [], answer: '' };
@@ -1322,9 +1410,35 @@ const App: React.FC = () => {
       // rehydrate its answer for display. The mapping never leaves the browser.
       const colleagues = await fetchColleagues().catch(() => []);
       const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
-      const safeUserMessage = scrubText(userMessage, mapping);
 
-      const isContinuing = !!agentSession;
+      // A slash-invoked skill needs an explicit instruction, not just a mounted file: the sandbox
+      // holds every skill the teacher has, and "/marking-policy" on its own means nothing to a
+      // model — it reads as a stray token in the request.
+      const forcedThisTurn = forcedSkill?.id || null;
+      const skillDirective = forcedSkill
+        ? `The teacher has explicitly asked you to use their "${forcedSkill.name}" skill for this task.\n` +
+          `Before doing anything else, read \`.agents/skills/${forcedSkill.slug}/SKILL.md\`. Then list ` +
+          `\`.agents/skills/${forcedSkill.slug}/\` and read any supporting files it refers to (references, ` +
+          `scripts, templates) and use them. Follow it exactly — it takes precedence over how you would ` +
+          `otherwise format or approach this.\n\n`
+        : '';
+      // Strip the command token itself so the agent sees the actual request; the directive above
+      // now carries what the slash meant.
+      const taskText = forcedSkill
+        ? (userMessage.replace(/^\/\S+\s*/, '').trim() || `Use the "${forcedSkill.name}" skill.`)
+        : userMessage;
+      const safeUserMessage = scrubText(taskText, mapping);
+
+      // A skill added after this conversation's sandbox was built isn't in it. Start a fresh
+      // sandbox rather than send the agent looking for a file that was never mounted.
+      const skillMissingFromSandbox =
+        !!forcedSkill && !!agentSession && !mountedSkillIdsRef.current.has(forcedSkill.id);
+      const session = skillMissingFromSandbox ? null : agentSession;
+      // Two different questions, and conflating them is a bug: whether there's a turn to continue
+      // (a stopped run leaves a sandbox but no resumable turn), and whether the server will build a
+      // new sandbox (it only does when we don't name an existing one).
+      const isContinuing = !!session?.interactionId;
+      const freshSandbox = !session?.environmentId;
       // The Antigravity agent already has its own system prompt, so the input must LEAD with the
       // user's task — burying it under the persona/rules/data block makes the agent treat the whole
       // thing as setup and reply with a generic greeting instead of acting. On follow-ups the
@@ -1347,6 +1461,7 @@ const App: React.FC = () => {
         return (
           persona +
           `TASK FROM THE TEACHER — carry this out now, do not just greet:\n${safeUserMessage}\n\n` +
+          skillDirective +
           `Complete the task using the teacher's planner data and the tool/usage rules provided below. ` +
           `Only call a mutating tool (updateLesson, addTasksToProject, etc.) if the task explicitly asks to add, change, or delete planner items; otherwise just answer.\n` +
           `IMPORTANT: Always finish by delivering the completed result for the task above. If your context is summarized or you receive a checkpoint/resume notice partway through, continue and still produce that result — never end with only a greeting or a request for more input.\n` +
@@ -1373,7 +1488,7 @@ const App: React.FC = () => {
         const reminder = vizEnabled
           ? `(Reminder: when this involves data, compute it with code and present it as an interactive \`\`\`html visualization, with a short text summary.)`
           : `(Reminder: respond concisely in plain text/markdown — no charts or HTML.)`;
-        input = withAttachment(`${safeUserMessage}\n\n${reminder}`);
+        input = withAttachment(`${skillDirective}${safeUserMessage}\n\n${reminder}`);
       } else {
         input = withAttachment(buildFullInput());
       }
@@ -1394,10 +1509,19 @@ const App: React.FC = () => {
             }))
         : [];
 
-      // A slash-invoked skill wins over an active assistant's own list — an explicit request
-      // narrows the sandbox to exactly that skill, guaranteed, rather than one of several.
-      const forcedThisTurn = forcedSkillId;
-      const enabledSkillCount = skills.filter(s => s.enabled).length;
+      const enabledSkillIds = skills.filter(s => s.enabled).map(s => s.id);
+      const enabledSkillCount = enabledSkillIds.length;
+      // An assistant narrows which skills its runs can see; a slash-invoked one is added to that
+      // list rather than replacing it, so the rest of the conversation keeps working normally.
+      const agentSkillIds = activeAgent?.skillIds?.length ? activeAgent.skillIds : null;
+      const requestedSkillIds = agentSkillIds
+        ? Array.from(new Set([...agentSkillIds, ...(forcedThisTurn ? [forcedThisTurn] : [])]))
+        : undefined;
+      // What the sandbox will actually contain — the server only ever mounts enabled skills, and
+      // an empty request means "all of them".
+      const mountedForThisRun = requestedSkillIds
+        ? requestedSkillIds.filter(id => enabledSkillIds.includes(id))
+        : enabledSkillIds;
 
       const tools = activeAgent
         ? buildAgentTools(isAdmin && activeAgent.tools.plannerTools, {
@@ -1408,21 +1532,24 @@ const App: React.FC = () => {
           })
         : buildAgentTools(isAdmin, { skillTracking: enabledSkillCount > 0 });
 
+      const agentConfigForRun = activeAgent
+        ? { model: activeAgent.model, ...(activeAgent.maxTotalTokens ? { max_total_tokens: activeAgent.maxTotalTokens } : {}) }
+        : undefined;
+
       const { interaction, restarted, streamFellBack } = await runAgentTurn(
         {
           input,
-          session: agentSession,
+          session,
+          signal,
           tools,
-          agentConfig: activeAgent
-            ? { model: activeAgent.model, ...(activeAgent.maxTotalTokens ? { max_total_tokens: activeAgent.maxTotalTokens } : {}) }
-            : undefined,
+          agentConfig: agentConfigForRun,
           // Ask the server to furnish the sandbox (skills, brand kit, saved files, and the
           // credential it needs to hand finished documents back). Only meaningful on a fresh run;
           // a continuation stays in the sandbox it started in.
           plannerEnv: {
             conversationId: chatConv.currentConversationId || undefined,
             agentId: activeAgent?.id,
-            skillIds: forcedThisTurn ? [forcedThisTurn] : (activeAgent?.skillIds?.length ? activeAgent.skillIds : undefined),
+            skillIds: requestedSkillIds,
           },
           buildFreshInput: () => withAttachment(buildFullInput()),
         },
@@ -1434,15 +1561,42 @@ const App: React.FC = () => {
       // A restarted run is a different sandbox, so any call ids surfaced from the old one are dead.
       if (restarted) handledAgentCallIdsRef.current = new Set();
 
+      // Record what this sandbox holds, so a later /slash-command can tell whether its skill is in
+      // there. Only a fresh sandbox is furnished; a continuation inherits what it already had.
+      if (freshSandbox || restarted) mountedSkillIdsRef.current = new Set(mountedForThisRun);
+
       if (interaction && typeof interaction.output_text === 'string') {
         interaction.output_text = rehydrateText(interaction.output_text, mapping);
       }
 
       // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
-      const allCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
-      const { pendingCalls, notes } = await processSideChannelCalls(allCalls, mapping, forcedThisTurn);
+      const readCalls = (it: Interaction) =>
+        getPendingFunctionCalls(it).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+      let current = interaction;
+      let { pendingCalls, notes, results } = await processSideChannelCalls(readCalls(current), mapping, forcedThisTurn);
 
-      handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
+      // A side-channel call ends the agent's turn just like any other: it is waiting to be told the
+      // call was done. Absorbing one without answering left runs that had read the skill, done the
+      // work and then stopped dead with "returned no output". Hand the results back so it finishes.
+      // Bounded, because the agent may legitimately report using a skill more than once.
+      for (let hop = 0; results.length > 0 && pendingCalls.length === 0 && current.id && hop < 3; hop++) {
+        const { interaction: continued } = await continueAgentTurn(
+          { interactionId: current.id, environmentId: current.environment_id || session?.environmentId || 'remote' },
+          results,
+          { tools, agentConfig: agentConfigForRun, signal },
+        );
+        if (!continued) break;
+        current = continued;
+        if (typeof current.output_text === 'string') {
+          current.output_text = rehydrateText(current.output_text, mapping);
+        }
+        const next = await processSideChannelCalls(readCalls(current), mapping, forcedThisTurn);
+        pendingCalls = next.pendingCalls;
+        notes = [...notes, ...next.notes];
+        results = next.results;
+      }
+
+      handleAgentInteractionResult(current, pendingCalls, formatThoughts(liveTrace), results);
       notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
 
       // The agent uploads finished documents to the server directly, so the only way the UI learns
@@ -1467,8 +1621,23 @@ const App: React.FC = () => {
           role: 'model',
           text: "_(This chat's earlier workspace had expired, so I started a fresh one — any files from previous sessions are gone.)_",
         }]);
+      } else if (skillMissingFromSandbox && forcedSkill) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: `_(${forcedSkill.name} wasn't in this chat's workspace, so I started a fresh one to load it — earlier files in this chat are gone.)_`,
+        }]);
       }
     } catch (error: any) {
+      // Stopping isn't a failure. Keep whatever was streamed before the stop — a half-finished
+      // answer is often still what the teacher wanted.
+      if (wasStopped(runId)) {
+        const partial = (traceRef.current?.answer || '').trim();
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: partial ? `${partial}\n\n_(Stopped.)_` : '_(Stopped.)_',
+        }]);
+        return;
+      }
       console.error("Agent Error:", error);
       // Lead with what actually went wrong. Blaming rate limits for every failure sent people off
       // waiting when the real cause was something they could act on.
@@ -1481,10 +1650,13 @@ const App: React.FC = () => {
       const detail = raw ? `\n\n${raw.slice(0, 300)}` : '';
       setChatMessages(prev => [...prev, { role: 'model', text: `${lead}${detail}` }]);
     } finally {
-      traceRef.current = null;
-      setAgentTrace(null);
-      setIsAiLoading(false);
-      setForcedSkillId(null);
+      // Only the newest run may clear the shared trace/loading state — a stopped run unwinding late
+      // must not blank the send that replaced it.
+      if (runIdRef.current === runId) {
+        traceRef.current = null;
+        setAgentTrace(null);
+        setIsAiLoading(false);
+      }
     }
   };
 
@@ -1493,10 +1665,12 @@ const App: React.FC = () => {
    * background for up to an hour, so the interaction id is kept on the conversation and polled —
    * closing the app and coming back later still lands the report.
    */
-  const pollResearchUntilDone = async (interactionId: string, query: string) => {
+  const pollResearchUntilDone = async (interactionId: string, query: string, runId = runIdRef.current) => {
     const deadline = Date.now() + 60 * 60 * 1000;
     while (Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 15000));
+      // Stopping research means we stop waiting for it; the run itself is Google's to finish.
+      if (wasStopped(runId)) return;
       let interaction;
       try {
         interaction = await pollResearch(interactionId);
@@ -1534,19 +1708,22 @@ const App: React.FC = () => {
   };
 
   const handleResearchSendMessage = async (userMessage: string) => {
+    const { id: runId } = beginRun();
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsAiLoading(true);
     try {
       const colleagues = await fetchColleagues().catch(() => []);
       const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
       const interaction = await startResearch(scrubText(userMessage, mapping));
+      if (wasStopped(runId)) return;
       setPendingResearch({ interactionId: interaction.id, query: userMessage });
       setChatMessages(prev => [...prev, {
         role: 'model',
         text: "Researching — this usually takes several minutes and can take up to an hour. You can close the app; I'll have the report here when you come back.",
       }]);
-      pollResearchUntilDone(interaction.id, userMessage);
+      pollResearchUntilDone(interaction.id, userMessage, runId);
     } catch (error: any) {
+      if (wasStopped(runId)) return;
       console.error('Research Error:', error);
       setIsAiLoading(false);
       setChatMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't start that research.\n\n${String(error?.message || '').slice(0, 200)}` }]);
@@ -1609,7 +1786,9 @@ const App: React.FC = () => {
     if (!pendingActions || isReadOnly) return;
     const functionCalls = pendingActions.calls;
     const agentMeta = pendingActions.agent;
+    const sideChannelResults = pendingActions.sideChannelResults;
     setPendingActions(null);
+    const { id: runId, signal } = beginRun();
     setIsAiLoading(true);
     try {
             const functionResponses: any[] = [];
@@ -1951,15 +2130,21 @@ const App: React.FC = () => {
             // (it may request further actions, or wrap up with a final summary). Stream the
             // continuation so its thought process shows live too.
             if (agentMeta) {
-              const agentResults: AgentFunctionResult[] = functionResponses.map(r => ({
-                name: r.functionResponse?.name,
-                call_id: r.functionResponse?.id,
-                result: r.functionResponse?.response ?? {},
-              }));
+              const agentResults: AgentFunctionResult[] = [
+                ...functionResponses.map(r => ({
+                  name: r.functionResponse?.name,
+                  call_id: r.functionResponse?.id,
+                  result: r.functionResponse?.response ?? {},
+                })),
+                // The agent is waiting on every call it made, including any it made alongside the
+                // planner change; leaving one unanswered ends the run without a reply.
+                ...(sideChannelResults || []),
+              ];
               const continueArgs = {
                 previousInteractionId: agentMeta.interactionId,
                 environmentId: agentMeta.environmentId,
                 functionResults: agentResults,
+                signal,
               };
               traceRef.current = { reasoning: '', activity: [], answer: '' };
               setAgentTrace({ reasoning: '', activity: [], answer: '' });
@@ -1974,16 +2159,21 @@ const App: React.FC = () => {
                 // agent can't comment on them. Say so instead of implying the run failed.
                 if (isEnvironmentGoneError(streamErr)) {
                   environmentGone = true;
+                } else if (wasStopped(runId)) {
+                  // Stopped mid-follow-up. The planner edits stand; there's just no closing remark.
+                  return;
                 } else {
                   console.warn("Agent continuation stream failed, falling back:", streamErr);
                   setAgentTrace(null);
-                  const fallback = await continueAgentTurn(agentMeta, agentResults);
+                  const fallback = await continueAgentTurn(agentMeta, agentResults, { signal });
                   next = fallback.interaction;
                   environmentGone = fallback.environmentGone;
                 }
               } finally {
-                traceRef.current = null;
-                setAgentTrace(null);
+                if (runIdRef.current === runId) {
+                  traceRef.current = null;
+                  setAgentTrace(null);
+                }
               }
               if (environmentGone) {
                 setAgentSession(null);
@@ -1997,17 +2187,41 @@ const App: React.FC = () => {
                 // confirmation dialog like a planner edit, which has no execution case for it.
                 const colleagues = await fetchColleagues().catch(() => []);
                 const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
-                const rehydratedCalls = getPendingFunctionCalls(next).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
-                const { pendingCalls: nextPendingCalls, notes } = await processSideChannelCalls(rehydratedCalls, mapping, null);
-                handleAgentInteractionResult(next, nextPendingCalls, formatThoughts(liveTrace));
+                const readCalls = (it: Interaction) =>
+                  getPendingFunctionCalls(it).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+                let current: Interaction = next;
+                let { pendingCalls: nextPendingCalls, notes, results } =
+                  await processSideChannelCalls(readCalls(current), mapping, null);
+
+                // Same as the initial send: the agent is waiting on these, so answer them or the
+                // run ends here with nothing said.
+                for (let hop = 0; results.length > 0 && nextPendingCalls.length === 0 && current.id && hop < 3; hop++) {
+                  const { interaction: continued } = await continueAgentTurn(
+                    { interactionId: current.id, environmentId: current.environment_id || agentMeta.environmentId },
+                    results,
+                    { signal },
+                  );
+                  if (!continued) break;
+                  current = continued;
+                  if (typeof current.output_text === 'string') {
+                    current.output_text = rehydrateText(current.output_text, mapping);
+                  }
+                  const step = await processSideChannelCalls(readCalls(current), mapping, null);
+                  nextPendingCalls = step.pendingCalls;
+                  notes = [...notes, ...step.notes];
+                  results = step.results;
+                }
+
+                handleAgentInteractionResult(current, nextPendingCalls, formatThoughts(liveTrace), results);
                 notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
               }
             }
     } catch (error) {
+      if (wasStopped(runId)) return;
       console.error("AI Confirm Error:", error);
       setChatMessages(prev => [...prev, { role: 'model', text: "Sorry, something went wrong applying those changes. Please check the console." }]);
     } finally {
-      setIsAiLoading(false);
+      if (runIdRef.current === runId) setIsAiLoading(false);
     }
   };
 
@@ -2181,25 +2395,25 @@ const App: React.FC = () => {
       setPendingResourceAttachment(null);
       if (researchMode) return handleResearchSendMessage(message);
 
-      // A leading /skill-slug explicitly invokes that skill — guaranteed to be the only one
-      // mounted this turn, rather than one of everything enabled and hoping the model notices.
-      // The raw text (slash and all) still goes to the model unchanged: it's mounted with that
-      // exact slug as its skill directory, so the reference resolves on its own, and the teacher's
-      // own words stay intact in the transcript rather than being silently rewritten.
+      // A leading /skill-slug explicitly invokes that skill. It is handed straight to the send
+      // handler rather than parked in state first — state set here isn't readable by a handler
+      // called in the same tick, which is exactly how the invoked skill got silently dropped.
+      // The teacher's raw text stays in the transcript; the handler strips the token before the
+      // model sees it and replaces it with a direct instruction to read that skill.
       const slashMatch = message.match(/^\/(\S+)/);
       const invokedSkill = slashMatch ? skills.find(s => s.enabled && s.slug === slashMatch[1].toLowerCase()) : undefined;
       if (invokedSkill) {
-        setForcedSkillId(invokedSkill.id);
         markSkillUsed(invokedSkill)
           .then(updated => setSkills(prev => prev.map(s => (s.id === updated.id ? updated : s))))
           .catch(e => console.error('Could not record skill use', e));
         if (!agentMode) setAgentMode(true);
-        return handleAgentSendMessage(message, attachment);
+        return handleAgentSendMessage(message, attachment, invokedSkill);
       }
 
       return (agentMode ? handleAgentSendMessage : handleAiSendMessage)(message, attachment);
     },
     isLoading: isAiLoading,
+    onStopResponse: handleStopResponse,
     agentMode,
     onToggleAgentMode: () => setAgentMode(m => !m),
     vizEnabled,

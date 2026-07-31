@@ -28,6 +28,8 @@ export interface AgentTurnArgs {
    * caller must supply the full standalone prompt instead.
    */
   buildFreshInput?: () => string | any[];
+  /** Aborts the run — wired to the chat's Stop button. */
+  signal?: AbortSignal;
 }
 
 export interface AgentTurnResult {
@@ -40,7 +42,7 @@ export interface AgentTurnResult {
 
 /** One attempt: stream if possible, else fall back to the blocking call. */
 const attempt = async (
-  args: { input: string | any[]; session?: { interactionId: string; environmentId: string } | null; tools?: AgentTool[]; agentConfig?: AgentConfig; plannerEnv?: PlannerEnvRequest },
+  args: { input: string | any[]; session?: { interactionId: string; environmentId: string } | null; tools?: AgentTool[]; agentConfig?: AgentConfig; plannerEnv?: PlannerEnvRequest; signal?: AbortSignal },
   callbacks: AgentStreamCallbacks,
 ): Promise<{ interaction: Interaction; streamFellBack: boolean }> => {
   const requestArgs = {
@@ -50,11 +52,15 @@ const attempt = async (
     tools: args.tools,
     agentConfig: args.agentConfig,
     plannerEnv: args.plannerEnv,
+    signal: args.signal,
   };
 
   try {
     return { interaction: await streamAgentInteraction(requestArgs, callbacks), streamFellBack: false };
   } catch (streamErr) {
+    // Stopping is the user's decision, not a transport failure — falling back to a blocking call
+    // here would restart the very run they just cancelled, and keep charging for it.
+    if (args.signal?.aborted) throw streamErr;
     // An expired sandbox must reach the caller so the run can be restarted — retrying it as a
     // blocking call would just 404 again.
     if (isEnvironmentGoneError(streamErr)) throw streamErr;
@@ -69,16 +75,16 @@ const attempt = async (
  * a fresh sandbox rather than surfacing a 404.
  */
 export const runAgentTurn = async (
-  { input, session, tools, agentConfig, plannerEnv, buildFreshInput }: AgentTurnArgs,
+  { input, session, tools, agentConfig, plannerEnv, buildFreshInput, signal }: AgentTurnArgs,
   callbacks: AgentStreamCallbacks = {},
 ): Promise<AgentTurnResult> => {
   try {
-    const { interaction, streamFellBack } = await attempt({ input, session, tools, agentConfig, plannerEnv }, callbacks);
+    const { interaction, streamFellBack } = await attempt({ input, session, tools, agentConfig, plannerEnv, signal }, callbacks);
     return { interaction, restarted: false, streamFellBack };
   } catch (err) {
-    if (!session || !isEnvironmentGoneError(err)) throw err;
+    if (!session || signal?.aborted || !isEnvironmentGoneError(err)) throw err;
     const { interaction, streamFellBack } = await attempt(
-      { input: buildFreshInput ? buildFreshInput() : input, session: null, tools, agentConfig, plannerEnv },
+      { input: buildFreshInput ? buildFreshInput() : input, session: null, tools, agentConfig, plannerEnv, signal },
       callbacks,
     );
     return { interaction, restarted: true, streamFellBack };
@@ -93,7 +99,7 @@ export const runAgentTurn = async (
 export const continueAgentTurn = async (
   session: { interactionId: string; environmentId: string },
   functionResults: Array<{ name: string; call_id: string; result: any }>,
-  opts: { tools?: AgentTool[]; agentConfig?: AgentConfig } = {},
+  opts: { tools?: AgentTool[]; agentConfig?: AgentConfig; signal?: AbortSignal } = {},
 ): Promise<{ interaction: Interaction | null; environmentGone: boolean }> => {
   try {
     const interaction = await createAgentInteraction({
@@ -102,6 +108,7 @@ export const continueAgentTurn = async (
       functionResults,
       tools: opts.tools,
       agentConfig: opts.agentConfig,
+      signal: opts.signal,
     });
     return { interaction, environmentGone: false };
   } catch (err) {

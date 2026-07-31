@@ -116,3 +116,51 @@ export const downloadPath = async (storagePath) => {
   const [buffer] = await bucket().file(storagePath).download();
   return buffer;
 };
+
+const TEMPLATE_MIME = {
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
+/**
+ * Resolve a sandbox fetch id to bytes.
+ *
+ * The sandbox pulls three different kinds of thing through one endpoint, so ids are namespaced:
+ * `brand:logo` / `brand:<templateId>` for branding, `skill:<skillId>:<fileName>` for the reference
+ * notes and scripts that came with an imported skill, and a bare id for a pinned resource. The
+ * skill file name may contain slashes (`references/foo.md`), so it is taken as everything after the
+ * second colon rather than split naively.
+ */
+export const readSandboxFile = async (uid, id) => {
+  if (id.startsWith('brand:')) {
+    const brand = await getBrandKit(uid);
+    if (!brand) return null;
+    const key = id.slice('brand:'.length);
+    if (key === 'logo') {
+      if (!brand.logoStoragePath) return null;
+      return { buffer: await downloadPath(brand.logoStoragePath), mimeType: 'application/octet-stream' };
+    }
+    const template = (brand.templates || []).find(t => t.id === key);
+    if (!template) return null;
+    return {
+      buffer: await downloadPath(template.storagePath),
+      mimeType: TEMPLATE_MIME[template.type] || 'application/octet-stream',
+    };
+  }
+
+  if (id.startsWith('skill:')) {
+    const rest = id.slice('skill:'.length);
+    const sep = rest.indexOf(':');
+    if (sep === -1) return null;
+    const snap = await userCol(uid, 'teacher_planner_skills').doc(rest.slice(0, sep)).get();
+    if (!snap.exists) return null;
+    const skill = snap.data();
+    if (skill.enabled === false) return null;
+    const asset = (skill.assets || []).find(a => a.name === rest.slice(sep + 1));
+    if (!asset) return null;
+    return { buffer: await downloadPath(asset.storagePath), mimeType: asset.mimeType || 'application/octet-stream' };
+  }
+
+  const found = await readResource(uid, id);
+  return found ? { buffer: found.buffer, mimeType: found.resource.mimeType } : null;
+};

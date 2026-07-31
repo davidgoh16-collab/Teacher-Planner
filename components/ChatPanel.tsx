@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope, BookMarked } from 'lucide-react';
+import { X, Send, Square, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, AIConversation, TeacherSkill } from '../types';
@@ -94,6 +94,8 @@ export interface ChatPanelProps {
   messages: ChatMessage[];
   onSendMessage: (message: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => void;
   isLoading: boolean;
+  /** Cancels the in-flight response. The send button becomes Stop while one is running. */
+  onStopResponse?: () => void;
 
   // Agent mode (Antigravity managed agent) toggle
   agentMode?: boolean;
@@ -148,6 +150,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   onSendMessage,
   isLoading,
+  onStopResponse,
   agentMode,
   onToggleAgentMode,
   vizEnabled,
@@ -627,14 +630,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           />
           {/* Voice assistant (mic) sits right beside the send button */}
           {liveAssistantButton && <div className="shrink-0">{liveAssistantButton}</div>}
-          <button
-            type="submit"
-            disabled={isLoading || (!input.trim() && !selectedFile)}
-            className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-            title="Send"
-          >
-            <Send size={16} />
-          </button>
+          {/* While a response is running the send button becomes Stop — an agent run can go on for
+              minutes, and waiting it out shouldn't be the only option. */}
+          {isLoading && onStopResponse ? (
+            <button
+              type="button"
+              onClick={onStopResponse}
+              className="p-1.5 bg-slate-700 dark:bg-slate-600 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-500 transition-colors shrink-0"
+              title="Stop"
+              aria-label="Stop the response"
+            >
+              <Square size={16} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isLoading || (!input.trim() && !selectedFile)}
+              className="p-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+              title="Send"
+            >
+              <Send size={16} />
+            </button>
+          )}
         </div>
       </form>
     </div>

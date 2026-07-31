@@ -157,6 +157,22 @@ export const runInteraction = async ({ body, wantsStream, res, abortSignal }) =>
   return { upstream: new Response(JSON.stringify(final), { status: 200, headers: { 'Content-Type': 'application/json' } }), emulatedStream: false };
 };
 
+/**
+ * Cancel a running interaction.
+ *
+ * Dropping the HTTP stream is not a cancellation — the managed agent keeps working, and the next
+ * message in the conversation comes back carrying the answer to the task the teacher abandoned.
+ * DELETE is what actually ends it (verified against the live API: an in-progress interaction is
+ * gone immediately afterwards).
+ */
+export const cancelInteraction = async (id) => {
+  const url = isAgentPlatform() ? platformUrl(`/${id}`) : `${GEMINI_API_URL}/${id}`;
+  const headers = isAgentPlatform() ? await platformHeaders() : geminiHeaders();
+  const res = await fetch(url, { method: 'DELETE', headers });
+  // Already finished or already gone is a success from the caller's point of view.
+  return res.ok || res.status === 404;
+};
+
 /** Poll a background interaction to completion. */
 export const pollInteraction = async (id, headers, { abortSignal, onTick, timeoutMs = 55 * 60 * 1000 } = {}) => {
   const deadline = Date.now() + timeoutMs;

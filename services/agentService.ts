@@ -56,6 +56,59 @@ const buildInteractionTransport = async (
 const REQUEST_TIMEOUT_MS = 300_000;
 
 /**
+ * Combine this request's own timeout with an optional caller signal (the Stop button), since fetch
+ * takes exactly one signal. Aborting reaches the server as a closed connection, which is what stops
+ * the upstream generation being paid for — so stopping is a real cancellation, not just a UI trick.
+ */
+const abortableSignal = (external?: AbortSignal) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onExternalAbort = () => controller.abort();
+  if (external) {
+    if (external.aborted) controller.abort();
+    else external.addEventListener('abort', onExternalAbort);
+  }
+  return {
+    signal: controller.signal,
+    release: () => {
+      clearTimeout(timeout);
+      external?.removeEventListener('abort', onExternalAbort);
+    },
+  };
+};
+
+/**
+ * End a running interaction at the provider.
+ *
+ * Aborting the browser's request only stops us listening — the managed agent carries on at Google's
+ * end, and the abandoned task's answer then turns up in reply to the teacher's next message. This
+ * is best-effort: a run that has already finished is nothing to worry about.
+ */
+export const cancelAgentInteraction = async (interactionId: string): Promise<void> => {
+  try {
+    if (useDirectGemini) {
+      await fetch(`${NATIVE_INTERACTIONS_URL}/${interactionId}`, {
+        method: 'DELETE',
+        headers: { 'x-goog-api-key': NATIVE_GEMINI_KEY, 'Api-Revision': AGENT_API_REVISION },
+      });
+      return;
+    }
+    await fetch(`/api/interactions/${encodeURIComponent(interactionId)}/cancel`, {
+      method: 'POST',
+      headers: await authHeaders(),
+    });
+  } catch (e) {
+    console.warn('Could not stop the agent run at the provider', e);
+  }
+};
+
+/** True when a request ended because it was aborted rather than because anything went wrong. */
+export const isAbortError = (err: unknown): boolean => {
+  const e = err as any;
+  return !!e && (e.name === 'AbortError' || /\baborted\b/i.test(String(e.message || '')));
+};
+
+/**
  * Marker appended to errors caused by a sandbox environment that no longer exists. Environments
  * are snapshotted after 15 minutes idle and deleted after a 7-day TTL, so any stored session can
  * outlive its sandbox; the API answers `404 {"error":{"code":"not_found"}}` when it does.
@@ -241,6 +294,8 @@ interface CreateInteractionArgs {
   agentConfig?: AgentConfig;
   plannerEnv?: PlannerEnvRequest;
   background?: boolean;
+  /** Aborts the request — wired to the chat's Stop button. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -302,14 +357,13 @@ export const createAgentInteraction = async (args: CreateInteractionArgs): Promi
   const body = buildInteractionBody(args);
 
   const transport = await buildInteractionTransport(body);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const { signal, release } = abortableSignal(args.signal);
   try {
     const response = await fetch(transport.url, {
       method: "POST",
       headers: transport.headers,
       body: JSON.stringify(transport.body),
-      signal: controller.signal,
+      signal,
     });
 
     if (!response.ok) {
@@ -320,7 +374,7 @@ export const createAgentInteraction = async (args: CreateInteractionArgs): Promi
     if (!interaction.output_text) interaction.output_text = extractOutputText(interaction);
     return interaction;
   } finally {
-    clearTimeout(timeout);
+    release();
   }
 };
 
@@ -386,8 +440,7 @@ export const streamAgentInteraction = async (
   const body = buildInteractionBody(args, { stream: true });
 
   const transport = await buildInteractionTransport(body, { Accept: "text/event-stream" });
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const { signal, release } = abortableSignal(args.signal);
 
   // Assembled interaction we return once the stream ends.
   const result: Interaction = { id: '', status: 'in_progress', output_text: '', steps: [] };
@@ -397,7 +450,7 @@ export const streamAgentInteraction = async (
       method: "POST",
       headers: transport.headers,
       body: JSON.stringify(transport.body),
-      signal: controller.signal,
+      signal,
     });
 
     if (!response.ok) {
@@ -496,7 +549,7 @@ export const streamAgentInteraction = async (
     if (!result.output_text) result.output_text = extractOutputText(result);
     return result;
   } finally {
-    clearTimeout(timeout);
+    release();
   }
 };
 

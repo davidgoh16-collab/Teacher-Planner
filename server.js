@@ -6,8 +6,8 @@ import admin from 'firebase-admin';
 import { GoogleGenAI } from '@google/genai';
 import { requireSandboxToken, SCOPES } from './server/lib/sandboxToken.mjs';
 import { assembleEnvironment } from './server/lib/environment.mjs';
-import { saveAgentArtifact, readResource } from './server/lib/adminData.mjs';
-import { runInteraction, providerName, defaultAgentConfig } from './server/lib/agentProvider.mjs';
+import { saveAgentArtifact, readSandboxFile } from './server/lib/adminData.mjs';
+import { runInteraction, cancelInteraction, providerName, defaultAgentConfig } from './server/lib/agentProvider.mjs';
 import { buildKnowledgePreamble, getTier1Doc, listTier1 } from './server/lib/kb.mjs';
 import {
   listTriggers, createTrigger, setTriggerStatus, deleteTrigger, runTriggerNow, listExecutions,
@@ -314,6 +314,22 @@ app.post('/api/interactions/step', authenticate, agentLimiter, async (req, res) 
   }
 });
 
+/**
+ * Stop a running agent turn.
+ *
+ * Closing the browser's connection is not enough: the managed agent runs at Google's end and keeps
+ * going, so the abandoned task's answer turns up on the teacher's NEXT message. This ends the
+ * interaction for real. Ids are opaque and unguessable, and the caller must still be signed in.
+ */
+app.post('/api/interactions/:id/cancel', authenticate, pollLimiter, async (req, res) => {
+  try {
+    res.json({ cancelled: await cancelInteraction(req.params.id) });
+  } catch (error) {
+    console.error('interaction cancel failed:', error?.message || error);
+    res.status(502).json({ error: 'Could not stop that run' });
+  }
+});
+
 // Mint a short-lived ephemeral token for the Live (native-audio) API so the browser can open a
 // realtime session WITHOUT ever seeing the raw Gemini key. If the installed SDK can't mint one,
 // return { token: null, disabled: true } and the client shows the voice assistant as unavailable
@@ -389,9 +405,9 @@ app.post(
 
 app.get('/api/sandbox/workspace/:resourceId', requireSandboxToken(SCOPES.WORKSPACE_READ), async (req, res) => {
   try {
-    const found = await readResource(req.sandbox.uid, req.params.resourceId);
+    const found = await readSandboxFile(req.sandbox.uid, req.params.resourceId);
     if (!found) return res.status(404).json({ error: 'Not found' });
-    res.type(found.resource.mimeType || 'application/octet-stream').send(found.buffer);
+    res.type(found.mimeType || 'application/octet-stream').send(found.buffer);
   } catch (error) {
     console.error('sandbox workspace read failed:', error?.message || error);
     res.status(500).json({ error: 'Could not read that file' });

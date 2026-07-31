@@ -97,6 +97,10 @@ const buildAgentsMd = ({ uploadUrl, workspaceUrlBase, brand, skills, hasWorkspac
     lines.push('Before producing something, check whether one applies and follow it:');
     skills.forEach(s => lines.push(`- \`.agents/skills/${s.slug}/SKILL.md\` — ${s.description || s.name}`));
     lines.push('');
+    lines.push('A skill may bring its own reference notes and scripts. They sit in the same folder —');
+    lines.push('list it before deciding how to do the task, and read `FILES.md` there if it exists,');
+    lines.push('which lists anything held back for you to fetch on demand.');
+    lines.push('');
     lines.push('If you follow one, call `note_skill_used` with its directory name (the part before');
     lines.push('`/SKILL.md` above) so the teacher can see it was actually used — every time you use one,');
     lines.push('not just the first. Skip it entirely if none of these applied to this task.');
@@ -121,6 +125,30 @@ const buildAgentsMd = ({ uploadUrl, workspaceUrlBase, brand, skills, hasWorkspac
 /** A skill becomes a SKILL.md with the frontmatter the agent harness expects. */
 const buildSkillMd = (skill) =>
   `---\nname: ${skill.name}\ndescription: ${(skill.description || skill.name).replace(/\n/g, ' ')}\n---\n\n${skill.instructions || ''}\n`;
+
+// Formats the agent can simply read once mounted. Anything else — a logo, a .docx master, a big
+// dataset — is fetched on demand instead, because inline sources are text and share a 2 MB budget.
+const TEXT_ASSET_RE = /\.(md|markdown|txt|py|js|mjs|cjs|ts|json|ya?ml|csv|tsv|html?|css|sh|xml|sql|toml|ini)$/i;
+const MAX_INLINE_ASSET_BYTES = 256 * 1024;
+
+/** Fetch id for a skill's supporting file. The name may contain slashes, so it is encoded. */
+const skillFetchId = (skill, asset) => `skill:${skill.id}:${encodeURIComponent(asset.name)}`;
+
+/** Directory note for the skill files too big or too binary to mount inline. */
+const buildSkillFilesMd = (skill, assets, workspaceUrlBase) => {
+  const lines = [
+    `# Other files that came with the ${skill.name} skill`,
+    '',
+    'These are not mounted — fetch one into the working directory before using it:',
+    '',
+  ];
+  for (const a of assets) {
+    lines.push(`- **${a.name}**${a.mimeType ? ` (${a.mimeType})` : ''}`);
+    lines.push(`  \`curl -s --create-dirs -o "${a.name}" "${workspaceUrlBase}/${skillFetchId(skill, a)}"\``);
+  }
+  lines.push('');
+  return lines.join('\n');
+};
 
 const buildManifestMd = (resources, workspaceUrlBase) => {
   const lines = ['# Saved files', '', 'Fetch one only if the task needs it.', ''];
@@ -181,8 +209,28 @@ export const assembleEnvironment = async ({
   // agent's behaviour go in before the things that merely inform it.
   const skillsForPrompt = [];
   for (const skill of skills) {
-    if (addInline(`.agents/skills/${skill.slug}/SKILL.md`, buildSkillMd(skill))) {
-      skillsForPrompt.push(skill);
+    if (!addInline(`.agents/skills/${skill.slug}/SKILL.md`, buildSkillMd(skill))) continue;
+    skillsForPrompt.push(skill);
+
+    // A real .skill package is a directory, not a single file: SKILL.md refers to reference notes
+    // and scripts that are useless if they don't travel with it. Mounting only SKILL.md left the
+    // agent following instructions whose supporting files simply weren't there.
+    const mustFetch = [];
+    for (const asset of skill.assets || []) {
+      const inlineable = TEXT_ASSET_RE.test(asset.name) && (asset.size || 0) <= MAX_INLINE_ASSET_BYTES;
+      if (inlineable) {
+        try {
+          const buffer = await downloadPath(asset.storagePath);
+          if (addInline(`.agents/skills/${skill.slug}/${asset.name}`, buffer.toString('utf8'))) continue;
+        } catch (e) {
+          // A missing asset shouldn't sink the run; the fetch note below is the fallback.
+          console.error(`Could not mount skill asset ${asset.name}:`, e?.message || e);
+        }
+      }
+      mustFetch.push(asset);
+    }
+    if (mustFetch.length) {
+      addInline(`.agents/skills/${skill.slug}/FILES.md`, buildSkillFilesMd(skill, mustFetch, workspaceUrlBase));
     }
   }
 
