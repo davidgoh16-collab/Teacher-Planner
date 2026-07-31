@@ -53,15 +53,15 @@ import { fetchTasks, saveTask, deleteTask, fetchProjects, saveProject, fetchCate
 import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/appService';
 import { TEXT_MODEL, buildDateContextBlock, getAiClient } from './services/aiService';
 import { fetchColleagues } from './services/colleagueService';
-import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep } from './utils/pseudonymiser';
+import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep, PseudonymMapping } from './utils/pseudonymiser';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
 import { streamAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks } from './services/agentService';
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { fetchResources } from './services/resourceService';
-import { fetchCustomAgents, fetchMcpServers, setAgentMemory } from './services/aiHubService';
+import { fetchCustomAgents, fetchMcpServers, setAgentMemory, fetchSkills, markSkillUsed } from './services/aiHubService';
 import { startResearch, pollResearch, researchReportText, refreshAutomations } from './services/automationService';
 import { saveTextResource } from './services/resourceService';
-import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource, CustomAgent, McpServerConfig } from './types';
+import { Task, Project, Category, ChatMessage, Idea, RoutineTask, AppItem, AppCategory, KeyDate, AppTab, TeacherResource, CustomAgent, McpServerConfig, TeacherSkill } from './types';
 import QuickAddModal from './components/QuickAddModal';
 import { 
   ChevronDown, 
@@ -179,6 +179,11 @@ const App: React.FC = () => {
   const [activeAgent, setActiveAgent] = useState<CustomAgent | null>(null);
   const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
+  const [skills, setSkills] = useState<TeacherSkill[]>([]);
+  // A skill explicitly picked with a /slash-command this turn — overrides which skills get
+  // mounted so it's guaranteed to be there, rather than hoping the model notices it among
+  // whatever else is enabled. Cleared once the turn that used it finishes.
+  const [forcedSkillId, setForcedSkillId] = useState<string | null>(null);
   // Deep research runs for up to an hour, so it survives reloads: the id is kept and polled.
   const [researchMode, setResearchMode] = useState(false);
   const [pendingResearch, setPendingResearch] = useState<{ interactionId: string; query: string } | null>(null);
@@ -188,10 +193,11 @@ const App: React.FC = () => {
   // down, so a hook placed below that point is skipped while signed out and React sees the hook
   // order change the moment someone signs in.
   useEffect(() => {
-    if (!user) { setResources([]); setCustomAgents([]); return; }
+    if (!user) { setResources([]); setCustomAgents([]); setSkills([]); return; }
     fetchResources().then(setResources).catch(e => console.error('Error loading resources', e));
     fetchCustomAgents().then(setCustomAgents).catch(e => console.error('Error loading assistants', e));
     fetchMcpServers().then(setMcpServers).catch(e => console.error('Error loading connections', e));
+    fetchSkills().then(setSkills).catch(e => console.error('Error loading skills', e));
     // Bring any scheduled runs back in line with assistants or skills edited since they were built.
     refreshAutomations().catch(() => { /* automations are optional; never block startup */ });
   }, [user]);
@@ -1240,6 +1246,65 @@ const App: React.FC = () => {
     setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent finished but returned no output.", thoughts }]);
   };
 
+  /**
+   * Split out the "side-channel" function calls the agent runs on its own, without a confirmation
+   * dialog — they update our own records (an assistant's memory, a skill's usage count), not the
+   * planner — from the ones that genuinely need the teacher's confirmation.
+   *
+   * This has to run on EVERY set of function calls the agent produces, not just the first turn:
+   * a continuation (after confirming a planner change) can just as easily carry one of these, and
+   * before this was centralised here the continuation path skipped it entirely — a save_memory or
+   * note_skill_used call there would have been offered up for confirmation like a planner edit,
+   * which makes no sense and has no execution case.
+   */
+  const processSideChannelCalls = async (
+    allCalls: ReturnType<typeof getPendingFunctionCalls>,
+    mapping: PseudonymMapping,
+    forcedThisTurn: string | null,
+  ): Promise<{ pendingCalls: ReturnType<typeof getPendingFunctionCalls>; notes: string[] }> => {
+    const memoryCalls = allCalls.filter(c => c.name === 'save_memory');
+    const skillUsedCalls = allCalls.filter(c => c.name === 'note_skill_used');
+    const pendingCalls = allCalls.filter(c => c.name !== 'save_memory' && c.name !== 'note_skill_used');
+    const notes: string[] = [];
+
+    if (memoryCalls.length > 0 && activeAgent) {
+      const content = String(memoryCalls[memoryCalls.length - 1].args?.content || '').trim();
+      if (content) {
+        try {
+          const saved = await setAgentMemory(activeAgent, scrubText(content, mapping));
+          setActiveAgent(saved);
+          setCustomAgents(prev => prev.map(a => (a.id === saved.id ? saved : a)));
+          notes.push(`_(${activeAgent.name} updated what it remembers — you can read or clear it in the AI Hub.)_`);
+        } catch (e) {
+          console.error('Could not save assistant memory', e);
+        }
+      }
+      memoryCalls.forEach(c => handledAgentCallIdsRef.current.add(c.id));
+    }
+
+    if (skillUsedCalls.length > 0) {
+      const usedSlugs = new Set(skillUsedCalls.map(c => String(c.args?.slug || '').trim().toLowerCase()).filter(Boolean));
+      const usedNames: string[] = [];
+      for (const slug of usedSlugs) {
+        const skill = skills.find(s => s.slug === slug);
+        // A /slash-invoked skill was already counted deterministically before the run even
+        // started — the self-report for that same skill would just double it.
+        if (!skill || skill.id === forcedThisTurn) continue;
+        try {
+          const updated = await markSkillUsed(skill);
+          setSkills(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+          usedNames.push(updated.name);
+        } catch (e) {
+          console.error('Could not record skill use', e);
+        }
+      }
+      skillUsedCalls.forEach(c => handledAgentCallIdsRef.current.add(c.id));
+      if (usedNames.length) notes.push(`_(Used skill${usedNames.length > 1 ? 's' : ''}: ${usedNames.join(', ')}.)_`);
+    }
+
+    return { pendingCalls, notes };
+  };
+
   // Route a message to the Antigravity managed agent (autonomous multi-step: web, code, files).
   const handleAgentSendMessage = async (userMessage: string, fileData?: { text: string, mimeType: string, isBase64: boolean, fileName?: string }) => {
     // Sending a new task means the user moved on from any unconfirmed planner change — drop the
@@ -1329,13 +1394,19 @@ const App: React.FC = () => {
             }))
         : [];
 
+      // A slash-invoked skill wins over an active assistant's own list — an explicit request
+      // narrows the sandbox to exactly that skill, guaranteed, rather than one of several.
+      const forcedThisTurn = forcedSkillId;
+      const enabledSkillCount = skills.filter(s => s.enabled).length;
+
       const tools = activeAgent
         ? buildAgentTools(isAdmin && activeAgent.tools.plannerTools, {
             enabled: activeAgent.tools,
             memory: activeAgent.memoryEnabled,
+            skillTracking: enabledSkillCount > 0,
             mcpServers: mcpConfigs,
           })
-        : buildAgentTools(isAdmin);
+        : buildAgentTools(isAdmin, { skillTracking: enabledSkillCount > 0 });
 
       const { interaction, restarted, streamFellBack } = await runAgentTurn(
         {
@@ -1351,7 +1422,7 @@ const App: React.FC = () => {
           plannerEnv: {
             conversationId: chatConv.currentConversationId || undefined,
             agentId: activeAgent?.id,
-            skillIds: activeAgent?.skillIds?.length ? activeAgent.skillIds : undefined,
+            skillIds: forcedThisTurn ? [forcedThisTurn] : (activeAgent?.skillIds?.length ? activeAgent.skillIds : undefined),
           },
           buildFreshInput: () => withAttachment(buildFullInput()),
         },
@@ -1369,33 +1440,10 @@ const App: React.FC = () => {
 
       // Rehydrate any pseudonymous tokens in the agent's tool arguments before they mutate the planner.
       const allCalls = getPendingFunctionCalls(interaction).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
-
-      // save_memory writes to the assistant's own record rather than the planner, so it runs
-      // without a confirmation dialog. The memory is kept exactly as the agent wrote it — which is
-      // to say pseudonymised — so it can't quietly become a store of identifying details.
-      const memoryCalls = allCalls.filter(c => c.name === 'save_memory');
-      const pendingCalls = allCalls.filter(c => c.name !== 'save_memory');
-      if (memoryCalls.length > 0 && activeAgent) {
-        const content = String(memoryCalls[memoryCalls.length - 1].args?.content || '').trim();
-        if (content) {
-          try {
-            const saved = await setAgentMemory(activeAgent, scrubText(content, mapping));
-            setActiveAgent(saved);
-            setCustomAgents(prev => prev.map(a => (a.id === saved.id ? saved : a)));
-            memoryCalls.forEach(c => handledAgentCallIdsRef.current.add(c.id));
-          } catch (e) {
-            console.error('Could not save assistant memory', e);
-          }
-        }
-      }
+      const { pendingCalls, notes } = await processSideChannelCalls(allCalls, mapping, forcedThisTurn);
 
       handleAgentInteractionResult(interaction, pendingCalls, formatThoughts(liveTrace));
-      if (memoryCalls.length > 0 && activeAgent) {
-        setChatMessages(prev => [...prev, {
-          role: 'model',
-          text: `_(${activeAgent.name} updated what it remembers — you can read or clear it in the AI Hub.)_`,
-        }]);
-      }
+      notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
 
       // The agent uploads finished documents to the server directly, so the only way the UI learns
       // about them is to look. Anything new belongs to the run that just finished.
@@ -1436,6 +1484,7 @@ const App: React.FC = () => {
       traceRef.current = null;
       setAgentTrace(null);
       setIsAiLoading(false);
+      setForcedSkillId(null);
     }
   };
 
@@ -1943,7 +1992,15 @@ const App: React.FC = () => {
                   text: "_(Those changes were applied, but this chat's workspace had expired so the agent couldn't pick the thread back up. Send another message to start a fresh one.)_",
                 }]);
               } else if (next) {
-                handleAgentInteractionResult(next, getPendingFunctionCalls(next), formatThoughts(liveTrace));
+                // A continuation can just as easily carry a save_memory or note_skill_used call as
+                // the first turn can — without this, one would have been offered up in the
+                // confirmation dialog like a planner edit, which has no execution case for it.
+                const colleagues = await fetchColleagues().catch(() => []);
+                const mapping = buildMappingFromPeople(colleagues.map(c => ({ name: c.name })));
+                const rehydratedCalls = getPendingFunctionCalls(next).map(c => ({ ...c, args: rehydrateDeep(c.args, mapping) }));
+                const { pendingCalls: nextPendingCalls, notes } = await processSideChannelCalls(rehydratedCalls, mapping, null);
+                handleAgentInteractionResult(next, nextPendingCalls, formatThoughts(liveTrace));
+                notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
               }
             }
     } catch (error) {
@@ -2123,6 +2180,23 @@ const App: React.FC = () => {
         : undefined);
       setPendingResourceAttachment(null);
       if (researchMode) return handleResearchSendMessage(message);
+
+      // A leading /skill-slug explicitly invokes that skill — guaranteed to be the only one
+      // mounted this turn, rather than one of everything enabled and hoping the model notices.
+      // The raw text (slash and all) still goes to the model unchanged: it's mounted with that
+      // exact slug as its skill directory, so the reference resolves on its own, and the teacher's
+      // own words stay intact in the transcript rather than being silently rewritten.
+      const slashMatch = message.match(/^\/(\S+)/);
+      const invokedSkill = slashMatch ? skills.find(s => s.enabled && s.slug === slashMatch[1].toLowerCase()) : undefined;
+      if (invokedSkill) {
+        setForcedSkillId(invokedSkill.id);
+        markSkillUsed(invokedSkill)
+          .then(updated => setSkills(prev => prev.map(s => (s.id === updated.id ? updated : s))))
+          .catch(e => console.error('Could not record skill use', e));
+        if (!agentMode) setAgentMode(true);
+        return handleAgentSendMessage(message, attachment);
+      }
+
       return (agentMode ? handleAgentSendMessage : handleAiSendMessage)(message, attachment);
     },
     isLoading: isAiLoading,
@@ -2132,6 +2206,7 @@ const App: React.FC = () => {
     onToggleViz: () => setVizEnabled(v => !v),
     researchMode,
     onToggleResearchMode: () => setResearchMode(m => !m),
+    skills,
     agentTrace,
     pendingConfirmation: pendingActions,
     onConfirmActions: handleConfirmActions,

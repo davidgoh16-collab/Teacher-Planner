@@ -96,6 +96,10 @@ const buildAgentsMd = ({ uploadUrl, workspaceUrlBase, brand, skills, hasWorkspac
     lines.push('They have saved their preferred ways of doing things under `.agents/skills/`.');
     lines.push('Before producing something, check whether one applies and follow it:');
     skills.forEach(s => lines.push(`- \`.agents/skills/${s.slug}/SKILL.md\` — ${s.description || s.name}`));
+    lines.push('');
+    lines.push('If you follow one, call `note_skill_used` with its directory name (the part before');
+    lines.push('`/SKILL.md` above) so the teacher can see it was actually used — every time you use one,');
+    lines.push('not just the first. Skip it entirely if none of these applied to this task.');
   }
 
   if (hasWorkspace) {

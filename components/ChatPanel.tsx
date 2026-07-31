@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope } from 'lucide-react';
+import { X, Send, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage, AIConversation } from '../types';
+import { ChatMessage, AIConversation, TeacherSkill } from '../types';
 import { AgentActivityItem } from '../services/agentService';
 import { readFileContent } from '../utils/fileUtils';
 
@@ -103,6 +103,9 @@ export interface ChatPanelProps {
   onToggleViz?: () => void;
   researchMode?: boolean;
   onToggleResearchMode?: () => void;
+  // Enabled skills, for the /slug autocomplete — lets a teacher explicitly invoke one rather than
+  // hoping the agent notices it's relevant among everything else mounted.
+  skills?: TeacherSkill[];
   // Live thought process of the in-flight agent run (reasoning + activity + streaming answer).
   agentTrace?: AgentTrace | null;
 
@@ -151,6 +154,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   onToggleViz,
   researchMode,
   onToggleResearchMode,
+  skills = [],
   agentTrace,
   conversations,
   currentConversationId,
@@ -173,6 +177,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   emptyState,
 }) => {
   const [input, setInput] = useState('');
+  const [skillHighlight, setSkillHighlight] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Only offer skills while the /command itself is still being typed — a space after the slug
+  // means it's resolved (or the teacher moved on to the actual task), not still choosing.
+  const skillCommandMatch = input.match(/^\/(\S*)$/);
+  const skillSuggestions = skillCommandMatch
+    ? skills.filter(s => s.enabled && s.slug.startsWith(skillCommandMatch[1].toLowerCase())).slice(0, 6)
+    : [];
+  // Once the first token exactly matches a real skill (whether picked from the list or typed out
+  // and followed by a space/more text), show what will actually be used — the confirmation a
+  // teacher asked for, right where they're about to hit send.
+  const resolvedSkillMatch = input.match(/^\/(\S+)/);
+  const resolvedSkill = resolvedSkillMatch ? skills.find(s => s.enabled && s.slug === resolvedSkillMatch[1].toLowerCase()) : undefined;
+
+  const pickSkillSuggestion = (skill: TeacherSkill) => {
+    setInput(`/${skill.slug} `);
+    setSkillHighlight(0);
+    inputRef.current?.focus();
+  };
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -531,7 +555,32 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
+      <form onSubmit={handleSubmit} className="relative p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
+        {skillSuggestions.length > 0 && (
+          <div className="absolute bottom-full left-3 right-3 mb-1 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+            {skillSuggestions.map((skill, i) => (
+              <button
+                key={skill.id}
+                type="button"
+                onClick={() => pickSkillSuggestion(skill)}
+                onMouseEnter={() => setSkillHighlight(i)}
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${
+                  i === skillHighlight ? 'bg-primary-50 dark:bg-primary-900/30' : ''
+                }`}
+              >
+                <span className="min-w-0">
+                  <span className="font-mono text-primary-700 dark:text-primary-400">/{skill.slug}</span>
+                  <span className="ml-2 truncate text-slate-500 dark:text-slate-400">{skill.name}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {resolvedSkill && (
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-primary-700 dark:text-primary-400">
+            <BookMarked size={12} /> Using skill: {resolvedSkill.name}
+          </div>
+        )}
         {selectedFile && (
           <div className="mb-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-medium truncate">
@@ -560,10 +609,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <Paperclip size={18} />
           </button>
           <input
+            ref={inputRef}
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={researchMode ? "Ask a research question — I'll read widely and write you a cited report…" : agentMode ? 'Give the agent a task — research, draft, multi-step…' : 'Ask me to add a lesson or extract actions...'}
+            onChange={(e) => { setInput(e.target.value); setSkillHighlight(0); }}
+            onKeyDown={(e) => {
+              if (skillSuggestions.length === 0) return;
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSkillHighlight(i => (i + 1) % skillSuggestions.length); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setSkillHighlight(i => (i - 1 + skillSuggestions.length) % skillSuggestions.length); }
+              else if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); pickSkillSuggestion(skillSuggestions[skillHighlight]); }
+              else if (e.key === 'Escape') { setInput(''); }
+            }}
+            placeholder={researchMode ? "Ask a research question — I'll read widely and write you a cited report…" : agentMode ? 'Give the agent a task — research, draft, multi-step… ("/" for a skill)' : 'Ask me to add a lesson or extract actions...'}
             /* Security: limit input length to prevent excessive token usage */
             maxLength={2000}
             className="flex-1 min-w-0 bg-transparent text-slate-800 dark:text-slate-100 py-2 text-sm focus:outline-none"

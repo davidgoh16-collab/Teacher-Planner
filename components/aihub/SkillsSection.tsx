@@ -1,7 +1,26 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, X, Loader2, BookMarked, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Loader2, BookMarked, Upload, FolderOpen, Download, CheckCircle2 } from 'lucide-react';
 import { TeacherSkill } from '../../types';
-import { saveSkill, deleteSkill, slugify, importSkillFile } from '../../services/aiHubService';
+import { saveSkill, deleteSkill, slugify, importSkillFile, getSkillAssetBlob } from '../../services/aiHubService';
+
+/** "3 hours ago", "2 days ago"... falling back to a date once it's been a while. */
+const formatRelative = (ts: number): string => {
+  const diffMs = Date.now() - ts;
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 /**
  * Skills: the teacher's own ways of doing things, taught once and reused.
@@ -95,6 +114,32 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
     await onRefresh();
   };
 
+  const [filesView, setFilesView] = useState<TeacherSkill | null>(null);
+  const [downloadingAsset, setDownloadingAsset] = useState<string | null>(null);
+
+  /**
+   * Download an imported file so a teacher can actually open it and check it's the real thing —
+   * not just trust a filename in a list. This is what surfaced the nested-folder import bug: the
+   * list alone would have kept looking fine.
+   */
+  const handleDownloadAsset = async (asset: NonNullable<TeacherSkill['assets']>[number]) => {
+    setDownloadingAsset(asset.storagePath);
+    try {
+      const blob = await getSkillAssetBlob(asset);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = asset.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      console.error('Could not download asset', e);
+      alert("Couldn't download that file.");
+    } finally {
+      setDownloadingAsset(null);
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-4">
@@ -178,17 +223,43 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
               {skill.description && (
                 <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{skill.description}</p>
               )}
-              <label className="mt-3 flex cursor-pointer items-center gap-2 border-t border-slate-100 pt-3 text-sm dark:border-slate-700">
-                <input
-                  type="checkbox"
-                  checked={skill.enabled}
-                  onChange={() => toggleEnabled(skill)}
-                  className="rounded border-slate-300 text-primary-600"
-                />
-                <span className="text-slate-600 dark:text-slate-400">
-                  {skill.enabled ? 'In use' : 'Paused'}
-                </span>
-              </label>
+
+              <p className="mt-2 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                {skill.usageCount ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-primary-600 dark:text-primary-400" />
+                    Used {skill.usageCount} time{skill.usageCount === 1 ? '' : 's'}
+                    {skill.lastUsedAt ? ` · last ${formatRelative(skill.lastUsedAt)}` : ''}
+                  </>
+                ) : (
+                  <span className="text-slate-400">Not used yet</span>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Type <code className="rounded bg-slate-100 px-1 py-0.5 dark:bg-slate-700">/{skill.slug}</code> in chat to use it directly.
+              </p>
+
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={skill.enabled}
+                    onChange={() => toggleEnabled(skill)}
+                    className="rounded border-slate-300 text-primary-600"
+                  />
+                  <span className="text-slate-600 dark:text-slate-400">
+                    {skill.enabled ? 'In use' : 'Paused'}
+                  </span>
+                </label>
+                {!!skill.assets?.length && (
+                  <button
+                    onClick={() => setFilesView(skill)}
+                    className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-primary-600 dark:text-slate-400"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" /> {skill.assets.length} file{skill.assets.length === 1 ? '' : 's'}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -264,6 +335,53 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ skills, onRefresh }) => {
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save skill
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filesView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setFilesView(null)}>
+          <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl dark:bg-slate-800" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-700">
+              <div>
+                <h2 className="font-serif text-lg text-slate-900 dark:text-white">{filesView.name}</h2>
+                <p className="font-mono text-xs text-slate-400">.agents/skills/{filesView.slug}/</p>
+              </div>
+              <button onClick={() => setFilesView(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-auto p-4">
+              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                Everything that came with this skill's package, alongside SKILL.md. Download one to
+                check it's really there and unchanged.
+              </p>
+              <ul className="space-y-1">
+                {(filesView.assets || []).map(asset => (
+                  <li
+                    key={asset.storagePath}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-700/50"
+                  >
+                    <span className="min-w-0 truncate font-mono text-slate-700 dark:text-slate-200" title={asset.name}>
+                      {asset.name}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="text-xs text-slate-400">{formatSize(asset.size)}</span>
+                      <button
+                        onClick={() => handleDownloadAsset(asset)}
+                        disabled={downloadingAsset === asset.storagePath}
+                        className="p-1 text-slate-400 hover:text-primary-600 disabled:opacity-50"
+                        title="Download"
+                      >
+                        {downloadingAsset === asset.storagePath
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <Download className="h-4 w-4" />}
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

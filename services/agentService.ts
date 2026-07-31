@@ -119,6 +119,30 @@ export const SAVE_MEMORY_TOOL: AgentFunctionTool = {
   },
 };
 
+/**
+ * Lets the agent tell us which of the teacher's saved skills it actually followed this turn.
+ * Skills are mounted into every sandbox unconditionally (that's how discovery-by-description
+ * works), so mounting alone says nothing about whether one did anything — this is the only signal
+ * for the auto-discovery path. An explicit /slash-command is tracked separately, deterministically,
+ * without needing the model's cooperation.
+ */
+export const NOTE_SKILL_USED_TOOL: AgentFunctionTool = {
+  type: 'function',
+  name: 'note_skill_used',
+  description:
+    'Call this once for each of the teacher\'s saved skills, from .agents/skills/, that you actually '
+    + 'followed or drew guidance from in this response. Pass its directory name exactly as it appears '
+    + 'under .agents/skills/ (e.g. "marking-codes"). Do not call it for a skill you merely noticed but '
+    + 'did not use.',
+  parameters: {
+    type: 'object',
+    properties: {
+      slug: { type: 'string', description: 'The skill\'s directory name, e.g. "marking-codes".' },
+    },
+    required: ['slug'],
+  },
+};
+
 /** An MCP server the agent may call. Names must be lowercase; uppercase returns a bare 400. */
 export interface McpToolConfig {
   type: 'mcp_server';
@@ -132,12 +156,14 @@ interface BuildToolsOptions {
   /** Restrict the built-in tools (a custom assistant chooses what it can reach). */
   enabled?: { codeExecution?: boolean; googleSearch?: boolean; urlContext?: boolean };
   memory?: boolean;
+  /** Whether any skills are mounted this run — adds the self-report tool if so. */
+  skillTracking?: boolean;
   mcpServers?: McpToolConfig[];
 }
 
 /** Build the tool set for an agent run. Planner-mutation tools are only added for admins. */
 export const buildAgentTools = (includePlannerTools: boolean, options: BuildToolsOptions = {}): AgentTool[] => {
-  const { enabled, memory, mcpServers } = options;
+  const { enabled, memory, skillTracking, mcpServers } = options;
   const base: AgentTool[] = enabled
     ? ([
         enabled.codeExecution !== false ? { type: 'code_execution' } as AgentTool : null,
@@ -148,6 +174,7 @@ export const buildAgentTools = (includePlannerTools: boolean, options: BuildTool
 
   if (includePlannerTools) base.push(...PLANNER_AGENT_TOOLS);
   if (memory) base.push(SAVE_MEMORY_TOOL);
+  if (skillTracking) base.push(NOTE_SKILL_USED_TOOL);
   if (mcpServers?.length) base.push(...(mcpServers as unknown as AgentTool[]));
   return base;
 };

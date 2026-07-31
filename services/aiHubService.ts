@@ -1,5 +1,5 @@
 import { getDocs, setDoc, deleteDoc, getDoc, query, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getBlob } from 'firebase/storage';
 import { storage } from '../firebase';
 import { TeacherSkill, BrandKit, CustomAgent, McpServerConfig } from '../types';
 import { userCol, userDocRef, currentUid } from './userScope';
@@ -144,6 +144,22 @@ export const uploadSkillAsset = async (skillId: string, file: File) => {
   const storagePath = `users/${uid}/skills/${skillId}/${file.name}`;
   await uploadBytes(ref(storage, storagePath), file, { contentType: file.type || 'application/octet-stream' });
   return { name: file.name, storagePath, size: file.size, mimeType: file.type || 'application/octet-stream' };
+};
+
+/** Fetch a skill's asset bytes, so a teacher can check an imported file actually made it across. */
+export const getSkillAssetBlob = (asset: { storagePath: string }): Promise<Blob> =>
+  getBlob(ref(storage, asset.storagePath));
+
+/**
+ * Record that a skill was actually used — either because the teacher explicitly invoked it with
+ * `/slug`, or because the agent reported following it via the note_skill_used tool. This is the
+ * only way to answer "is this skill being used?" honestly: it's mounted into every sandbox
+ * automatically, so mounting alone says nothing about whether it did anything.
+ */
+export const markSkillUsed = async (skill: TeacherSkill): Promise<TeacherSkill> => {
+  const updated: TeacherSkill = { ...skill, usageCount: (skill.usageCount || 0) + 1, lastUsedAt: now() };
+  await setDoc(userDocRef(SKILLS, skill.id), updated);
+  return updated;
 };
 
 // --- Brand kit ------------------------------------------------------------------------------

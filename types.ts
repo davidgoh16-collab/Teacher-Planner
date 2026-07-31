@@ -241,6 +241,9 @@ export interface TeacherSkill {
   instructions: string;
   assets?: Array<{ name: string; storagePath: string; size: number; mimeType: string }>;
   enabled: boolean;
+  /** How many times this skill has actually been used — via /slash-command or the agent's own report. */
+  usageCount?: number;
+  lastUsedAt?: number;
   createdAt: number;
   updatedAt: number;
 }
