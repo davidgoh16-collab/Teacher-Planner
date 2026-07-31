@@ -52,17 +52,23 @@ const buildInteractionTransport = async (
   return { url: ENDPOINT, headers: { ...(await authHeaders()), ...extraHeaders }, body };
 };
 
-// Agent runs are autonomous multi-step loops that can take minutes; give them a long ceiling.
-const REQUEST_TIMEOUT_MS = 300_000;
+// Agent runs are autonomous multi-step loops that can take many minutes — a booklet build is pip
+// installs and script runs end to end. A total-duration cap kills those runs just before they
+// finish, so the streamed path measures SILENCE instead: as long as events keep arriving the run is
+// alive. The ceiling only exists so a genuinely wedged stream can't hang forever.
+const REQUEST_TIMEOUT_MS = 20 * 60_000;
+const STREAM_STALL_TIMEOUT_MS = 10 * 60_000;
+const STREAM_CEILING_MS = 45 * 60_000;
 
 /**
  * Combine this request's own timeout with an optional caller signal (the Stop button), since fetch
- * takes exactly one signal. Aborting reaches the server as a closed connection, which is what stops
- * the upstream generation being paid for — so stopping is a real cancellation, not just a UI trick.
+ * takes exactly one signal. `touch()` restarts the idle timer, so a stream that is still delivering
+ * is never cut off mid-run.
  */
-const abortableSignal = (external?: AbortSignal) => {
+const abortableSignal = (external?: AbortSignal, idleMs = REQUEST_TIMEOUT_MS, ceilingMs?: number) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let idle = setTimeout(() => controller.abort(), idleMs);
+  const ceiling = ceilingMs ? setTimeout(() => controller.abort(), ceilingMs) : undefined;
   const onExternalAbort = () => controller.abort();
   if (external) {
     if (external.aborted) controller.abort();
@@ -70,8 +76,13 @@ const abortableSignal = (external?: AbortSignal) => {
   }
   return {
     signal: controller.signal,
+    touch: () => {
+      clearTimeout(idle);
+      idle = setTimeout(() => controller.abort(), idleMs);
+    },
     release: () => {
-      clearTimeout(timeout);
+      clearTimeout(idle);
+      if (ceiling) clearTimeout(ceiling);
       external?.removeEventListener('abort', onExternalAbort);
     },
   };
@@ -383,6 +394,8 @@ export interface AgentActivityItem {
   kind: 'thinking' | 'code' | 'search' | 'tool' | 'status';
   label: string;
   detail?: string;
+  /** Refines the step already showing, rather than adding another line for the same step. */
+  replaceLast?: boolean;
 }
 
 /** Callbacks invoked as streamed SSE events arrive, to drive the live "thought process" UI. */
@@ -407,7 +420,40 @@ const extractText = (content: any): string => {
   return '';
 };
 
-/** Map a starting step to a live activity item, or null if it carries no user-facing signal. */
+/**
+ * Describe what a shell/python snippet is actually doing, in the teacher's terms.
+ *
+ * "Running code" five times in a row reads as a hang. A document build is minutes of pip installs
+ * and script runs, and naming them is the difference between "it's stuck" and "it's working".
+ */
+const describeCode = (code: string): string | undefined => {
+  const text = String(code || '');
+  const install = text.match(/pip3?\s+install[^\n|&]*/);
+  if (install) {
+    const pkgs = install[0].replace(/.*install\s+/, '').replace(/--\S+\s*/g, '').trim();
+    return pkgs ? `installing ${pkgs.split(/\s+/).slice(0, 3).join(', ')}` : 'installing packages';
+  }
+  if (/\bcurl\b/.test(text)) {
+    return /-X\s*POST|--data-binary/.test(text) ? 'uploading the file' : 'fetching a file';
+  }
+  const py = text.match(/python3?\s+(\S+\.py)/);
+  if (py) return `running ${py[1].split('/').pop()}`;
+  const writing = text.match(/(?:>|>>|-o)\s*"?([\w .-]+\.(?:docx|pptx|xlsx|pdf|md|html|csv|txt|png))"?/i);
+  if (writing) return `writing ${writing[1]}`;
+  const first = text.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
+  if (!first) return undefined;
+  const cmd = first.split(/\s+/)[0];
+  if (/^(ls|cat|head|tail|find|grep|wc)$/.test(cmd)) return 'reading the skill files';
+  return first.length > 60 ? `${first.slice(0, 57)}…` : first;
+};
+
+/**
+ * Map a starting step to a live activity item, or null if it carries no user-facing signal.
+ *
+ * A `step.start` announces the KIND of step only — the command being run and whether it worked
+ * arrive afterwards in `step.delta` (verified against the live stream), which is why the useful
+ * detail is filled in by {@link deltaToActivity} rather than here.
+ */
 const stepToActivity = (step: any): AgentActivityItem | null => {
   switch (step?.type) {
     case 'thought':
@@ -415,7 +461,7 @@ const stepToActivity = (step: any): AgentActivityItem | null => {
     case 'code_execution_call':
       return { kind: 'code', label: 'Running code' };
     case 'code_execution_result':
-      return { kind: 'code', label: 'Got code result' };
+      return null; // the delta says whether it worked; announcing it twice adds nothing
     case 'function_call':
       return { kind: 'tool', label: `Calling ${step.name || 'a tool'}` };
     case 'web_search':
@@ -425,6 +471,26 @@ const stepToActivity = (step: any): AgentActivityItem | null => {
     default:
       return null;
   }
+};
+
+/** The first meaningful line of command output, for reporting a failed step. */
+const firstLine = (text: string): string | undefined => {
+  const line = String(text || '').split('\n').map(l => l.trim()).find(Boolean);
+  if (!line) return undefined;
+  return line.length > 70 ? `${line.slice(0, 67)}…` : line;
+};
+
+/** Refine the running step from a delta: what the command is, and whether it worked. */
+const deltaToActivity = (delta: any): AgentActivityItem | null => {
+  if (delta?.type === 'code_execution_call' && delta.arguments?.code) {
+    return { kind: 'code', label: 'Running code', detail: describeCode(delta.arguments.code), replaceLast: true };
+  }
+  if (delta?.type === 'code_execution_result') {
+    return delta.is_error
+      ? { kind: 'code', label: 'That step failed — trying another way', detail: firstLine(delta.result) }
+      : { kind: 'code', label: 'Step finished' };
+  }
+  return null;
 };
 
 /**
@@ -440,7 +506,7 @@ export const streamAgentInteraction = async (
   const body = buildInteractionBody(args, { stream: true });
 
   const transport = await buildInteractionTransport(body, { Accept: "text/event-stream" });
-  const { signal, release } = abortableSignal(args.signal);
+  const { signal, release, touch } = abortableSignal(args.signal, STREAM_STALL_TIMEOUT_MS, STREAM_CEILING_MS);
 
   // Assembled interaction we return once the stream ends.
   const result: Interaction = { id: '', status: 'in_progress', output_text: '', steps: [] };
@@ -502,6 +568,9 @@ export const streamAgentInteraction = async (
               result.output_text = (result.output_text || '') + delta.text;
               callbacks.onAnswer?.(delta.text);
             }
+          } else {
+            const refined = deltaToActivity(delta);
+            if (refined) callbacks.onActivity?.(refined);
           }
           break;
         }
@@ -532,6 +601,7 @@ export const streamAgentInteraction = async (
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      touch(); // still alive — restart the silence timer
       buffer += decoder.decode(value, { stream: true });
       let sep: number;
       // SSE frames are separated by a blank line.
@@ -548,10 +618,19 @@ export const streamAgentInteraction = async (
     // payload's steps). Recover it from `model_output` rather than reporting an empty answer.
     if (!result.output_text) result.output_text = extractOutputText(result);
     return result;
+  } catch (err) {
+    // Tell the caller a run already exists upstream. Retrying the request would start a SECOND one:
+    // the same booklet built twice, paid for twice, and minutes more waiting.
+    if (result.id) (err as any).partialInteractionId = result.id;
+    throw err;
   } finally {
     release();
   }
 };
+
+/** The interaction id of a run that had already started when its stream failed, if there was one. */
+export const partialInteractionIdOf = (err: unknown): string | undefined =>
+  (err as any)?.partialInteractionId;
 
 /**
  * Return the function calls the agent is still waiting on — `function_call` steps with no matching

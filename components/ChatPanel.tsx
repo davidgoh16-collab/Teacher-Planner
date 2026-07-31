@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { findInvokedSkill } from '../utils/skillCommand';
 import { X, Send, Square, Bot, User, Loader2, Maximize2, Minimize2, List, Plus, Edit2, Trash2, Paperclip, Sparkles, Brain, Search, Code, Wrench, BarChart3, ExternalLink, Telescope, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -183,23 +184,56 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [skillHighlight, setSkillHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Only offer skills while the /command itself is still being typed — a space after the slug
-  // means it's resolved (or the teacher moved on to the actual task), not still choosing.
-  const skillCommandMatch = input.match(/^\/(\S*)$/);
+  // Offer skills whenever a /token is being typed at the END of the input, wherever that is —
+  // people write the request first and reach for the skill afterwards, and forcing the slash to
+  // come first meant they simply couldn't invoke one once they'd started typing.
+  const skillCommandMatch = input.match(/(?:^|\s)\/(\S*)$/);
   const skillSuggestions = skillCommandMatch
     ? skills.filter(s => s.enabled && s.slug.startsWith(skillCommandMatch[1].toLowerCase())).slice(0, 6)
     : [];
-  // Once the first token exactly matches a real skill (whether picked from the list or typed out
-  // and followed by a space/more text), show what will actually be used — the confirmation a
-  // teacher asked for, right where they're about to hit send.
-  const resolvedSkillMatch = input.match(/^\/(\S+)/);
-  const resolvedSkill = resolvedSkillMatch ? skills.find(s => s.enabled && s.slug === resolvedSkillMatch[1].toLowerCase()) : undefined;
+  // Once a /token anywhere in the message exactly matches a real skill, show what will actually be
+  // used — the confirmation a teacher asked for, right where they're about to hit send.
+  const resolvedSkill = findInvokedSkill(input, skills);
 
+  /** Replace the /token being typed with the chosen slug, leaving the rest of the message alone. */
   const pickSkillSuggestion = (skill: TeacherSkill) => {
-    setInput(`/${skill.slug} `);
+    setInput(input.replace(/(^|\s)\/(\S*)$/, `$1/${skill.slug} `));
     setSkillHighlight(0);
     inputRef.current?.focus();
   };
+  // A document build is minutes of pip installs and script runs, during which the agent may emit
+  // nothing at all. Without a clock and a heartbeat that silence reads as a crash, so people give
+  // up on a run that was about to finish.
+  const [nowTick, setNowTick] = useState(0);
+  const startedAtRef = useRef(0);
+  const lastChangeRef = useRef(0);
+  const traceSignature = agentTrace
+    ? `${agentTrace.activity.length}:${agentTrace.reasoning.length}:${agentTrace.answer.length}`
+    : '';
+  useEffect(() => {
+    if (!isLoading) return;
+    const t = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [isLoading]);
+  useEffect(() => {
+    if (isLoading) {
+      startedAtRef.current = startedAtRef.current || Date.now();
+      lastChangeRef.current = Date.now();
+    } else {
+      startedAtRef.current = 0;
+    }
+  }, [isLoading]);
+  useEffect(() => { lastChangeRef.current = Date.now(); }, [traceSignature]);
+
+  const elapsedSeconds = isLoading && startedAtRef.current
+    ? Math.max(0, Math.floor((Math.max(nowTick, Date.now()) - startedAtRef.current) / 1000))
+    : 0;
+  const quietSeconds = isLoading && lastChangeRef.current
+    ? Math.max(0, Math.floor((Math.max(nowTick, Date.now()) - lastChangeRef.current) / 1000))
+    : 0;
+  const formatDuration = (s: number) =>
+    s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -484,15 +518,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 <Sparkles size={14} />
               </div>
               <div className="bg-slate-800 dark:bg-slate-900 text-slate-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm max-w-[85%] w-full space-y-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-primary-300">
-                  <Loader2 size={14} className="animate-spin" /> Agent working…
+                <div className="flex items-center justify-between gap-2 text-xs font-medium text-primary-300">
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Agent working…
+                  </span>
+                  <span className="tabular-nums text-slate-400">{formatDuration(elapsedSeconds)}</span>
                 </div>
 
-                {/* Activity feed — what the agent is doing right now */}
+                {/* Activity feed — what the agent is doing right now. Older steps are trimmed so a
+                    long build stays readable rather than becoming a wall of "Running code". */}
                 {agentTrace.activity.length > 0 && (
                   <ul className="space-y-1">
-                    {agentTrace.activity.map((item, i) => {
-                      const isLast = i === agentTrace.activity.length - 1;
+                    {agentTrace.activity.length > 8 && (
+                      <li className="text-[11px] text-slate-600">…{agentTrace.activity.length - 8} earlier steps</li>
+                    )}
+                    {agentTrace.activity.slice(-8).map((item, i, shown) => {
+                      const isLast = i === shown.length - 1;
                       return (
                         <li key={i} className={`flex items-center gap-1.5 text-xs ${isLast ? 'text-slate-200' : 'text-slate-500'}`}>
                           <span className="shrink-0">{activityIcon(item.kind)}</span>
@@ -501,6 +542,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                       );
                     })}
                   </ul>
+                )}
+
+                {/* Heartbeat: a build can go minutes without emitting anything. Say so, rather than
+                    letting a working run look like a hung one. */}
+                {quietSeconds > 20 && (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Still going — building a document can take several minutes. You can press Stop at any point.
+                  </p>
                 )}
 
                 {/* Streaming reasoning summary */}
@@ -528,7 +577,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               </div>
               <div className="bg-slate-800 dark:bg-slate-900 text-white rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" />
-                <span className="text-xs">{agentMode ? 'Agent working… this can take a minute' : 'Thinking...'}</span>
+                <span className="text-xs">
+                  {agentMode ? 'Agent working… this can take a few minutes' : 'Thinking...'}
+                  {elapsedSeconds > 3 && <span className="ml-2 tabular-nums text-slate-400">{formatDuration(elapsedSeconds)}</span>}
+                </span>
               </div>
             </div>
           ) : null}

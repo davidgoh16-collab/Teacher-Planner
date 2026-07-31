@@ -54,8 +54,9 @@ import { fetchApps, fetchAppCategories, saveApp, deleteApp } from './services/ap
 import { TEXT_MODEL, buildDateContextBlock, getAiClient } from './services/aiService';
 import { fetchColleagues } from './services/colleagueService';
 import { buildMappingFromPeople, scrubText, rehydrateText, rehydrateDeep, PseudonymMapping } from './utils/pseudonymiser';
+import { findInvokedSkill, stripSkillCommand } from './utils/skillCommand';
 import { PLANNER_TOOL_DECLARATIONS } from './services/plannerTools';
-import { streamAgentInteraction, cancelAgentInteraction, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks, Interaction } from './services/agentService';
+import { streamAgentInteraction, cancelAgentInteraction, partialInteractionIdOf, getPendingFunctionCalls, buildAgentTools, isEnvironmentGoneError, AgentFunctionResult, AgentActivityItem, AgentStreamCallbacks, Interaction } from './services/agentService';
 import { runAgentTurn, continueAgentTurn } from './services/agentOrchestrator';
 import { fetchResources } from './services/resourceService';
 import { fetchCustomAgents, fetchMcpServers, setAgentMemory, fetchSkills, markSkillUsed } from './services/aiHubService';
@@ -1276,9 +1277,18 @@ const App: React.FC = () => {
       },
       onActivity: (item) => {
         const t = traceRef.current || { reasoning: '', activity: [], answer: '' };
-        // Collapse consecutive duplicates (e.g. repeated "Thinking") to keep the feed readable.
         const last = t.activity[t.activity.length - 1];
-        const activity = last && last.label === item.label ? t.activity : [...t.activity, item];
+        let activity: AgentActivityItem[];
+        if (item.replaceLast && last) {
+          // A step announces itself before it says what it is ("Running code", then the command a
+          // moment later). Fill in the detail rather than listing the same step twice.
+          activity = [...t.activity.slice(0, -1), item];
+        } else if (last && last.label === item.label && last.detail === item.detail) {
+          // Collapse consecutive duplicates (e.g. repeated "Thinking") to keep the feed readable.
+          activity = t.activity;
+        } else {
+          activity = [...t.activity, item];
+        }
         traceRef.current = { ...t, activity };
         sync();
       },
@@ -1287,7 +1297,15 @@ const App: React.FC = () => {
 
   // Render the result of an agent interaction: either surface pending planner mutations for
   // confirmation, or print the agent's final answer. `thoughts` is the collapsed trace to persist.
-  const handleAgentInteractionResult = (interaction: { id: string; environment_id?: string; status: string; output_text?: string; }, pendingCalls: ReturnType<typeof getPendingFunctionCalls>, thoughts?: string, sideChannelResults: AgentFunctionResult[] = []) => {
+  const handleAgentInteractionResult = (
+    interaction: { id: string; environment_id?: string; status: string; output_text?: string; },
+    pendingCalls: ReturnType<typeof getPendingFunctionCalls>,
+    thoughts?: string,
+    sideChannelResults: AgentFunctionResult[] = [],
+    // What to say when the run produced no closing line. A run that built and uploaded a document
+    // did plenty; "returned no output" is both wrong and disheartening.
+    emptyFallback = "The agent finished but returned no output.",
+  ) => {
     const environmentId = interaction.environment_id || agentSession?.environmentId || 'remote';
     setAgentSession({ interactionId: interaction.id, environmentId });
 
@@ -1309,7 +1327,7 @@ const App: React.FC = () => {
       return;
     }
 
-    setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || "The agent finished but returned no output.", thoughts }]);
+    setChatMessages(prev => [...prev, { role: 'model', text: interaction.output_text || emptyFallback, thoughts }]);
   };
 
   /**
@@ -1403,6 +1421,8 @@ const App: React.FC = () => {
     setIsAiLoading(true);
     traceRef.current = { reasoning: '', activity: [], answer: '' };
     setAgentTrace({ reasoning: '', activity: [], answer: '' });
+    // Declared out here so a failed run can still report the files it managed to produce.
+    const resourceIdsBefore = new Set(resources.map(r => r.id));
 
     try {
 
@@ -1419,13 +1439,16 @@ const App: React.FC = () => {
         ? `The teacher has explicitly asked you to use their "${forcedSkill.name}" skill for this task.\n` +
           `Before doing anything else, read \`.agents/skills/${forcedSkill.slug}/SKILL.md\`. Then list ` +
           `\`.agents/skills/${forcedSkill.slug}/\` and read any supporting files it refers to (references, ` +
-          `scripts, templates) and use them. Follow it exactly — it takes precedence over how you would ` +
-          `otherwise format or approach this.\n\n`
+          `scripts, templates) and use them. If it ships scripts, run them rather than reimplementing ` +
+          `what they do. Follow it exactly for HOW the work should be done and how the result should ` +
+          `look — but it does not change the rule that a document must be produced as a real file and ` +
+          `uploaded, never written out in the reply. If the skill's workflow expects source material ` +
+          `that isn't here, say what you need instead of substituting a written summary.\n\n`
         : '';
       // Strip the command token itself so the agent sees the actual request; the directive above
       // now carries what the slash meant.
       const taskText = forcedSkill
-        ? (userMessage.replace(/^\/\S+\s*/, '').trim() || `Use the "${forcedSkill.name}" skill.`)
+        ? (stripSkillCommand(userMessage, forcedSkill) || `Use the "${forcedSkill.name}" skill.`)
         : userMessage;
       const safeUserMessage = scrubText(taskText, mapping);
 
@@ -1493,7 +1516,6 @@ const App: React.FC = () => {
         input = withAttachment(buildFullInput());
       }
 
-      const resourceIdsBefore = new Set(resources.map(r => r.id));
 
       // A custom assistant narrows what the run can reach and pins its model; without one the run
       // gets the built-in defaults.
@@ -1579,41 +1601,67 @@ const App: React.FC = () => {
       // call was done. Absorbing one without answering left runs that had read the skill, done the
       // work and then stopped dead with "returned no output". Hand the results back so it finishes.
       // Bounded, because the agent may legitimately report using a skill more than once.
-      for (let hop = 0; results.length > 0 && pendingCalls.length === 0 && current.id && hop < 3; hop++) {
-        const { interaction: continued } = await continueAgentTurn(
-          { interactionId: current.id, environmentId: current.environment_id || session?.environmentId || 'remote' },
-          results,
-          { tools, agentConfig: agentConfigForRun, signal },
-        );
-        if (!continued) break;
-        current = continued;
-        if (typeof current.output_text === 'string') {
-          current.output_text = rehydrateText(current.output_text, mapping);
+      // Wrapped: the work is already done by this point, and the files are already uploaded. A
+      // rate limit or a blip on this wrap-up call must not throw away a finished run — show what
+      // we have rather than an error over the top of it.
+      try {
+        for (let hop = 0; results.length > 0 && pendingCalls.length === 0 && current.id && hop < 3; hop++) {
+          const { interaction: continued } = await continueAgentTurn(
+            { interactionId: current.id, environmentId: current.environment_id || session?.environmentId || 'remote' },
+            results,
+            { tools, agentConfig: agentConfigForRun, signal },
+          );
+          if (!continued) break;
+          current = continued;
+          if (typeof current.output_text === 'string') {
+            current.output_text = rehydrateText(current.output_text, mapping);
+          }
+          const next = await processSideChannelCalls(readCalls(current), mapping, forcedThisTurn);
+          pendingCalls = next.pendingCalls;
+          notes = [...notes, ...next.notes];
+          results = next.results;
         }
-        const next = await processSideChannelCalls(readCalls(current), mapping, forcedThisTurn);
-        pendingCalls = next.pendingCalls;
-        notes = [...notes, ...next.notes];
-        results = next.results;
+      } catch (e) {
+        if (wasStopped(runId)) throw e;
+        console.warn('Could not finish the agent wrap-up; showing what the run produced', e);
       }
 
-      handleAgentInteractionResult(current, pendingCalls, formatThoughts(liveTrace), results);
-      notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
+      // A run that did the work but was cut off before its closing line still produced files.
+      if (!current.output_text?.trim() && traceRef.current?.answer?.trim()) {
+        current = { ...current, output_text: traceRef.current.answer };
+      }
 
       // The agent uploads finished documents to the server directly, so the only way the UI learns
-      // about them is to look. Anything new belongs to the run that just finished.
+      // about them is to look. Anything new belongs to the run that just finished — and it's looked
+      // up BEFORE the answer is rendered, so a run whose closing line never arrived can say what it
+      // actually made instead of "returned no output".
+      let producedNames: string[] = [];
       try {
         const latest = await fetchResources();
         setResources(latest);
-        const produced = latest.filter(r => !resourceIdsBefore.has(r.id));
-        if (produced.length > 0) {
-          const list = produced.map(r => `• ${r.name}`).join('\n');
-          setChatMessages(prev => [...prev, {
-            role: 'model',
-            text: `Saved to your Resources:\n${list}`,
-          }]);
-        }
+        producedNames = latest.filter(r => !resourceIdsBefore.has(r.id)).map(r => r.name);
       } catch (e) {
         console.error('Could not refresh resources after the agent run', e);
+      }
+
+      handleAgentInteractionResult(
+        current,
+        pendingCalls,
+        formatThoughts(liveTrace),
+        results,
+        producedNames.length
+          ? `Done — saved to your Resources:\n${producedNames.map(n => `• ${n}`).join('\n')}`
+          : undefined,
+      );
+      notes.forEach(text => setChatMessages(prev => [...prev, { role: 'model', text }]));
+
+      // Only worth listing separately when the agent already said its piece; otherwise the answer
+      // above IS the list.
+      if (producedNames.length && current.output_text?.trim()) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: `Saved to your Resources:\n${producedNames.map(n => `• ${n}`).join('\n')}`,
+        }]);
       }
 
       if (restarted) {
@@ -1639,6 +1687,34 @@ const App: React.FC = () => {
         return;
       }
       console.error("Agent Error:", error);
+
+      // A run that got some way in may already have written files and streamed part of an answer.
+      // Losing both behind an error message wastes work the teacher waited for.
+      const partialAnswer = (traceRef.current?.answer || '').trim();
+      if (partialAnswer) {
+        setChatMessages(prev => [...prev, { role: 'model', text: partialAnswer }]);
+      }
+      try {
+        const latest = await fetchResources();
+        setResources(latest);
+        const produced = latest.filter(r => !resourceIdsBefore.has(r.id));
+        if (produced.length > 0) {
+          setChatMessages(prev => [...prev, {
+            role: 'model',
+            text: `Saved to your Resources:\n${produced.map(r => `• ${r.name}`).join('\n')}`,
+          }]);
+        }
+      } catch { /* the error below is the more useful thing to report */ }
+
+      // The connection dropped but the run itself is alive at Google's end. Re-sending would build
+      // the same thing twice, so tell them how to rejoin it instead.
+      if (partialInteractionIdOf(error)) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: "_(The connection to that run dropped, but it's still going. Send \"carry on\" in a moment and I'll pick it back up — don't re-send the task, or it'll be done twice.)_",
+        }]);
+        return;
+      }
       // Lead with what actually went wrong. Blaming rate limits for every failure sent people off
       // waiting when the real cause was something they could act on.
       const raw = String(error?.message || '');
@@ -2395,13 +2471,12 @@ const App: React.FC = () => {
       setPendingResourceAttachment(null);
       if (researchMode) return handleResearchSendMessage(message);
 
-      // A leading /skill-slug explicitly invokes that skill. It is handed straight to the send
-      // handler rather than parked in state first — state set here isn't readable by a handler
-      // called in the same tick, which is exactly how the invoked skill got silently dropped.
-      // The teacher's raw text stays in the transcript; the handler strips the token before the
-      // model sees it and replaces it with a direct instruction to read that skill.
-      const slashMatch = message.match(/^\/(\S+)/);
-      const invokedSkill = slashMatch ? skills.find(s => s.enabled && s.slug === slashMatch[1].toLowerCase()) : undefined;
+      // A /skill-slug anywhere in the message explicitly invokes that skill. It is handed straight
+      // to the send handler rather than parked in state first — state set here isn't readable by a
+      // handler called in the same tick, which is exactly how the invoked skill got silently
+      // dropped. The teacher's raw text stays in the transcript; the handler strips the token
+      // before the model sees it and replaces it with a direct instruction to read that skill.
+      const invokedSkill = findInvokedSkill(message, skills);
       if (invokedSkill) {
         markSkillUsed(invokedSkill)
           .then(updated => setSkills(prev => prev.map(s => (s.id === updated.id ? updated : s))))

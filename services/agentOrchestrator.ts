@@ -2,6 +2,7 @@ import {
   createAgentInteraction,
   streamAgentInteraction,
   isEnvironmentGoneError,
+  partialInteractionIdOf,
   AgentStreamCallbacks,
   AgentTool,
   AgentConfig,
@@ -64,6 +65,10 @@ const attempt = async (
     // An expired sandbox must reach the caller so the run can be restarted — retrying it as a
     // blocking call would just 404 again.
     if (isEnvironmentGoneError(streamErr)) throw streamErr;
+    // The blocking fallback exists for streams that never got going (a proxy eating SSE). Once a
+    // run has started upstream, re-sending it starts a second one — duplicated work, duplicated
+    // cost — so surface the failure instead. The conversation keeps the id and can carry on.
+    if (partialInteractionIdOf(streamErr)) throw streamErr;
     console.warn('Agent stream failed, falling back to blocking call:', streamErr);
     return { interaction: await createAgentInteraction(requestArgs), streamFellBack: true };
   }

@@ -70,6 +70,17 @@ const buildAgentsMd = ({ uploadUrl, workspaceUrlBase, brand, skills, hasWorkspac
   lines.push('After uploading, tell the teacher what you made in one short line. The file appears in');
   lines.push('their Resources automatically, so do not paste its full contents as well.');
   lines.push('');
+  lines.push('This rule is not optional and nothing overrides it. A skill, a template or a standing');
+  lines.push('instruction tells you WHAT to produce and how it should look — none of them turn a');
+  lines.push('document into a chat message. If you find yourself about to write a booklet, a lesson,');
+  lines.push('a scheme of work or a handout into the reply, stop and build the file instead.');
+  lines.push('');
+  lines.push('If a skill\'s workflow expects source material you cannot see here — a folder of');
+  lines.push('schemes of work, last year\'s booklets, a shared drive — say exactly what you need and');
+  lines.push('ask the teacher to attach it or add it to their Resources. Do not quietly drop to a');
+  lines.push('written summary instead: an unanswerable task said out loud is more use than a');
+  lines.push('plausible answer to a different one.');
+  lines.push('');
   lines.push('## Privacy');
   lines.push('');
   lines.push('Pupil and staff names reach you already replaced with tokens like `Student_3F2A19B4`.');
