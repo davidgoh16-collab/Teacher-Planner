@@ -3,6 +3,7 @@ import {
   streamAgentInteraction,
   isEnvironmentGoneError,
   partialInteractionIdOf,
+  isTransientStartupError,
   AgentStreamCallbacks,
   AgentTool,
   AgentConfig,
@@ -87,6 +88,14 @@ export const runAgentTurn = async (
     const { interaction, streamFellBack } = await attempt({ input, session, tools, agentConfig, plannerEnv, signal }, callbacks);
     return { interaction, restarted: false, streamFellBack };
   } catch (err) {
+    // A run that fell over in its first moments having done nothing is worth quietly trying again —
+    // the API throws permission_denied transiently while a sandbox is coming up, and a teacher
+    // shouldn't have to learn that "carry on" fixes it.
+    if (!signal?.aborted && isTransientStartupError(err)) {
+      console.warn('Agent run failed on startup; retrying once:', err);
+      const retry = await attempt({ input, session, tools, agentConfig, plannerEnv, signal }, callbacks);
+      return { interaction: retry.interaction, restarted: false, streamFellBack: retry.streamFellBack };
+    }
     if (!session || signal?.aborted || !isEnvironmentGoneError(err)) throw err;
     const { interaction, streamFellBack } = await attempt(
       { input: buildFreshInput ? buildFreshInput() : input, session: null, tools, agentConfig, plannerEnv, signal },

@@ -622,6 +622,10 @@ export const streamAgentInteraction = async (
     // Tell the caller a run already exists upstream. Retrying the request would start a SECOND one:
     // the same booklet built twice, paid for twice, and minutes more waiting.
     if (result.id) (err as any).partialInteractionId = result.id;
+    // ...unless nothing had actually happened yet, which the caller needs to know to tell an early
+    // hiccup apart from losing a run that was minutes into real work.
+    (err as any).partialSteps = (result.steps || []).length;
+    (err as any).partialText = (result.output_text || '').length;
     throw err;
   } finally {
     release();
@@ -631,6 +635,21 @@ export const streamAgentInteraction = async (
 /** The interaction id of a run that had already started when its stream failed, if there was one. */
 export const partialInteractionIdOf = (err: unknown): string | undefined =>
   (err as any)?.partialInteractionId;
+
+/**
+ * True when a stream died early with an error the API throws transiently while a run is starting
+ * up — `permission_denied` in particular, seen twice on a first run and gone on the next attempt.
+ * "Early" matters: retrying costs nothing when no work has been done, and costs a duplicate
+ * document build when it has.
+ */
+export const isTransientStartupError = (err: unknown): boolean => {
+  const e = err as any;
+  if (!e) return false;
+  const message = String(e.message || '');
+  const transient = /permission_denied|The caller does not have permission|unavailable|internal error/i.test(message);
+  const noRealProgress = (e.partialText || 0) === 0 && (e.partialSteps || 0) <= 2;
+  return transient && noRealProgress;
+};
 
 /**
  * Return the function calls the agent is still waiting on — `function_call` steps with no matching

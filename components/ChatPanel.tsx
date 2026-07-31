@@ -187,7 +187,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // Offer skills whenever a /token is being typed at the END of the input, wherever that is —
   // people write the request first and reach for the skill afterwards, and forcing the slash to
   // come first meant they simply couldn't invoke one once they'd started typing.
-  const skillCommandMatch = input.match(/(?:^|\s)\/(\S*)$/);
+  const skillCommandMatch = input.match(/\/(\S*)$/);
   const skillSuggestions = skillCommandMatch
     ? skills.filter(s => s.enabled && s.slug.startsWith(skillCommandMatch[1].toLowerCase())).slice(0, 6)
     : [];
@@ -197,7 +197,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   /** Replace the /token being typed with the chosen slug, leaving the rest of the message alone. */
   const pickSkillSuggestion = (skill: TeacherSkill) => {
-    setInput(input.replace(/(^|\s)\/(\S*)$/, `$1/${skill.slug} `));
+    setInput(input.replace(/\/(\S*)$/, `/${skill.slug} `));
     setSkillHighlight(0);
     inputRef.current?.focus();
   };

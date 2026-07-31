@@ -1706,6 +1706,17 @@ const App: React.FC = () => {
         }
       } catch { /* the error below is the more useful thing to report */ }
 
+      // The agent service refusing outright is not something the teacher can fix by retrying, and
+      // it is NOT a broken key — the same key keeps working for the quick chat and deep research.
+      // Saying so stops an outage being mistaken for a bug in their own setup.
+      if (/permission_denied|does not have permission|\(403\)/i.test(String(error?.message || ''))) {
+        setChatMessages(prev => [...prev, {
+          role: 'model',
+          text: "The agent service is refusing requests at the moment (permission denied at Google's end). This isn't something you've done — your key still works for the quick chat and for research. Agent mode should come back on its own; if it doesn't, check the Antigravity agent's status and quota in AI Studio.",
+        }]);
+        return;
+      }
+
       // The connection dropped but the run itself is alive at Google's end. Re-sending would build
       // the same thing twice, so tell them how to rejoin it instead.
       if (partialInteractionIdOf(error)) {
